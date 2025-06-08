@@ -60,6 +60,11 @@ export const getPropertyById = (id: string): Property | undefined => {
   return JSON.parse(JSON.stringify(properties.find(p => p.id === id)));
 };
 
+export const getPropertyByName = (name: string): Property | undefined => {
+  return JSON.parse(JSON.stringify(properties.find(p => p.name.toLowerCase() === name.toLowerCase())));
+};
+
+
 export const addProperty = (propertyData: Omit<Property, 'id' | 'plots'> & { imageType?: 'photo' | 'pdf', plots?: any[] }): Property => {
   const newProperty: Property = {
     id: `prop-${Date.now()}`,

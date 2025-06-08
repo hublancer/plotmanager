@@ -1,10 +1,21 @@
+
+"use client"; 
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Building2, CreditCard, FileText, Users } from "lucide-react";
 import Image from "next/image";
+import { useState, useEffect } from "react";
+import { getProperties } from "@/lib/mock-db";
 
 export default function DashboardPage() {
+  const [totalProperties, setTotalProperties] = useState(0);
+
+  useEffect(() => {
+    setTotalProperties(getProperties().length);
+  }, []);
+
   const summaryStats = [
-    { title: "Total Properties", value: "120", icon: <Building2 className="h-6 w-6 text-primary" />, description: "+5 since last month" },
+    { title: "Total Properties", value: totalProperties.toString(), icon: <Building2 className="h-6 w-6 text-primary" />, description: "+5 since last month" }, // Description is static for now
     { title: "Occupancy Rate", value: "85%", icon: <Users className="h-6 w-6 text-primary" />, description: "Target: 90%" },
     { title: "Pending Payments", value: "15", icon: <CreditCard className="h-6 w-6 text-destructive" />, description: "$5,200 overdue" },
     { title: "Generated Reports", value: "28", icon: <FileText className="h-6 w-6 text-primary" />, description: "Last report: Sales Q2" },
