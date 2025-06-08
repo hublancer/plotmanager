@@ -254,5 +254,3 @@ const chatAssistantFlow = ai.defineFlow(
     return { assistantResponse: output.assistantResponse || "I'm not sure how to respond to that. Can you try rephrasing?" };
   }
 );
-
-```
