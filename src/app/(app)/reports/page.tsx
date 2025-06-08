@@ -1,32 +1,23 @@
+
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { generateSalesReport, type GenerateSalesReportInput, type GenerateSalesReportOutput } from "@/ai/flows/generate-sales-report";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const reportFormSchema = z.object({
-  salesData: z.string().min(50, "Sales data must be at least 50 characters."),
   reportType: z.enum(["summary", "detailed"]),
 });
 
 type ReportFormValues = z.infer<typeof reportFormSchema>;
-
-const sampleSalesData = `
-Property: Sunset Villa, Plot: 101, Buyer: John Doe, Price: $150,000, Date: 2023-10-15
-Property: Sunset Villa, Plot: 102, Buyer: Jane Smith, Price: $120,000, Date: 2023-11-01
-Property: Greenwood Heights, Apt: B3, Buyer: Alice Wonderland, Price: $250,000 (Installment), Date: 2023-08-20
-Property: Lakeside Estate, Plot: A5, Buyer: Bob Johnson, Price: $300,000, Date: 2023-12-05
-`;
 
 export default function ReportsPage() {
   const [reportOutput, setReportOutput] = useState<GenerateSalesReportOutput | null>(null);
@@ -36,7 +27,6 @@ export default function ReportsPage() {
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),
     defaultValues: {
-      salesData: sampleSalesData.trim(),
       reportType: "summary",
     },
   });
@@ -45,11 +35,11 @@ export default function ReportsPage() {
     setIsLoading(true);
     setReportOutput(null);
     try {
+      // Input for the flow now only contains reportType
       const input: GenerateSalesReportInput = {
-        salesData: values.salesData,
         reportType: values.reportType,
       };
-      const result = await generateSalesReport(input);
+      const result = await generateSalesReport(input); // The flow itself will fetch and process data
       setReportOutput(result);
       toast({ title: "Report Generated", description: "AI sales report has been successfully created." });
     } catch (error) {
@@ -70,34 +60,12 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="text-2xl">AI Sales Report Generator</CardTitle>
           <CardDescription>
-            Compile sales data to produce insightful summaries or detailed reports using AI. 
-            Paste your sales data below or use the sample.
+            Select the type of report you want the AI to generate. The system will use current property and sales data.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="salesData"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel htmlFor="salesData">Sales Data</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        id="salesData"
-                        placeholder="Enter sales data here, e.g., Property Name, Plot #, Buyer, Price, Date..."
-                        className="min-h-[200px] font-mono text-sm"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Provide detailed sales records. More data leads to better reports.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <FormField
                 control={form.control}
                 name="reportType"

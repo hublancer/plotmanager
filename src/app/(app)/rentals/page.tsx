@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, DollarSign, Edit } from "lucide-react"; // Assuming Edit might be used later
+import { Eye, DollarSign, Edit, PlusCircle } from "lucide-react"; 
 import type { RentedPropertyDetails } from "@/types";
 import Link from "next/link";
 import { getRentedProperties } from "@/lib/mock-db";
@@ -17,11 +17,17 @@ export default function RentalsPage() {
     setRentedProperties(getRentedProperties());
   }, []);
 
+  const handleAddRental = () => {
+    alert("Functionality to add a new rental agreement or mark a property as rented would be implemented here.");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold">Rental Property Management</h2>
-        {/* Button to add new rental agreement or mark property as rented could go here */}
+        <Button onClick={handleAddRental}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Rental
+        </Button>
       </div>
 
       <Card>
@@ -86,3 +92,4 @@ export default function RentalsPage() {
     </div>
   );
 }
+

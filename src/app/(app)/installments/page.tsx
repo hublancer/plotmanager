@@ -6,16 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Eye, Edit, DollarSign } from "lucide-react";
+import { Eye, Edit, DollarSign, PlusCircle } from "lucide-react";
 import type { InstallmentDetails } from "@/types";
 import Link from "next/link";
-import { getInstallmentProperties } from "@/lib/mock-db"; // Updated import
+import { getInstallmentProperties } from "@/lib/mock-db"; 
 
 export default function InstallmentsPage() {
   const [installmentProperties, setInstallmentProperties] = useState<InstallmentDetails[]>([]);
 
   useEffect(() => {
-    // Fetch data from the centralized mock DB
     setInstallmentProperties(getInstallmentProperties());
   }, []);
   
@@ -24,11 +23,17 @@ export default function InstallmentsPage() {
     return (paid / total) * 100;
   };
 
+  const handleAddInstallment = () => {
+    alert("Functionality to add a new installment plan or mark a property as sold on installment would be implemented here.");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold">Installment Tracking</h2>
-        {/* Button to add new installment property or convert existing property could go here */}
+        <Button onClick={handleAddInstallment}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Installment Plan
+        </Button>
       </div>
 
       <Card>
@@ -77,7 +82,6 @@ export default function InstallmentsPage() {
                             <DollarSign className="h-4 w-4" />
                         </Button>
                      </Link>
-                     {/* Edit installment details could be a modal or separate page */}
                      <Button variant="ghost" size="icon" title="Edit Installment Details" onClick={() => alert(`Edit installment for ${prop.name}`)}>
                         <Edit className="h-4 w-4" />
                     </Button>
