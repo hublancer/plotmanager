@@ -3,7 +3,7 @@
 
 // Leaflet CSS is imported in RootLayout
 // Import leaflet-defaulticon-compatibility to make default icons work with bundlers like Webpack
-import 'leaflet-defaulticon-compatibility'; 
+// import 'leaflet-defaulticon-compatibility'; -- Moved to useEffect
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import type L from 'leaflet'; // Import Leaflet type for map instance
@@ -52,6 +52,8 @@ export function PropertyLocationMap({
 
   useEffect(() => {
     setIsClient(true);
+    // Dynamically import leaflet-defaulticon-compatibility only on the client-side
+    import('leaflet-defaulticon-compatibility');
   }, []);
 
   // Effect for cleaning up the map instance on unmount
