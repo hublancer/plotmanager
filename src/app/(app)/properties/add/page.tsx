@@ -13,16 +13,18 @@ export default function AddPropertyPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (data: any) => { // data is PropertyFormValues & { imagePreviewUrl?: string }
+  // data is PropertyFormValues & { imagePreviewUrl?: string, imageType?: 'photo' | 'pdf' }
+  const handleSubmit = async (data: any) => { 
     setIsSubmitting(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const newPropertyData: Omit<Property, 'id' | 'plots'> & {imageUrl?: string} = {
+    const newPropertyData: Omit<Property, 'id' | 'plots'> = {
         name: data.name,
         address: data.address,
+        propertyType: data.propertyType,
         imageUrl: data.imagePreviewUrl, // Use the preview URL as imageUrl for mock data
-        // imageType: 'photo', // Or determine based on file if needed
+        imageType: data.imageType, // Pass the determined imageType
     };
 
     addPropertyToDb(newPropertyData); // Add to centralized mock DB

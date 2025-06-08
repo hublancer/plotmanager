@@ -11,9 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Property } from "@/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, FileText } from "lucide-react"; // Added FileText
 
 const propertyTypes = [
   "Residential Plot",
@@ -37,12 +37,28 @@ type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
 interface PropertyFormProps {
   initialData?: Property | null;
-  onSubmit: (data: PropertyFormValues & { imagePreviewUrl?: string }) => void;
+  onSubmit: (data: PropertyFormValues & { imagePreviewUrl?: string, imageType?: 'photo' | 'pdf' }) => void;
   isSubmitting?: boolean;
 }
 
 export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFormProps) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(initialData?.imageUrl || null);
+  const [imagePreviewType, setImagePreviewType] = useState<'image' | 'pdf' | null>(null);
+
+  useEffect(() => {
+    if (initialData?.imageUrl) {
+      setImagePreviewUrl(initialData.imageUrl);
+      if (initialData.imageType === 'pdf') {
+        setImagePreviewType('pdf');
+      } else if (initialData.imageType === 'photo') {
+        setImagePreviewType('image');
+      } else {
+         // If imageType is undefined but imageUrl exists, assume it's an image for backward compatibility or generic URLs
+        setImagePreviewType('image');
+      }
+    }
+  }, [initialData]);
+
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
@@ -61,16 +77,29 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreviewUrl(reader.result as string);
+        if (file.type === "application/pdf") {
+          setImagePreviewType("pdf");
+        } else if (file.type.startsWith("image/")) {
+          setImagePreviewType("image");
+        } else {
+          setImagePreviewType(null); // Fallback for unknown types
+        }
       };
       reader.readAsDataURL(file);
     } else {
       form.setValue("imageFile", undefined);
-      setImagePreviewUrl(initialData?.imageUrl || null); 
+      if (initialData?.imageUrl) {
+        setImagePreviewUrl(initialData.imageUrl);
+        setImagePreviewType(initialData.imageType === 'pdf' ? 'pdf' : (initialData.imageUrl && initialData.imageType !== 'pdf' ? 'image' : null));
+      } else {
+        setImagePreviewUrl(null);
+        setImagePreviewType(null);
+      }
     }
   };
 
   const handleSubmit = (values: PropertyFormValues) => {
-    onSubmit({ ...values, imagePreviewUrl: imagePreviewUrl || undefined });
+    onSubmit({ ...values, imagePreviewUrl: imagePreviewUrl || undefined, imageType: imagePreviewType || undefined });
   };
 
 
@@ -137,13 +166,21 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                   <FormControl>
                     <div className="flex flex-col items-center space-y-2">
                        <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                        {imagePreviewUrl ? (
-                          <Image src={imagePreviewUrl} alt="Preview" width={200} height={150} className="object-contain max-h-40 rounded-md" data-ai-hint="property plan" />
+                        {imagePreviewUrl && imagePreviewType === 'image' ? (
+                          <Image src={imagePreviewUrl} alt="Preview" width={200} height={150} className="object-contain max-h-40 rounded-md" data-ai-hint="property image" />
+                        ) : imagePreviewUrl && imagePreviewType === 'pdf' ? (
+                          <div className="flex flex-col items-center justify-center text-center p-4">
+                            <FileText className="w-16 h-16 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mt-2">PDF Selected</p>
+                            {form.getValues("imageFile") && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[150px]">{(form.getValues("imageFile") as File).name}</p>
+                            )}
+                          </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
                             <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                            <p className="text-xs text-muted-foreground">PNG, JPG, PDF (MAX. 800x400px)</p>
+                            <p className="text-xs text-muted-foreground">PNG, JPG, PDF</p>
                           </div>
                         )}
                         <Input id="imageUpload" type="file" className="hidden" onChange={handleImageChange} accept="image/*,.pdf" />

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit3, Trash2, Eye, Search, Package } from "lucide-react"; // Added Package for property type
+import { PlusCircle, Edit3, Trash2, Eye, Search, Package, FileText } from "lucide-react"; // Added FileText
 import type { Property } from "@/types";
 import Image from "next/image";
 import { getProperties, deleteProperty as deletePropertyFromDb } from "@/lib/mock-db";
@@ -105,7 +105,7 @@ export default function PropertiesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[100px]">Image</TableHead>
+                  <TableHead className="w-[100px]">Image/File</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead>Type</TableHead>
@@ -118,14 +118,20 @@ export default function PropertiesPage() {
                 {filteredProperties.map((property) => (
                   <TableRow key={property.id}>
                     <TableCell>
-                      <Image 
-                        src={property.imageUrl || "https://placehold.co/100x75.png"} 
-                        alt={property.name}
-                        width={100}
-                        height={75}
-                        className="rounded object-cover aspect-[4/3]"
-                        data-ai-hint="property exterior"
-                      />
+                      {property.imageType === 'pdf' && property.imageUrl ? (
+                        <a href={property.imageUrl} target="_blank" rel="noopener noreferrer" title={`View PDF for ${property.name}`} className="flex items-center justify-center h-[75px] w-[100px] bg-muted rounded hover:bg-muted/80">
+                          <FileText className="h-8 w-8 text-muted-foreground" />
+                        </a>
+                      ) : (
+                        <Image 
+                          src={property.imageUrl || "https://placehold.co/100x75.png"} 
+                          alt={property.name}
+                          width={100}
+                          height={75}
+                          className="rounded object-cover aspect-[4/3]"
+                          data-ai-hint="property exterior"
+                        />
+                      )}
                     </TableCell>
                     <TableCell className="font-medium">{property.name}</TableCell>
                     <TableCell>{property.address}</TableCell>
