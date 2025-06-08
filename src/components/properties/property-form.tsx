@@ -13,14 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Property } from "@/types";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { UploadCloud, FileText, MapPin } from "lucide-react"; 
+import { UploadCloud, FileText, MapPin } from "lucide-react";
 import dynamic from 'next/dynamic';
 import type { LatLngExpression } from 'leaflet';
 import { cn } from "@/lib/utils";
 
 const PropertyLocationMap = dynamic(
   () => import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
-  { 
+  {
     ssr: false,
     loading: () => <div className="h-[300px] w-full rounded-md bg-muted flex items-center justify-center"><p>Loading map...</p></div>
   }
@@ -61,7 +61,7 @@ interface PropertyFormProps {
 export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFormProps) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(initialData?.imageUrl || null);
   const [imagePreviewType, setImagePreviewType] = useState<'image' | 'pdf' | null>(null);
-  
+
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
     defaultValues: {
@@ -134,7 +134,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
   const handleSubmit = (values: PropertyFormValues) => {
     onSubmit({ ...values, imagePreviewUrl: imagePreviewUrl || undefined, imageType: imagePreviewType || undefined });
   };
-  
+
   const handleMapClick = (latlng: { lat: number; lng: number }) => {
     form.setValue("latitude", parseFloat(latlng.lat.toFixed(6)));
     form.setValue("longitude", parseFloat(latlng.lng.toFixed(6)));
@@ -229,14 +229,15 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                 Enter coordinates manually or click on the map to set the location. Geocoding from address is a future enhancement.
               </FormDescription>
               <div className="mt-4">
-                <PropertyLocationMap 
-                  position={mapPosition} 
+                <PropertyLocationMap
+                  key={mapPosition ? `map-lat-${mapPosition[0]}-lng-${mapPosition[1]}` : 'map-no-position'}
+                  position={mapPosition}
                   popupText={form.getValues("name") || "Property Location"}
-                  onPositionChange={handleMapClick} 
+                  onPositionChange={handleMapClick}
                 />
               </div>
             </Card>
-            
+
             <FormField
               control={form.control}
               name="imageFile"
