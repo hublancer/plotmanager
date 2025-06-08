@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Edit2, Trash2, MapPin, Scaling } from "lucide-react"; // Added Scaling icon
+import { PlusCircle, Edit2, Trash2, MapPin, Scaling, FileText } from "lucide-react"; // Added Scaling and FileText icons
 import { useToast } from "@/hooks/use-toast";
 
 interface PlotPinnerProps {
@@ -35,12 +35,18 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!imageContainerRef.current) return;
 
+    // If it's a PDF and we are showing the link, don't trigger pinning.
+    // This check is now implicitly handled by the component structure below.
+    // We only render the interactive image area if imageType is not 'pdf'
+    // OR if we decide to attempt rendering PDF as image (which will likely break).
+
     const rect = imageContainerRef.current.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     
     for (const plot of plots) {
       const distance = Math.sqrt(Math.pow(plot.x - x, 2) + Math.pow(plot.y - y, 2));
+      // Increase clickable area for pins
       if (distance < 3) { 
         setSelectedPlot(plot);
         setIsEditing(true);
@@ -88,39 +94,41 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
     toast({ title: "Plot Deleted", description: "The plot has been removed.", variant: "destructive" });
   };
 
-
-  if (imageType === 'pdf') {
-    return (
-      <div className="p-4 border rounded-lg bg-muted text-muted-foreground text-center">
-        <p className="font-semibold">PDF Pinning Not Available</p>
-        <p className="text-sm">Plot pinning on PDF files is an advanced feature and is not supported in this demo. Please upload an image (PNG, JPG) for pinning.</p>
-        <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block">
-          <Button variant="link">View PDF</Button>
-        </a>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div
         ref={imageContainerRef}
         className="relative w-full aspect-[16/9] border rounded-lg overflow-hidden cursor-crosshair bg-muted/30 shadow-inner"
-        onClick={handleImageClick}
+        onClick={imageType !== 'pdf' ? handleImageClick : undefined} // Only allow click if not PDF, or remove this line to allow click on broken PDF image
         role="button"
         tabIndex={0}
         aria-label="Property image area, click to add a plot pin"
       >
-        <Image src={imageUrl} alt="Property to pin plots on" layout="fill" objectFit="contain" data-ai-hint="property aerial map" />
+        {/* 
+          Attempt to render image. If imageType is 'pdf', this will likely show a broken image icon.
+          The user will still be able to click and pin, but without seeing the PDF content.
+        */}
+        <Image 
+          src={imageUrl} 
+          alt="Property to pin plots on. If PDF, this may not render correctly." 
+          layout="fill" 
+          objectFit="contain" 
+          data-ai-hint="property aerial map site plan" 
+          onError={(e) => {
+            // Optionally handle image loading errors, e.g., for PDFs.
+            // (e.target as HTMLImageElement).style.display = 'none'; // Hide broken image icon
+          }}
+        />
+        
         {plots.map(plot => (
           <div
             key={plot.id}
             className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-150 ease-out hover:scale-125"
-            style={{ left: `${plot.x}%`, top: `${plot.y}%`, backgroundColor: 'rgba(var(--color-accent-hsl), 0.7)', border: '2px solid hsl(var(--accent-foreground))' }}
+            style={{ left: `${plot.x}%`, top: `${plot.y}%`, backgroundColor: 'rgba(var(--primary-hsl, 215 80% 60% / 0.7))', border: '2px solid hsl(var(--primary-foreground, 0 0% 100%))' }}
             onClick={(e) => { e.stopPropagation(); setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}
             title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
           >
-            <MapPin className="w-4 h-4 text-accent-foreground" />
+            <MapPin className="w-4 h-4 text-primary-foreground" />
           </div>
         ))}
         {tempPin && !showDialog && ( 
@@ -132,6 +140,16 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
             </div>
         )}
       </div>
+      
+      {imageType === 'pdf' && (
+         <div className="p-3 border rounded-md bg-secondary/50 text-center text-sm">
+           <p className="text-muted-foreground">
+             You are viewing a PDF. Visual pinning works best with image files (PNG, JPG). 
+             <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="ml-1 underline text-primary">View PDF directly.</a>
+           </p>
+         </div>
+      )}
+
 
       {showDialog && (
         <PlotDialog
@@ -146,7 +164,7 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
       <div className="mt-4">
         <h3 className="text-lg font-semibold mb-2">Pinned Plots ({plots.length})</h3>
         {plots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No plots pinned yet. Click on the image above to add a plot.</p>
+          <p className="text-sm text-muted-foreground">No plots pinned yet. Click on the image area above to add a plot.</p>
         ) : (
           <ul className="space-y-2 max-h-60 overflow-y-auto">
             {plots.map(plot => (
@@ -191,9 +209,9 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
   useEffect(() => {
     if (plotData) {
       setPlotNumber(plotData.plotNumber);
-      setBuyerName(plotData.buyerName);
-      setBuyerContact(plotData.buyerContact);
-      setPrice(plotData.price);
+      setBuyerName(plotData.buyerName || "");
+      setBuyerContact(plotData.buyerContact || "");
+      setPrice(plotData.price || "");
       setSize(plotData.size || "");
       setDetails(plotData.details || "");
     } else {
@@ -211,7 +229,7 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
       plotNumber, 
       buyerName, 
       buyerContact, 
-      price: Number(price),
+      price: Number(price) || 0, // Ensure price is a number, default to 0 if empty/invalid
       size,
       details
     });
@@ -223,46 +241,50 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
         <DialogHeader>
           <DialogTitle>{plotData ? "Edit Plot Information" : "Add Plot Information"}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="plotNumber" className="text-right">Plot Number</Label>
-            <Input id="plotNumber" value={plotNumber} onChange={(e) => setPlotNumber(e.target.value)} className="col-span-3" />
+            <Input id="plotNumber" value={plotNumber} onChange={(e) => setPlotNumber(e.target.value)} className="col-span-3" placeholder="e.g. 123-A"/>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="size" className="text-right flex items-center">
+            <Label htmlFor="size" className="text-right flex items-center justify-end">
               <Scaling className="h-3 w-3 mr-1 inline"/> Size
             </Label>
             <Input id="size" value={size} onChange={(e) => setSize(e.target.value)} className="col-span-3" placeholder="e.g., 5 Marla, 1 Kanal"/>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="buyerName" className="text-right">Buyer Name</Label>
-            <Input id="buyerName" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="col-span-3" />
+            <Input id="buyerName" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="col-span-3" placeholder="Enter buyer's name (optional)"/>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="buyerContact" className="text-right">Buyer Contact</Label>
-            <Input id="buyerContact" value={buyerContact} onChange={(e) => setBuyerContact(e.target.value)} className="col-span-3" />
+            <Input id="buyerContact" value={buyerContact} onChange={(e) => setBuyerContact(e.target.value)} className="col-span-3" placeholder="Buyer's phone/email (optional)"/>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="price" className="text-right">Price (PKR)</Label>
-            <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="col-span-3" />
+            <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="col-span-3" placeholder="Enter agreed price (optional)"/>
           </div>
-           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="details" className="text-right">Details</Label>
-            <Textarea id="details" value={details} onChange={(e) => setDetails(e.target.value)} className="col-span-3" placeholder="e.g., Facing park, corner plot"/>
+           <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="details" className="text-right pt-2">Details</Label>
+            <Textarea id="details" value={details} onChange={(e) => setDetails(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Facing park, corner plot, leased (optional)"/>
           </div>
         </div>
-        <DialogFooter className="justify-between">
-          {plotData && onDelete && (
-            <Button variant="destructive" onClick={onDelete}>Delete</Button>
-          )}
-          <div className="space-x-2">
+        <DialogFooter className="justify-between sm:justify-between flex-wrap gap-2">
+          <div>
+            {plotData && onDelete && (
+              <Button variant="destructive" onClick={onDelete} size="sm">Delete Plot</Button>
+            )}
+          </div>
+          <div className="flex gap-2">
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" size="sm">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleSubmit}>Save Plot</Button>
+            <Button onClick={handleSubmit} size="sm">Save Plot</Button>
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+
