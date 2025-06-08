@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -13,18 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Property } from "@/types";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { UploadCloud, FileText, MapPin } from "lucide-react";
-import dynamic from 'next/dynamic';
-import type { LatLngExpression } from 'leaflet';
-import { cn } from "@/lib/utils";
-
-const PropertyLocationMap = dynamic(
-  () => import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
-  {
-    ssr: false,
-    loading: () => <div className="h-[300px] w-full rounded-md bg-muted flex items-center justify-center"><p>Loading map...</p></div>
-  }
-);
+import { UploadCloud, FileText } from "lucide-react";
+// MapPin icon and PropertyLocationMap component are no longer used here.
 
 const propertyTypes = [
   "Residential Plot",
@@ -41,14 +31,8 @@ const propertyFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   propertyType: z.string().min(1, "Property type is required"),
-  latitude: z.coerce.number().optional(),
-  longitude: z.coerce.number().optional(),
   imageFile: z.any().optional(),
-}).refine(data => (data.latitude === undefined && data.longitude === undefined) || (data.latitude !== undefined && data.longitude !== undefined), {
-  message: "Both latitude and longitude must be provided, or neither.",
-  path: ["latitude"], 
 });
-
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
@@ -68,15 +52,9 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       name: initialData?.name || "",
       address: initialData?.address || "",
       propertyType: initialData?.propertyType || "",
-      latitude: initialData?.latitude,
-      longitude: initialData?.longitude,
       imageFile: undefined,
     },
   });
-
-  const watchedLatitude = form.watch("latitude");
-  const watchedLongitude = form.watch("longitude");
-  const [mapPosition, setMapPosition] = useState<LatLngExpression | null>(null);
 
   useEffect(() => {
     if (initialData?.imageUrl) {
@@ -86,22 +64,10 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       } else if (initialData.imageType === 'photo') {
         setImagePreviewType('image');
       } else {
-        setImagePreviewType('image');
+        setImagePreviewType('image'); // Default to image if type is unspecified but URL exists
       }
     }
-    if (initialData?.latitude && initialData?.longitude) {
-      setMapPosition([initialData.latitude, initialData.longitude]);
-    }
   }, [initialData]);
-
-  useEffect(() => {
-    if (typeof watchedLatitude === 'number' && typeof watchedLongitude === 'number') {
-      setMapPosition([watchedLatitude, watchedLongitude]);
-    } else {
-      setMapPosition(null);
-    }
-  }, [watchedLatitude, watchedLongitude]);
-
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -135,11 +101,6 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     onSubmit({ ...values, imagePreviewUrl: imagePreviewUrl || undefined, imageType: imagePreviewType || undefined });
   };
 
-  const handleMapClick = (latlng: { lat: number; lng: number }) => {
-    form.setValue("latitude", parseFloat(latlng.lat.toFixed(6)));
-    form.setValue("longitude", parseFloat(latlng.lng.toFixed(6)));
-  };
-
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
       <CardHeader>
@@ -170,6 +131,9 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                   <FormControl>
                     <Textarea placeholder="e.g., Plot #123, Block B, Sector C, Society Name, City" {...field} />
                   </FormControl>
+                  <FormDescription>
+                    Provide the full address. Map pinning can be added later.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -194,32 +158,6 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                 </FormItem>
               )}
             />
-
-            <Card className="p-4 pt-2 bg-secondary/30">
-              <FormLabel className="text-base font-semibold flex items-center gap-2 mb-3"><MapPin className="h-5 w-5 text-primary" /> Set Property Location</FormLabel>
-              <FormDescription className="text-sm mb-3">
-                Click on the map to pin the exact location of the property. You can drag and zoom the map as needed.
-              </FormDescription>
-              {/* Latitude and Longitude fields are now hidden but managed by the form state */}
-              {/* 
-              <FormField control={form.control} name="latitude" render={() => <FormItem><FormControl><Input type="hidden" /></FormControl></FormItem>} />
-              <FormField control={form.control} name="longitude" render={() => <FormItem><FormControl><Input type="hidden" /></FormControl></FormItem>} />
-              */}
-              <div className="mt-4">
-                <PropertyLocationMap
-                  key={mapPosition ? `map-lat-${mapPosition[0]}-lng-${mapPosition[1]}` : 'map-no-position'}
-                  position={mapPosition}
-                  popupText={form.getValues("name") || "Property Location"}
-                  onPositionChange={handleMapClick}
-                  mapHeight="400px" // Increased height for better interaction
-                />
-              </div>
-                 { (form.formState.errors.latitude || form.formState.errors.longitude) && (
-                    <FormMessage className="mt-2">
-                        {form.formState.errors.latitude?.message || form.formState.errors.longitude?.message || "Error with location coordinates."}
-                    </FormMessage>
-                )}
-            </Card>
 
             <FormField
               control={form.control}

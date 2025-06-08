@@ -18,8 +18,6 @@ let properties: Property[] = [
     tenantName: "Mike Wheeler",
     rentAmount: 75000,
     nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(), // Next month's 1st
-    latitude: 31.4701, // Example coordinates for Lahore
-    longitude: 74.4102,
   },
   {
     id: "prop2",
@@ -32,8 +30,6 @@ let properties: Property[] = [
     isSoldOnInstallment: true,
     purchaseDate: new Date(2023, 0, 15).toISOString(),
     totalInstallmentPrice: 2500000,
-    latitude: 33.5000, // Example coordinates for Rawalpindi
-    longitude: 73.1500,
   },
   {
     id: "prop3",
@@ -46,8 +42,6 @@ let properties: Property[] = [
     tenantName: "Eleven Hopper",
     rentAmount: 50000,
     nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 15).toISOString(), // This month's 15th
-    latitude: 24.8277, // Example coordinates for Clifton, Karachi
-    longitude: 67.0331,
   },
   {
     id: "pdf-property",
@@ -57,7 +51,6 @@ let properties: Property[] = [
     imageType: 'pdf',
     propertyType: "File",
     plots: [],
-    // No lat/long for this one initially
   },
 ];
 
@@ -81,8 +74,6 @@ export const addProperty = (propertyData: Omit<Property, 'id' | 'plots'> & { ima
     imageType: propertyData.imageType || 'photo',
     propertyType: propertyData.propertyType,
     plots: propertyData.plots || [],
-    latitude: propertyData.latitude,
-    longitude: propertyData.longitude,
     isSoldOnInstallment: propertyData.isSoldOnInstallment,
     purchaseDate: propertyData.purchaseDate,
     totalInstallmentPrice: propertyData.totalInstallmentPrice,
@@ -252,17 +243,14 @@ export const resetMockData = () => {
       ],
       imageType: 'photo',
       isRented: true, tenantName: "Mike Wheeler", rentAmount: 75000, nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-      latitude: 31.4701, longitude: 74.4102,
     },
     {
       id: "prop2", name: "Greenwood Heights Plot", address: "Plot 52, Block C, Bahria Town, Rawalpindi", propertyType: "Residential Plot", plots: [], imageType: 'photo',
       isSoldOnInstallment: true, purchaseDate: new Date(2023, 0, 15).toISOString(), totalInstallmentPrice: 2500000,
-      latitude: 33.5000, longitude: 73.1500,
     },
     {
       id: "prop3", name: "Lakeside Estate Apartment", address: "Apt 3B, Lakeside Towers, Clifton, Karachi", propertyType: "Apartment", plots: [], imageType: 'photo',
       isRented: true, tenantName: "Eleven Hopper", rentAmount: 50000, nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 15).toISOString(),
-      latitude: 24.8277, longitude: 67.0331,
     },
     { id: "pdf-property", name: "PDF Plan Property (File)", address: "File # 123, Sector F, Capital Smart City", imageUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", imageType: 'pdf', propertyType: "File", plots: [] },
   ];

@@ -21,8 +21,6 @@ export default function AddPropertyPage() {
         name: data.name,
         address: data.address,
         propertyType: data.propertyType,
-        latitude: data.latitude,
-        longitude: data.longitude,
         imageUrl: data.imagePreviewUrl, 
         imageType: data.imageType,
     };

@@ -21,10 +21,6 @@ export interface Property {
   propertyType?: string; // e.g., "Residential Plot", "Commercial Plot", "House", "File", "Shop", "Apartment"
   plots: PlotData[];
 
-  // Location on map
-  latitude?: number;
-  longitude?: number;
-
   // Installment related
   isSoldOnInstallment?: boolean;
   purchaseDate?: string; // ISO date string
