@@ -76,7 +76,6 @@ export function PropertyLocationMap({
       doubleClickZoom={interactive}
       className={cn("w-full rounded-md shadow-md", className)}
       style={{ height: mapHeight, zIndex: 0 }} // zIndex important for ShadCN dialogs/popovers
-      key={position ? `${position[0]}-${position[1]}` : 'default-map'} // Force re-render if position changes
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -91,3 +90,4 @@ export function PropertyLocationMap({
     </MapContainer>
   );
 }
+
