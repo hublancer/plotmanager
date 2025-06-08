@@ -46,7 +46,7 @@ const propertyFormSchema = z.object({
   imageFile: z.any().optional(),
 }).refine(data => (data.latitude === undefined && data.longitude === undefined) || (data.latitude !== undefined && data.longitude !== undefined), {
   message: "Both latitude and longitude must be provided, or neither.",
-  path: ["latitude"], // Show error near latitude, or choose a general path
+  path: ["latitude"], 
 });
 
 
@@ -196,46 +196,29 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             />
 
             <Card className="p-4 pt-2 bg-secondary/30">
-              <FormLabel className="text-base font-semibold flex items-center gap-2 mb-3"><MapPin className="h-5 w-5 text-primary" /> Location on Map</FormLabel>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="latitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Latitude</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 31.5204" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="longitude"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Longitude</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="any" placeholder="e.g., 74.3587" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormDescription className="mt-2 text-xs">
-                Enter coordinates manually or click on the map to set the location. Geocoding from address is a future enhancement.
+              <FormLabel className="text-base font-semibold flex items-center gap-2 mb-3"><MapPin className="h-5 w-5 text-primary" /> Set Property Location</FormLabel>
+              <FormDescription className="text-sm mb-3">
+                Click on the map to pin the exact location of the property. You can drag and zoom the map as needed.
               </FormDescription>
+              {/* Latitude and Longitude fields are now hidden but managed by the form state */}
+              {/* 
+              <FormField control={form.control} name="latitude" render={() => <FormItem><FormControl><Input type="hidden" /></FormControl></FormItem>} />
+              <FormField control={form.control} name="longitude" render={() => <FormItem><FormControl><Input type="hidden" /></FormControl></FormItem>} />
+              */}
               <div className="mt-4">
                 <PropertyLocationMap
                   key={mapPosition ? `map-lat-${mapPosition[0]}-lng-${mapPosition[1]}` : 'map-no-position'}
                   position={mapPosition}
                   popupText={form.getValues("name") || "Property Location"}
                   onPositionChange={handleMapClick}
+                  mapHeight="400px" // Increased height for better interaction
                 />
               </div>
+                 { (form.formState.errors.latitude || form.formState.errors.longitude) && (
+                    <FormMessage className="mt-2">
+                        {form.formState.errors.latitude?.message || form.formState.errors.longitude?.message || "Error with location coordinates."}
+                    </FormMessage>
+                )}
             </Card>
 
             <FormField
