@@ -2,7 +2,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { Property, PlotData } from "@/types";
 import { PlotPinner } from "@/components/properties/plot-pinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,9 @@ import { ArrowLeft, Edit, Package, AlertTriangle, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
-// PropertyLocationMap and LatLngExpression are no longer used here.
+import { PropertyLocationMap } from "@/components/maps/property-location-map";
+import type { LatLngExpression } from 'leaflet';
+
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -52,6 +54,14 @@ export default function PropertyDetailsPage() {
       }
     }
   };
+  
+  const mapPosition = useMemo(() => {
+    if (property?.latitude && property?.longitude) {
+      return [property.latitude, property.longitude] as LatLngExpression;
+    }
+    return null;
+  }, [property]);
+
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading property details...</div>;
@@ -79,7 +89,12 @@ export default function PropertyDetailsPage() {
                         {property.propertyType}
                     </Badge>
                 )}
-                {/* Badges for map location status are removed */}
+                 {mapPosition && (
+                    <Badge variant="outline" className="inline-flex items-center gap-1 text-sm border-green-500 text-green-600">
+                        <MapPin className="h-4 w-4" />
+                        Location Pinned
+                    </Badge>
+                )}
             </div>
           </div>
           <Button variant="outline" size="icon" onClick={() => alert('Edit property details modal/page should open here.')} className="flex-shrink-0">
@@ -88,14 +103,29 @@ export default function PropertyDetailsPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Map display section is removed */}
-          <div className="p-4 bg-muted rounded-md text-center">
-            <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2"/>
-            <p className="text-muted-foreground">Map location feature can be integrated here.</p>
+          
+          <div>
+            <h3 className="text-xl font-semibold mb-2">Property Location</h3>
+            {mapPosition ? (
+              <div className="h-[300px] w-full rounded-md overflow-hidden border shadow-sm">
+                <PropertyLocationMap
+                  key={`${mapPosition[0]}-${mapPosition[1]}`}
+                  position={mapPosition}
+                  popupText={property.name}
+                  interactive={false} // Non-interactive on details page
+                  mapHeight="100%"
+                />
+              </div>
+            ) : (
+              <div className="p-4 bg-muted rounded-md text-center">
+                <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2"/>
+                <p className="text-muted-foreground">No map location pinned for this property.</p>
+              </div>
+            )}
           </div>
           
           <div>
-            <h3 className="text-xl font-semibold mb-2">Plot Details & Layout</h3>
+            <h3 className="text-xl font-semibold mb-2 mt-6">Plot Details & Layout</h3>
             {property.imageUrl ? (
               <PlotPinner 
                 imageUrl={property.imageUrl} 

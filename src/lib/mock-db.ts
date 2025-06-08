@@ -14,6 +14,8 @@ let properties: Property[] = [
       { id: "p2", plotNumber: "102", buyerName: "Jane Smith", buyerContact: "555-5678", price: 12000000, x: 50, y: 60, size: "8 Marla", details: "Garden facing plot" },
     ],
     imageType: 'photo',
+    latitude: 31.4709, // Example coords for Lahore
+    longitude: 74.4023,
     isRented: true,
     tenantName: "Mike Wheeler",
     rentAmount: 75000,
@@ -27,6 +29,8 @@ let properties: Property[] = [
     propertyType: "Residential Plot",
     plots: [],
     imageType: 'photo',
+    latitude: 33.5651, // Example coords for Rawalpindi
+    longitude: 73.0169,
     isSoldOnInstallment: true,
     purchaseDate: new Date(2023, 0, 15).toISOString(),
     totalInstallmentPrice: 2500000,
@@ -38,6 +42,8 @@ let properties: Property[] = [
     propertyType: "Apartment",
     plots: [],
     imageType: 'photo',
+    latitude: 24.8271, // Example coords for Karachi
+    longitude: 67.0251,
     isRented: true,
     tenantName: "Eleven Hopper",
     rentAmount: 50000,
@@ -51,6 +57,8 @@ let properties: Property[] = [
     imageType: 'pdf',
     propertyType: "File",
     plots: [],
+    latitude: null,
+    longitude: null,
   },
 ];
 
@@ -74,6 +82,8 @@ export const addProperty = (propertyData: Omit<Property, 'id' | 'plots'> & { ima
     imageType: propertyData.imageType || 'photo',
     propertyType: propertyData.propertyType,
     plots: propertyData.plots || [],
+    latitude: propertyData.latitude,
+    longitude: propertyData.longitude,
     isSoldOnInstallment: propertyData.isSoldOnInstallment,
     purchaseDate: propertyData.purchaseDate,
     totalInstallmentPrice: propertyData.totalInstallmentPrice,
@@ -241,18 +251,20 @@ export const resetMockData = () => {
         { id: "p1", plotNumber: "101", buyerName: "John Doe", buyerContact: "555-1234", price: 15000000, x: 25, y: 30, size: "10 Marla", details: "Corner plot with park view" },
         { id: "p2", plotNumber: "102", buyerName: "Jane Smith", buyerContact: "555-5678", price: 12000000, x: 50, y: 60, size: "8 Marla", details: "Garden facing plot" },
       ],
-      imageType: 'photo',
+      imageType: 'photo', latitude: 31.4709, longitude: 74.4023,
       isRented: true, tenantName: "Mike Wheeler", rentAmount: 75000, nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
     },
     {
       id: "prop2", name: "Greenwood Heights Plot", address: "Plot 52, Block C, Bahria Town, Rawalpindi", propertyType: "Residential Plot", plots: [], imageType: 'photo',
+      latitude: 33.5651, longitude: 73.0169,
       isSoldOnInstallment: true, purchaseDate: new Date(2023, 0, 15).toISOString(), totalInstallmentPrice: 2500000,
     },
     {
       id: "prop3", name: "Lakeside Estate Apartment", address: "Apt 3B, Lakeside Towers, Clifton, Karachi", propertyType: "Apartment", plots: [], imageType: 'photo',
+      latitude: 24.8271, longitude: 67.0251,
       isRented: true, tenantName: "Eleven Hopper", rentAmount: 50000, nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 15).toISOString(),
     },
-    { id: "pdf-property", name: "PDF Plan Property (File)", address: "File # 123, Sector F, Capital Smart City", imageUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", imageType: 'pdf', propertyType: "File", plots: [] },
+    { id: "pdf-property", name: "PDF Plan Property (File)", address: "File # 123, Sector F, Capital Smart City", imageUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", imageType: 'pdf', propertyType: "File", plots: [], latitude: null, longitude: null },
   ];
   employees = [
     { id: "emp1", name: "Alice Johnson", position: "HR Manager", email: "alice.j@example.com", hireDate: new Date(2022, 5, 10).toISOString(), avatarUrl: "https://placehold.co/100x100.png", department: "Human Resources" },

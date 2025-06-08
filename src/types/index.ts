@@ -21,6 +21,9 @@ export interface Property {
   propertyType?: string; // e.g., "Residential Plot", "Commercial Plot", "House", "File", "Shop", "Apartment"
   plots: PlotData[];
 
+  latitude?: number | null;
+  longitude?: number | null;
+
   // Installment related
   isSoldOnInstallment?: boolean;
   purchaseDate?: string; // ISO date string
@@ -67,4 +70,3 @@ export interface Employee {
   avatarUrl?: string;
   department?: string;
 }
-

@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Property } from "@/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, FileText } from "lucide-react";
-// MapPin icon and PropertyLocationMap component are no longer used here.
+import { UploadCloud, FileText, MapPin } from "lucide-react";
+import { PropertyLocationMap } from "@/components/maps/property-location-map"; // Ensure this component exists
+import type { LatLngExpression } from 'leaflet';
 
 const propertyTypes = [
   "Residential Plot",
@@ -32,6 +33,8 @@ const propertyFormSchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
   propertyType: z.string().min(1, "Property type is required"),
   imageFile: z.any().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
 });
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
@@ -45,6 +48,12 @@ interface PropertyFormProps {
 export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFormProps) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(initialData?.imageUrl || null);
   const [imagePreviewType, setImagePreviewType] = useState<'image' | 'pdf' | null>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [mapPosition, setMapPosition] = useState<LatLngExpression | null>(
+    initialData?.latitude && initialData?.longitude
+      ? [initialData.latitude, initialData.longitude]
+      : null
+  );
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
@@ -53,21 +62,25 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       address: initialData?.address || "",
       propertyType: initialData?.propertyType || "",
       imageFile: undefined,
+      latitude: initialData?.latitude || null,
+      longitude: initialData?.longitude || null,
     },
   });
 
   useEffect(() => {
-    if (initialData?.imageUrl) {
-      setImagePreviewUrl(initialData.imageUrl);
-      if (initialData.imageType === 'pdf') {
-        setImagePreviewType('pdf');
-      } else if (initialData.imageType === 'photo') {
-        setImagePreviewType('image');
-      } else {
-        setImagePreviewType('image'); // Default to image if type is unspecified but URL exists
+    if (initialData) {
+      if (initialData.imageUrl) {
+        setImagePreviewUrl(initialData.imageUrl);
+        setImagePreviewType(initialData.imageType === 'pdf' ? 'pdf' : (initialData.imageType === 'photo' ? 'image' : null));
+      }
+      if (initialData.latitude && initialData.longitude) {
+        const pos: LatLngExpression = [initialData.latitude, initialData.longitude];
+        setMapPosition(pos);
+        form.setValue('latitude', initialData.latitude);
+        form.setValue('longitude', initialData.longitude);
       }
     }
-  }, [initialData]);
+  }, [initialData, form]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -97,9 +110,35 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     }
   };
 
+  const handleMapPositionChange = useCallback((newPosition: { lat: number; lng: number }) => {
+    const pos: LatLngExpression = [newPosition.lat, newPosition.lng];
+    setMapPosition(pos);
+    form.setValue('latitude', newPosition.lat);
+    form.setValue('longitude', newPosition.lng);
+  }, [form]);
+
   const handleSubmit = (values: PropertyFormValues) => {
-    onSubmit({ ...values, imagePreviewUrl: imagePreviewUrl || undefined, imageType: imagePreviewType || undefined });
+    onSubmit({ 
+        ...values, 
+        imagePreviewUrl: imagePreviewUrl || undefined, 
+        imageType: imagePreviewType || undefined 
+    });
   };
+  
+  // Effect to update mapPosition when form values change (e.g. loading initialData)
+  useEffect(() => {
+    const lat = form.getValues('latitude');
+    const lng = form.getValues('longitude');
+    if (lat && lng) {
+        const currentMapPosArray = Array.isArray(mapPosition) ? mapPosition : [0,0];
+        if (currentMapPosArray[0] !== lat || currentMapPosArray[1] !== lng) {
+             setMapPosition([lat, lng]);
+        }
+    } else {
+        setMapPosition(null);
+    }
+  }, [form.watch('latitude'), form.watch('longitude'), mapPosition]);
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -131,13 +170,71 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                   <FormControl>
                     <Textarea placeholder="e.g., Plot #123, Block B, Sector C, Society Name, City" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Provide the full address. Map pinning can be added later.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+             <div className="space-y-2">
+                <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowMap(!showMap)}
+                    className="w-full sm:w-auto"
+                >
+                    <MapPin className="mr-2 h-4 w-4" />
+                    {showMap ? "Hide Map" : "Pin Location on Map"}
+                </Button>
+                <FormDescription>
+                    {showMap 
+                        ? "Click on the map to set the precise location. The address field above is for reference." 
+                        : "Optionally, pin the exact location on a map for better record-keeping."}
+                </FormDescription>
+            </div>
+
+            {showMap && (
+               <FormField
+                control={form.control}
+                name="latitude" // This field is just for form state, not directly displayed
+                render={() => ( // We don't need to render an input, map handles it
+                  <FormItem>
+                     <FormLabel className="sr-only">Latitude</FormLabel>
+                     <FormControl>
+                        <Input type="hidden" {...form.register("latitude")} />
+                     </FormControl>
+                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            {showMap && (
+                 <FormField
+                control={form.control}
+                name="longitude" // This field is just for form state, not directly displayed
+                render={() => ( // We don't need to render an input, map handles it
+                  <FormItem>
+                     <FormLabel className="sr-only">Longitude</FormLabel>
+                     <FormControl>
+                        <Input type="hidden" {...form.register("longitude")} />
+                     </FormControl>
+                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {showMap && (
+                <div className="h-[350px] w-full rounded-md overflow-hidden border shadow-sm">
+                    <PropertyLocationMap
+                        key={mapPosition ? `${mapPosition[0]}-${mapPosition[1]}` : 'map-key'} // Key to help re-render map
+                        position={mapPosition}
+                        onPositionChange={handleMapPositionChange}
+                        mapHeight="100%"
+                        interactive={true}
+                        popupText={form.getValues('name') || "Property Location"}
+                    />
+                </div>
+            )}
+
             <FormField
               control={form.control}
               name="propertyType"
@@ -162,7 +259,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             <FormField
               control={form.control}
               name="imageFile"
-              render={({ field }) => (
+              render={() => ( // field is not directly used for file input, handled by handleImageChange
                 <FormItem>
                   <FormLabel>Property Image (Layout, Map, or Photo)</FormLabel>
                   <FormControl>

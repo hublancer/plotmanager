@@ -23,6 +23,8 @@ export default function AddPropertyPage() {
         propertyType: data.propertyType,
         imageUrl: data.imagePreviewUrl, 
         imageType: data.imageType,
+        latitude: data.latitude,
+        longitude: data.longitude,
     };
 
     addPropertyToDb(newPropertyData); 
