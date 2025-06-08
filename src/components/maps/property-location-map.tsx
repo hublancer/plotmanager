@@ -6,8 +6,9 @@
 import 'leaflet-defaulticon-compatibility'; 
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import type L from 'leaflet'; // Import Leaflet type for map instance
 import type { LatLngExpression } from 'leaflet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react'; // Added useRef
 import { cn } from "@/lib/utils";
 
 interface PropertyLocationMapProps {
@@ -47,10 +48,24 @@ export function PropertyLocationMap({
   onPositionChange,
 }: PropertyLocationMapProps) {
   const [isClient, setIsClient] = useState(false);
+  const mapRef = useRef<L.Map | null>(null); // Ref to store map instance
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Effect for cleaning up the map instance on unmount
+  useEffect(() => {
+    // The key prop on this component's instance (e.g., in PropertyForm)
+    // is important for forcing React to unmount and remount it,
+    // allowing this cleanup logic to run effectively.
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []); // Empty dependency array: runs cleanup only on unmount
 
   if (!isClient) {
     return (
@@ -76,6 +91,7 @@ export function PropertyLocationMap({
       doubleClickZoom={interactive}
       className={cn("w-full rounded-md shadow-md", className)}
       style={{ height: mapHeight, zIndex: 0 }} // zIndex important for ShadCN dialogs/popovers
+      whenCreated={instance => { mapRef.current = instance; }} // Store map instance
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
