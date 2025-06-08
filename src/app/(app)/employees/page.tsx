@@ -10,43 +10,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import type { Employee } from "@/types";
 import Image from "next/image"; // Import next/image
-
-const initialEmployees: Employee[] = [
-  { 
-    id: "emp1", 
-    name: "Alice Johnson", 
-    position: "HR Manager", 
-    email: "alice.j@example.com", 
-    hireDate: new Date(2022, 5, 10).toISOString(), 
-    avatarUrl: "https://placehold.co/100x100.png",
-    department: "Human Resources"
-  },
-  { 
-    id: "emp2", 
-    name: "Bob Smith", 
-    position: "Lead Developer", 
-    email: "bob.s@example.com", 
-    hireDate: new Date(2021, 2, 15).toISOString(), 
-    avatarUrl: "https://placehold.co/100x100.png",
-    department: "Technology" 
-  },
-  { 
-    id: "emp3", 
-    name: "Carol White", 
-    position: "Sales Executive", 
-    email: "carol.w@example.com", 
-    hireDate: new Date(2023, 0, 20).toISOString(), 
-    department: "Sales" 
-  },
-];
+import { getEmployees } from "@/lib/mock-db"; // Updated import
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Simulate fetching data
     const timer = setTimeout(() => {
+      setEmployees(getEmployees()); // Use centralized mock data
       setIsLoading(false);
     }, 500);
     return () => clearTimeout(timer);
@@ -54,8 +27,10 @@ export default function EmployeesPage() {
   
   const handleDeleteEmployee = (id: string) => {
     // In a real app, you'd call an API to delete the employee
+    // For now, this just filters the local state. It won't persist if mock-db isn't updated.
+    // To make delete work with mock-db, we'd need a deleteEmployee function there.
     setEmployees(prev => prev.filter(e => e.id !== id));
-    alert(`Employee with ID: ${id} would be deleted.`);
+    alert(`Employee with ID: ${id} would be deleted. (Local state only for now)`);
   };
 
   if (isLoading) {

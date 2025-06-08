@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,33 +10,30 @@ import { Badge } from "@/components/ui/badge";
 import { PlusCircle, Edit3, Trash2, Eye } from "lucide-react";
 import type { Property } from "@/types";
 import Image from "next/image";
-
-const initialProperties: Property[] = [
-  { id: "1", name: "Sunset Villa", address: "123 Sunnyside Ave", imageUrl: "https://placehold.co/600x400.png?text=Sunset+Villa", plots: [], imageType: 'photo' },
-  { id: "2", name: "Greenwood Heights", address: "456 Forest Ln", imageUrl: "https://placehold.co/600x400.png?text=Greenwood+Heights", plots: [], imageType: 'photo', isSoldOnInstallment: true, purchaseDate: new Date().toISOString(), totalInstallmentPrice: 250000 },
-  { id: "3", name: "Lakeside Estate", address: "789 Lake Rd", plots: [], imageType: 'photo' },
-];
+import { getProperties, deleteProperty as deletePropertyFromDb } from "@/lib/mock-db"; // Updated import
 
 export default function PropertiesPage() {
-  const [properties, setProperties] = useState<Property[]>(initialProperties);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Simulate fetching data
     const timer = setTimeout(() => {
+      setProperties(getProperties()); // Use centralized mock data
       setIsLoading(false);
     }, 500);
     return () => clearTimeout(timer);
   }, []);
   
-  // In a real app, add property would navigate to an add page or open a modal,
-  // and then update the list. For this demo, we'll just keep it simple.
   const handleDeleteProperty = (id: string) => {
-    setProperties(prev => prev.filter(p => p.id !== id));
+    if (deletePropertyFromDb(id)) { // Use centralized delete
+      setProperties(prev => prev.filter(p => p.id !== id));
+      // In a real app, you'd show a toast notification
+    }
   };
 
   if (isLoading) {
-    return <div>Loading properties...</div>;
+    return <div className="flex justify-center items-center h-64">Loading properties...</div>;
   }
 
   return (

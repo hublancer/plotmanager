@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,44 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Eye, Edit, DollarSign } from "lucide-react";
-import type { InstallmentDetails, PaymentRecord } from "@/types"; // Assuming Property type covers installment details for now
+import type { InstallmentDetails } from "@/types";
 import Link from "next/link";
-
-// Mock data, combine Property and PaymentRecord for installment overview
-const initialInstallmentProperties: InstallmentDetails[] = [
-  { 
-    id: "2", 
-    name: "Greenwood Heights", 
-    address: "456 Forest Ln", 
-    imageUrl: "https://placehold.co/100x75.png?text=Greenwood", 
-    plots: [], 
-    isSoldOnInstallment: true, 
-    purchaseDate: new Date(2023, 0, 15).toISOString(), 
-    totalInstallmentPrice: 250000,
-    paidAmount: 75000, // Calculated from payments
-    remainingAmount: 175000, // Calculated
-    nextDueDate: new Date(2024, 6, 1).toISOString(), // Example
-  },
-  { 
-    id: "4", 
-    name: "Mountain View Chalet", 
-    address: "789 Peak Rd", 
-    imageUrl: "https://placehold.co/100x75.png?text=Chalet", 
-    plots: [], 
-    isSoldOnInstallment: true, 
-    purchaseDate: new Date(2022, 5, 20).toISOString(), 
-    totalInstallmentPrice: 320000,
-    paidAmount: 320000,
-    remainingAmount: 0,
-    nextDueDate: undefined, // Fully paid
-  },
-];
+import { getInstallmentProperties } from "@/lib/mock-db"; // Updated import
 
 export default function InstallmentsPage() {
-  const [installmentProperties, setInstallmentProperties] = useState<InstallmentDetails[]>(initialInstallmentProperties);
+  const [installmentProperties, setInstallmentProperties] = useState<InstallmentDetails[]>([]);
 
-  // In a real app, you'd fetch properties marked as 'isSoldOnInstallment'
-  // and then aggregate their payment data.
+  useEffect(() => {
+    // Fetch data from the centralized mock DB
+    setInstallmentProperties(getInstallmentProperties());
+  }, []);
   
   const calculateProgress = (paid?: number, total?: number) => {
     if (paid === undefined || total === undefined || total === 0) return 0;

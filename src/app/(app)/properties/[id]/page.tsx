@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -9,42 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-
-// Mock data fetching function
-const fetchPropertyById = async (id: string): Promise<Property | null> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const mockProperties: Property[] = [
-    { 
-      id: "1", 
-      name: "Sunset Villa", 
-      address: "123 Sunnyside Ave", 
-      imageUrl: "https://placehold.co/800x600.png?text=Sunset+Villa+Layout",
-      imageType: 'photo',
-      plots: [
-        { id: "p1", plotNumber: "101", buyerName: "John Doe", buyerContact: "555-1234", price: 150000, x: 25, y: 30, details: "Corner plot with sea view" },
-        { id: "p2", plotNumber: "102", buyerName: "Jane Smith", buyerContact: "555-5678", price: 120000, x: 50, y: 60, details: "Garden facing plot" },
-      ] 
-    },
-    { 
-      id: "2", 
-      name: "Greenwood Heights", 
-      address: "456 Forest Ln", 
-      imageUrl: "https://placehold.co/800x600.png?text=Greenwood+Layout", 
-      imageType: 'photo',
-      plots: [] 
-    },
-     { 
-      id: "pdf-property", 
-      name: "PDF Plan Property", 
-      address: "789 Document Way", 
-      imageUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", // Placeholder PDF
-      imageType: 'pdf',
-      plots: [] 
-    },
-  ];
-  return mockProperties.find(p => p.id === id) || null;
-};
+import { getPropertyById, updateProperty } from "@/lib/mock-db"; // Updated imports
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -58,23 +24,32 @@ export default function PropertyDetailsPage() {
   useEffect(() => {
     if (propertyId) {
       setIsLoading(true);
-      fetchPropertyById(propertyId).then(data => {
-        setProperty(data);
+      // Simulate API delay for fetching
+      setTimeout(() => {
+        const data = getPropertyById(propertyId); // Use centralized mock data
+        setProperty(data || null);
         setIsLoading(false);
-      });
+      }, 500);
     }
   }, [propertyId]);
 
   const handlePlotsChange = (updatedPlots: PlotData[]) => {
     if (property) {
-      const updatedProperty = { ...property, plots: updatedPlots };
-      setProperty(updatedProperty);
-      // Here you would typically save the updated property to your backend
-      console.log("Updated plots for property:", propertyId, updatedPlots);
-      toast({
-        title: "Plots Updated",
-        description: `Plot information for ${property.name} has been saved.`,
-      });
+      const updatedPropertyData = { ...property, plots: updatedPlots };
+      const result = updateProperty(property.id, { plots: updatedPlots }); // Update centralized mock data
+      if (result) {
+        setProperty(result);
+        toast({
+          title: "Plots Updated",
+          description: `Plot information for ${property.name} has been saved.`,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to update plots for ${property.name}.`,
+          variant: "destructive"
+        });
+      }
     }
   };
 

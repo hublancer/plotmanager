@@ -10,6 +10,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { addProperty as addPropertyToDb, getProperties as getPropertiesFromDb } from '@/lib/mock-db';
+import type { Property } from '@/types';
 
 // Define a simple tool for adding a task
 const addBusinessTaskTool = ai.defineTool(
@@ -27,6 +29,84 @@ const addBusinessTaskTool = ai.defineTool(
     return `Okay, I've noted down the task: "${taskDescription}". You can find it in your task list.`;
   }
 );
+
+// Tool to list properties
+const ListPropertiesInputSchema = z.object({
+  filter: z.string().optional().describe("Optional filter criteria, e.g., 'available', 'sold'"),
+});
+const ListPropertiesOutputSchema = z.object({
+  properties: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    address: z.string(),
+    status: z.string().optional(),
+  })).describe("List of properties with their basic details."),
+  summary: z.string().describe("A human-readable summary of the properties found."),
+});
+
+const listPropertiesTool = ai.defineTool(
+  {
+    name: 'listProperties',
+    description: 'Retrieves a list of properties from the system. Can be filtered by status like "available" or "sold".',
+    inputSchema: ListPropertiesInputSchema,
+    outputSchema: ListPropertiesOutputSchema,
+  },
+  async (input) => {
+    const allProperties = getPropertiesFromDb();
+    // Basic filtering example (can be expanded)
+    let filteredProperties = allProperties;
+    if (input.filter?.toLowerCase() === 'sold') {
+        filteredProperties = allProperties.filter(p => p.isSoldOnInstallment); // Simple "sold" definition for now
+    } else if (input.filter?.toLowerCase() === 'available') {
+        filteredProperties = allProperties.filter(p => !p.isSoldOnInstallment);
+    }
+
+    const propertyList = filteredProperties.map(p => ({
+      id: p.id,
+      name: p.name,
+      address: p.address,
+      status: p.isSoldOnInstallment ? "Sold (Installment)" : "Available",
+    }));
+
+    if (propertyList.length === 0) {
+      return { properties: [], summary: "No properties found matching your criteria." };
+    }
+    const summary = `Found ${propertyList.length} properties. ${propertyList.map(p=>p.name).join(', ')}.`;
+    return { properties: propertyList, summary };
+  }
+);
+
+// Tool to add a new property
+const AddPropertyInputSchema = z.object({
+  name: z.string().describe('The name of the new property.'),
+  address: z.string().describe('The full address of the new property.'),
+});
+const AddPropertyOutputSchema = z.object({
+  propertyId: z.string().describe('The ID of the newly created property.'),
+  message: z.string().describe('Confirmation message.'),
+});
+
+const addPropertyTool = ai.defineTool(
+  {
+    name: 'addProperty',
+    description: 'Adds a new property to the system. Requires property name and address.',
+    inputSchema: AddPropertyInputSchema,
+    outputSchema: AddPropertyOutputSchema,
+  },
+  async (input) => {
+    const newPropertyData: Omit<Property, 'id' | 'plots' | 'imageType'> = {
+        name: input.name,
+        address: input.address,
+        // Other fields will use defaults or be empty initially
+    };
+    const createdProperty = addPropertyToDb(newPropertyData);
+    return {
+      propertyId: createdProperty.id,
+      message: `Successfully added property "${createdProperty.name}" with ID ${createdProperty.id}. You can add more details like images or plots via the Properties page.`,
+    };
+  }
+);
+
 
 const ChatAssistantInputSchema = z.object({
   userMessage: z.string().describe('The message sent by the user to the AI assistant.'),
@@ -46,7 +126,7 @@ const assistantPrompt = ai.definePrompt({
   name: 'chatAssistantPrompt',
   input: {schema: ChatAssistantInputSchema},
   output: {schema: ChatAssistantOutputSchema},
-  tools: [addBusinessTaskTool], // Make the tool available to the AI
+  tools: [addBusinessTaskTool, listPropertiesTool, addPropertyTool], // Make tools available
   prompt: `You are PlotPilot AI, a friendly and highly intelligent assistant for real estate and property management businesses.
 Your goal is to help users grow their business, manage properties efficiently, and streamline operations.
 
@@ -55,13 +135,17 @@ Capabilities:
 - Offer insights on property management best practices.
 - Help draft communications (e.g., tenant notices, marketing copy).
 - Summarize information if provided.
-- If the user asks you to create a task, reminder, or to-do item, use the 'addBusinessTask' tool. Do not confirm if you will use the tool, just use it if appropriate for the user's request.
+- If the user asks you to create a task, reminder, or to-do item, use the 'addBusinessTask' tool.
+- If the user asks to list properties, view properties, or search for properties, use the 'listProperties' tool. You can ask for filters like 'available' or 'sold'.
+- If the user asks to add a new property, create a property, or register a property, use the 'addProperty' tool. You'll need the property name and address.
+- Do not confirm if you will use a tool, just use it if appropriate for the user's request.
+- After using a tool, provide a concise confirmation of the action taken and include key details from the tool's output. For example, if a property is added, mention its name and ID. If properties are listed, summarize what was found.
 
 User Message: {{{userMessage}}}
 
 Assistant Response:
 `,
-  config: { // Loosen safety settings slightly for more general business conversation
+  config: { 
     safetySettings: [
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
       { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -82,10 +166,6 @@ const chatAssistantFlow = ai.defineFlow(
     if (!output) {
         return { assistantResponse: "I'm sorry, I couldn't generate a response at this moment." };
     }
-    // If the model used a tool, the output might be structured.
-    // For this basic chat, we are primarily expecting text, but a tool could have responded.
-    // Genkit handles stitching tool output back into the conversation flow for the LLM.
-    // The final `output.assistantResponse` should be the text to show the user.
     return { assistantResponse: output.assistantResponse || "I'm not sure how to respond to that. Can you try rephrasing?" };
   }
 );

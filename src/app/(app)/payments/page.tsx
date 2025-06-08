@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect }from "react";
@@ -21,6 +22,7 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { getPayments, addPayment, updatePayment, deletePayment, getAllMockProperties } from "@/lib/mock-db"; // Updated imports
 
 
 const paymentFormSchema = z.object({
@@ -36,19 +38,9 @@ const paymentFormSchema = z.object({
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
-const initialPayments: PaymentRecord[] = [
-  { id: "1", propertyId: "1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "John Doe", amount: 1200, date: new Date(2023,10,15).toISOString(), type: "rent", paymentMethod: "Bank Transfer" },
-  { id: "2", propertyId: "2", propertyName: "Greenwood Heights", tenantOrBuyerName: "Alice Wonderland", amount: 5000, date: new Date(2023,11,1).toISOString(), type: "installment", paymentMethod: "Card" },
-];
-
-const mockProperties: Pick<Property, 'id' | 'name'>[] = [
-  { id: "1", name: "Sunset Villa" },
-  { id: "2", name: "Greenwood Heights" },
-  { id: "3", name: "Lakeside Estate" },
-];
-
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<PaymentRecord[]>(initialPayments);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [mockProperties, setMockProperties] = useState<Pick<Property, 'id' | 'name'>[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentRecord | null>(null);
   const { toast } = useToast();
@@ -59,6 +51,11 @@ export default function PaymentsPage() {
       type: "rent",
     },
   });
+
+  useEffect(() => {
+    setPayments(getPayments());
+    setMockProperties(getAllMockProperties());
+  }, []);
   
   useEffect(() => {
     if (editingPayment) {
@@ -74,17 +71,15 @@ export default function PaymentsPage() {
 
 
   const handleFormSubmit = (values: PaymentFormValues) => {
-    const paymentWithProperty = {
-      ...values,
-      date: values.date.toISOString(),
-      propertyName: mockProperties.find(p => p.id === values.propertyId)?.name || "N/A"
-    };
-
     if (editingPayment) {
-      setPayments(payments.map(p => p.id === editingPayment.id ? { ...editingPayment, ...paymentWithProperty } : p));
-      toast({ title: "Payment Updated", description: "The payment record has been updated." });
+      const updated = updatePayment(editingPayment.id, { ...values, date: values.date.toISOString() });
+      if (updated) {
+        setPayments(payments.map(p => p.id === editingPayment.id ? updated : p));
+        toast({ title: "Payment Updated", description: "The payment record has been updated." });
+      }
     } else {
-      setPayments([...payments, { ...paymentWithProperty, id: Date.now().toString() }]);
+      const newPayment = addPayment({ ...values, date: values.date.toISOString() });
+      setPayments([...payments, newPayment]);
       toast({ title: "Payment Added", description: "New payment record created." });
     }
     setIsDialogOpen(false);
@@ -102,8 +97,10 @@ export default function PaymentsPage() {
   };
 
   const handleDeletePayment = (id: string) => {
-    setPayments(payments.filter(p => p.id !== id));
-    toast({ title: "Payment Deleted", description: "Payment record removed.", variant: "destructive" });
+    if (deletePayment(id)) {
+      setPayments(payments.filter(p => p.id !== id));
+      toast({ title: "Payment Deleted", description: "Payment record removed.", variant: "destructive" });
+    }
   };
 
   return (
