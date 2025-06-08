@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href} legacyBehavior passHref>
+                <Link href={item.href}>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith(item.href)}
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       pathname.startsWith(item.href) && "bg-primary/10 text-primary hover:bg-primary/20"
                     )}
                   >
-                    <a> {/* legacyBehavior requires <a> tag */}
+                    <a> {/* legacyBehavior requires <a> tag, but asChild handles this when Link doesn't have legacyBehavior */}
                       {item.icon}
                       <span>{item.label}</span>
                     </a>
