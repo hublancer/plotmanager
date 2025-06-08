@@ -14,8 +14,18 @@ import type { Property } from "@/types";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { UploadCloud, FileText, MapPin } from "lucide-react";
-import { PropertyLocationMap } from "@/components/maps/property-location-map"; // Ensure this component exists
+// import { PropertyLocationMap } from "@/components/maps/property-location-map"; // Static import removed
 import type { LatLngExpression } from 'leaflet';
+import dynamic from 'next/dynamic';
+
+const DynamicPropertyLocationMap = dynamic(() => 
+  import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
+  { 
+    ssr: false,
+    loading: () => <div className="h-[350px] w-full rounded-md border flex items-center justify-center bg-muted"><p>Loading map...</p></div>
+  }
+);
+
 
 const propertyTypes = [
   "Residential Plot",
@@ -121,11 +131,10 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     onSubmit({ 
         ...values, 
         imagePreviewUrl: imagePreviewUrl || undefined, 
-        imageType: imagePreviewType || undefined 
+        imageType: imagePreviewType === 'image' ? 'photo' : imagePreviewType === 'pdf' ? 'pdf' : undefined
     });
   };
   
-  // Effect to update mapPosition when form values change (e.g. loading initialData)
   useEffect(() => {
     const lat = form.getValues('latitude');
     const lng = form.getValues('longitude');
@@ -194,9 +203,9 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             {showMap && (
                <FormField
                 control={form.control}
-                name="latitude" // This field is just for form state, not directly displayed
-                render={() => ( // We don't need to render an input, map handles it
-                  <FormItem>
+                name="latitude"
+                render={() => (
+                  <FormItem className="hidden">
                      <FormLabel className="sr-only">Latitude</FormLabel>
                      <FormControl>
                         <Input type="hidden" {...form.register("latitude")} />
@@ -209,9 +218,9 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             {showMap && (
                  <FormField
                 control={form.control}
-                name="longitude" // This field is just for form state, not directly displayed
-                render={() => ( // We don't need to render an input, map handles it
-                  <FormItem>
+                name="longitude" 
+                render={() => (
+                  <FormItem className="hidden">
                      <FormLabel className="sr-only">Longitude</FormLabel>
                      <FormControl>
                         <Input type="hidden" {...form.register("longitude")} />
@@ -224,8 +233,8 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
 
             {showMap && (
                 <div className="h-[350px] w-full rounded-md overflow-hidden border shadow-sm">
-                    <PropertyLocationMap
-                        key={mapPosition ? `${mapPosition[0]}-${mapPosition[1]}` : 'map-key'} // Key to help re-render map
+                    <DynamicPropertyLocationMap
+                        key={mapPosition ? `${mapPosition[0]}-${mapPosition[1]}` : 'map-key-form'} 
                         position={mapPosition}
                         onPositionChange={handleMapPositionChange}
                         mapHeight="100%"
@@ -259,7 +268,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             <FormField
               control={form.control}
               name="imageFile"
-              render={() => ( // field is not directly used for file input, handled by handleImageChange
+              render={() => (
                 <FormItem>
                   <FormLabel>Property Image (Layout, Map, or Photo)</FormLabel>
                   <FormControl>
@@ -300,3 +309,5 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     </Card>
   );
 }
+
+    

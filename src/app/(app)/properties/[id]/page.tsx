@@ -8,12 +8,21 @@ import { PlotPinner } from "@/components/properties/plot-pinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Package, AlertTriangle, MapPin } from "lucide-react";
+import { ArrowLeft, Edit, Package, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
-import { PropertyLocationMap } from "@/components/maps/property-location-map";
+// import { PropertyLocationMap } from "@/components/maps/property-location-map"; // Static import removed
 import type { LatLngExpression } from 'leaflet';
+import dynamic from 'next/dynamic';
+
+const DynamicPropertyLocationMap = dynamic(() => 
+  import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
+  { 
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full rounded-md border flex items-center justify-center bg-muted"><p>Loading map...</p></div>
+  }
+);
 
 
 export default function PropertyDetailsPage() {
@@ -108,11 +117,11 @@ export default function PropertyDetailsPage() {
             <h3 className="text-xl font-semibold mb-2">Property Location</h3>
             {mapPosition ? (
               <div className="h-[300px] w-full rounded-md overflow-hidden border shadow-sm">
-                <PropertyLocationMap
-                  key={`${mapPosition[0]}-${mapPosition[1]}`}
+                <DynamicPropertyLocationMap
+                  key={`${mapPosition[0]}-${mapPosition[1]}-details`}
                   position={mapPosition}
                   popupText={property.name}
-                  interactive={false} // Non-interactive on details page
+                  interactive={false} 
                   mapHeight="100%"
                 />
               </div>
@@ -145,3 +154,5 @@ export default function PropertyDetailsPage() {
     </div>
   );
 }
+
+    
