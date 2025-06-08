@@ -70,23 +70,20 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith(item.href)}
-                    tooltip={{ children: item.tooltip, className:"bg-popover text-popover-foreground border shadow-md" }}
-                    className={cn(
-                      "justify-start",
-                      pathname.startsWith(item.href) && "bg-primary/10 text-primary hover:bg-primary/20"
-                    )}
-                  >
-                    {/* Link component no longer needs legacyBehavior or passHref when asChild is on Button */}
-                    <>
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </>
-                  </SidebarMenuButton>
-                </Link>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith(item.href)}
+                  tooltip={{ children: item.tooltip, className:"bg-popover text-popover-foreground border shadow-md" }}
+                  className={cn(
+                    "justify-start",
+                    pathname.startsWith(item.href) && "bg-primary/10 text-primary hover:bg-primary/20"
+                  )}
+                >
+                  <Link href={item.href}>
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
