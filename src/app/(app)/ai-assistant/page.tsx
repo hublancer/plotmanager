@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, Send, Loader2, User, Brain } from "lucide-react";
+import { Mic, Send, Loader2, User, Brain, MessageSquareText } from "lucide-react"; // Added MessageSquareText
 import { chatWithAssistant, type ChatAssistantInput, type ChatAssistantOutput } from "@/ai/flows/chat-assistant-flow";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
