@@ -14,7 +14,6 @@ import type { Property } from "@/types";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { UploadCloud, FileText, MapPin } from "lucide-react";
-// import { PropertyLocationMap } from "@/components/maps/property-location-map"; // Static import removed
 import type { LatLngExpression } from 'leaflet';
 import dynamic from 'next/dynamic';
 
@@ -121,8 +120,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
   };
 
   const handleMapPositionChange = useCallback((newPosition: { lat: number; lng: number }) => {
-    const pos: LatLngExpression = [newPosition.lat, newPosition.lng];
-    setMapPosition(pos);
+    setMapPosition([newPosition.lat, newPosition.lng]);
     form.setValue('latitude', newPosition.lat);
     form.setValue('longitude', newPosition.lng);
   }, [form]);
@@ -139,14 +137,19 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     const lat = form.getValues('latitude');
     const lng = form.getValues('longitude');
     if (lat && lng) {
-        const currentMapPosArray = Array.isArray(mapPosition) ? mapPosition : [0,0];
-        if (currentMapPosArray[0] !== lat || currentMapPosArray[1] !== lng) {
-             setMapPosition([lat, lng]);
+        // Only update if the values are actually different to prevent unnecessary re-renders/key changes
+        if (!mapPosition || (Array.isArray(mapPosition) && (mapPosition[0] !== lat || mapPosition[1] !== lng))) {
+            setMapPosition([lat, lng]);
         }
     } else {
-        setMapPosition(null);
+        // Only set to null if it's not already null
+        if (mapPosition !== null) {
+            setMapPosition(null);
+        }
     }
-  }, [form.watch('latitude'), form.watch('longitude'), mapPosition]);
+  // form.watch values trigger this effect. mapPosition itself is set within, so it's not needed as a direct dependency
+  // as long as the conditions prevent infinite loops.
+  }, [form.watch('latitude'), form.watch('longitude'), form]);
 
 
   return (
@@ -200,36 +203,33 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                 </FormDescription>
             </div>
 
-            {showMap && (
-               <FormField
-                control={form.control}
-                name="latitude"
-                render={() => (
-                  <FormItem className="hidden">
-                     <FormLabel className="sr-only">Latitude</FormLabel>
-                     <FormControl>
-                        <Input type="hidden" {...form.register("latitude")} />
-                     </FormControl>
-                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            {showMap && (
-                 <FormField
-                control={form.control}
-                name="longitude" 
-                render={() => (
-                  <FormItem className="hidden">
-                     <FormLabel className="sr-only">Longitude</FormLabel>
-                     <FormControl>
-                        <Input type="hidden" {...form.register("longitude")} />
-                     </FormControl>
-                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            {/* Hidden latitude and longitude fields, managed by map interaction */}
+             <FormField
+              control={form.control}
+              name="latitude"
+              render={({ field }) => (
+                <FormItem className="hidden">
+                   <FormLabel className="sr-only">Latitude</FormLabel>
+                   <FormControl>
+                      <Input type="number" step="any" {...field} value={field.value ?? ""} />
+                   </FormControl>
+                   <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="longitude" 
+              render={({ field }) => (
+                <FormItem className="hidden">
+                   <FormLabel className="sr-only">Longitude</FormLabel>
+                   <FormControl>
+                      <Input type="number" step="any" {...field} value={field.value ?? ""} />
+                   </FormControl>
+                   <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {showMap && (
                 <div className="h-[350px] w-full rounded-md overflow-hidden border shadow-sm">
@@ -309,5 +309,3 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     </Card>
   );
 }
-
-    
