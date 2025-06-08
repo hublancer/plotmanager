@@ -42,9 +42,9 @@ export default function InstallmentsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Property</TableHead>
-                <TableHead>Total Price</TableHead>
-                <TableHead>Amount Paid</TableHead>
-                <TableHead>Remaining</TableHead>
+                <TableHead>Total Price (PKR)</TableHead>
+                <TableHead>Amount Paid (PKR)</TableHead>
+                <TableHead>Remaining (PKR)</TableHead>
                 <TableHead>Purchase Date</TableHead>
                 <TableHead>Next Due Date</TableHead>
                 <TableHead className="w-[200px]">Progress</TableHead>
@@ -58,10 +58,10 @@ export default function InstallmentsPage() {
                     <div className="font-medium">{prop.name}</div>
                     <div className="text-xs text-muted-foreground">{prop.address}</div>
                   </TableCell>
-                  <TableCell>${prop.totalInstallmentPrice?.toLocaleString()}</TableCell>
-                  <TableCell>${prop.paidAmount?.toLocaleString()}</TableCell>
+                  <TableCell>{prop.totalInstallmentPrice?.toLocaleString()}</TableCell>
+                  <TableCell>{prop.paidAmount?.toLocaleString()}</TableCell>
                   <TableCell className={prop.remainingAmount === 0 ? "text-green-600 font-semibold" : ""}>
-                    ${prop.remainingAmount?.toLocaleString()}
+                    {prop.remainingAmount?.toLocaleString()}
                   </TableCell>
                   <TableCell>{prop.purchaseDate ? new Date(prop.purchaseDate).toLocaleDateString() : 'N/A'}</TableCell>
                   <TableCell>{prop.nextDueDate ? new Date(prop.nextDueDate).toLocaleDateString() : (prop.remainingAmount === 0 ? 'Fully Paid' : 'N/A')}</TableCell>
@@ -99,7 +99,7 @@ export default function InstallmentsPage() {
       </Card>
       <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
         This section tracks properties sold under installment plans. You can view payment progress, remaining balances, and due dates.
-        To add a property here, mark it as 'Sold on Installment' in its details and record installment payments through the Payments section.
+        Currency is shown in PKR.
       </CardDescription>
     </div>
   );

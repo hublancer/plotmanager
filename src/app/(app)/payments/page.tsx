@@ -22,7 +22,7 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { getPayments, addPayment, updatePayment, deletePayment, getAllMockProperties } from "@/lib/mock-db"; // Updated imports
+import { getPayments, addPayment, updatePayment, deletePayment, getAllMockProperties } from "@/lib/mock-db"; 
 
 
 const paymentFormSchema = z.object({
@@ -32,7 +32,7 @@ const paymentFormSchema = z.object({
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   date: z.date({ required_error: "Payment date is required." }),
   paymentMethod: z.string().optional(),
-  type: z.enum(["rent", "installment", "sale"]),
+  type: z.enum(["rent", "installment", "sale", "token"]),
   notes: z.string().optional(),
 });
 
@@ -156,7 +156,7 @@ export default function PaymentsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tenant/Buyer Name</FormLabel>
-                    <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Ali Khan" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -166,8 +166,8 @@ export default function PaymentsPage() {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount ($)</FormLabel>
-                    <FormControl><Input type="number" placeholder="1000" {...field} /></FormControl>
+                    <FormLabel>Amount (PKR)</FormLabel>
+                    <FormControl><Input type="number" placeholder="50000" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -220,7 +220,8 @@ export default function PaymentsPage() {
                       <SelectContent>
                         <SelectItem value="rent">Rent</SelectItem>
                         <SelectItem value="installment">Installment</SelectItem>
-                        <SelectItem value="sale">Sale</SelectItem>
+                        <SelectItem value="sale">Full Sale</SelectItem>
+                        <SelectItem value="token">Token / Bayana</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -233,7 +234,7 @@ export default function PaymentsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Payment Method (Optional)</FormLabel>
-                    <FormControl><Input placeholder="e.g., Bank Transfer, Cash" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Bank Transfer, Cash, Cheque" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -244,7 +245,7 @@ export default function PaymentsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl><Textarea placeholder="Additional details about the payment" {...field} /></FormControl>
+                    <FormControl><Textarea placeholder="e.g., Token money for Plot A-101, Monthly rent for Apt B2" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -266,7 +267,7 @@ export default function PaymentsPage() {
                 <TableHead>Property</TableHead>
                 <TableHead>Plot</TableHead>
                 <TableHead>Tenant/Buyer</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead>Amount (PKR)</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Method</TableHead>
@@ -279,7 +280,7 @@ export default function PaymentsPage() {
                   <TableCell>{payment.propertyName || payment.propertyId}</TableCell>
                   <TableCell>{payment.plotNumber || "N/A"}</TableCell>
                   <TableCell>{payment.tenantOrBuyerName}</TableCell>
-                  <TableCell>${payment.amount.toLocaleString()}</TableCell>
+                  <TableCell>PKR {payment.amount.toLocaleString()}</TableCell>
                   <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                   <TableCell className="capitalize">{payment.type}</TableCell>
                   <TableCell>{payment.paymentMethod || "N/A"}</TableCell>

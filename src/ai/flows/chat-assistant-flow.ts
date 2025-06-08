@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A conversational AI assistant for PlotPilot.
+ * @fileOverview A conversational AI assistant for PlotPilot, tailored for the Pakistani real estate market.
  *
  * - chatWithAssistant - A function to interact with the AI assistant.
  * - ChatAssistantInput - The input type for the chatWithAssistant function.
@@ -13,7 +13,6 @@ import {z} from 'genkit';
 import { addProperty as addPropertyToDb, getProperties as getPropertiesFromDb } from '@/lib/mock-db';
 import type { Property } from '@/types';
 
-// Define a simple tool for adding a task
 const addBusinessTaskTool = ai.defineTool(
   {
     name: 'addBusinessTask',
@@ -24,62 +23,73 @@ const addBusinessTaskTool = ai.defineTool(
     outputSchema: z.string().describe('Confirmation message after attempting to add the task.'),
   },
   async ({taskDescription}) => {
-    // In a real application, this would interact with a database or a task management service.
     console.log(`AI Task Added via Tool: ${taskDescription}`);
     return `Okay, I've noted down the task: "${taskDescription}". You can find it in your task list.`;
   }
 );
 
-// Tool to list properties
 const ListPropertiesInputSchema = z.object({
-  filter: z.string().optional().describe("Optional filter criteria, e.g., 'available', 'sold'"),
+  filter: z.string().optional().describe("Optional filter criteria, e.g., 'available', 'sold', 'rented', or by property type like 'house', 'plot'."),
+  location: z.string().optional().describe("Optional location filter, e.g., 'DHA Lahore', 'Bahria Town Karachi'."),
 });
 const ListPropertiesOutputSchema = z.object({
   properties: z.array(z.object({
     id: z.string(),
     name: z.string(),
     address: z.string(),
+    propertyType: z.string().optional(),
     status: z.string().optional(),
-  })).describe("List of properties with their basic details."),
+  })).describe("List of properties with their basic details including type and status."),
   summary: z.string().describe("A human-readable summary of the properties found."),
 });
 
 const listPropertiesTool = ai.defineTool(
   {
     name: 'listProperties',
-    description: 'Retrieves a list of properties from the system. Can be filtered by status like "available" or "sold".',
+    description: 'Retrieves a list of properties from the system. Can be filtered by status (e.g., "available", "sold", "rented"), property type (e.g., "house", "plot", "apartment", "file"), or location.',
     inputSchema: ListPropertiesInputSchema,
     outputSchema: ListPropertiesOutputSchema,
   },
   async (input) => {
-    const allProperties = getPropertiesFromDb();
-    // Basic filtering example (can be expanded)
-    let filteredProperties = allProperties;
-    if (input.filter?.toLowerCase() === 'sold') {
-        filteredProperties = allProperties.filter(p => p.isSoldOnInstallment); // Simple "sold" definition for now
-    } else if (input.filter?.toLowerCase() === 'available') {
-        filteredProperties = allProperties.filter(p => !p.isSoldOnInstallment);
+    let allProperties = getPropertiesFromDb();
+    
+    if (input.location) {
+        allProperties = allProperties.filter(p => p.address.toLowerCase().includes(input.location!.toLowerCase()));
     }
 
-    const propertyList = filteredProperties.map(p => ({
+    if (input.filter) {
+        const filterLower = input.filter.toLowerCase();
+        if (filterLower === 'sold') {
+            allProperties = allProperties.filter(p => p.isSoldOnInstallment); 
+        } else if (filterLower === 'available') {
+            allProperties = allProperties.filter(p => !p.isSoldOnInstallment && !p.isRented);
+        } else if (filterLower === 'rented') {
+            allProperties = allProperties.filter(p => p.isRented);
+        } else { // Assume filter might be a property type
+            allProperties = allProperties.filter(p => p.propertyType?.toLowerCase().includes(filterLower));
+        }
+    }
+
+    const propertyList = allProperties.map(p => ({
       id: p.id,
       name: p.name,
       address: p.address,
-      status: p.isSoldOnInstallment ? "Sold (Installment)" : "Available",
+      propertyType: p.propertyType || "N/A",
+      status: p.isSoldOnInstallment ? "Sold (Installment)" : (p.isRented ? "Rented" : "Available"),
     }));
 
     if (propertyList.length === 0) {
       return { properties: [], summary: "No properties found matching your criteria." };
     }
-    const summary = `Found ${propertyList.length} properties. ${propertyList.map(p=>p.name).join(', ')}.`;
+    const summary = `Found ${propertyList.length} properties. ${propertyList.map(p=>`${p.name} (${p.propertyType})`).join(', ')}.`;
     return { properties: propertyList, summary };
   }
 );
 
-// Tool to add a new property
 const AddPropertyInputSchema = z.object({
-  name: z.string().describe('The name of the new property.'),
-  address: z.string().describe('The full address of the new property.'),
+  name: z.string().describe('The name of the new property (e.g., "Shadman House", "DHA Phase 5 Plot").'),
+  address: z.string().describe('The full address of the new property, including society, block, city if possible.'),
+  propertyType: z.string().optional().describe('Type of property, e.g., "Residential Plot", "Commercial Plot", "House", "File", "Shop", "Apartment".'),
 });
 const AddPropertyOutputSchema = z.object({
   propertyId: z.string().describe('The ID of the newly created property.'),
@@ -89,7 +99,7 @@ const AddPropertyOutputSchema = z.object({
 const addPropertyTool = ai.defineTool(
   {
     name: 'addProperty',
-    description: 'Adds a new property to the system. Requires property name and address.',
+    description: 'Adds a new property to the system. Requires property name and address. Optionally, property type can be specified.',
     inputSchema: AddPropertyInputSchema,
     outputSchema: AddPropertyOutputSchema,
   },
@@ -97,12 +107,12 @@ const addPropertyTool = ai.defineTool(
     const newPropertyData: Omit<Property, 'id' | 'plots' | 'imageType'> = {
         name: input.name,
         address: input.address,
-        // Other fields will use defaults or be empty initially
+        propertyType: input.propertyType,
     };
     const createdProperty = addPropertyToDb(newPropertyData);
     return {
       propertyId: createdProperty.id,
-      message: `Successfully added property "${createdProperty.name}" with ID ${createdProperty.id}. You can add more details like images or plots via the Properties page.`,
+      message: `Successfully added property "${createdProperty.name}" (${createdProperty.propertyType || 'Type N/A'}) with ID ${createdProperty.id}. You can add more details like images or plots via the Properties page.`,
     };
   }
 );
@@ -126,20 +136,21 @@ const assistantPrompt = ai.definePrompt({
   name: 'chatAssistantPrompt',
   input: {schema: ChatAssistantInputSchema},
   output: {schema: ChatAssistantOutputSchema},
-  tools: [addBusinessTaskTool, listPropertiesTool, addPropertyTool], // Make tools available
-  prompt: `You are PlotPilot AI, a friendly and highly intelligent assistant for real estate and property management businesses.
-Your goal is to help users grow their business, manage properties efficiently, and streamline operations.
+  tools: [addBusinessTaskTool, listPropertiesTool, addPropertyTool], 
+  prompt: `You are PlotPilot AI, a friendly and highly intelligent assistant specializing in the Pakistani real estate market.
+Your goal is to help users grow their business, manage properties efficiently, and streamline operations within the context of Pakistan.
+Understand common Pakistani real estate terms like 'Marla', 'Kanal', 'File', 'Society', 'Bayana' (token money), 'Possession', etc. Currency is in PKR.
 
 Capabilities:
-- Provide business growth ideas and strategies.
-- Offer insights on property management best practices.
-- Help draft communications (e.g., tenant notices, marketing copy).
+- Provide business growth ideas and strategies relevant to the Pakistani market.
+- Offer insights on property management best practices in Pakistan.
+- Help draft communications (e.g., tenant notices, marketing copy for local audiences).
 - Summarize information if provided.
 - If the user asks you to create a task, reminder, or to-do item, use the 'addBusinessTask' tool.
-- If the user asks to list properties, view properties, or search for properties, use the 'listProperties' tool. You can ask for filters like 'available' or 'sold'.
-- If the user asks to add a new property, create a property, or register a property, use the 'addProperty' tool. You'll need the property name and address.
+- If the user asks to list properties, view properties, or search for properties, use the 'listProperties' tool. You can ask for filters like 'available', 'sold', 'rented', or by property type (e.g., 'house', 'plot', 'file') or location (e.g., 'DHA Lahore', 'Bahria Town Karachi').
+- If the user asks to add a new property, create a property, or register a property, use the 'addProperty' tool. You'll need the property name and address. Property type is optional but helpful.
 - Do not confirm if you will use a tool, just use it if appropriate for the user's request.
-- After using a tool, provide a concise confirmation of the action taken and include key details from the tool's output. For example, if a property is added, mention its name and ID. If properties are listed, summarize what was found.
+- After using a tool, provide a concise confirmation of the action taken and include key details from the tool's output. For example, if a property is added, mention its name, type and ID. If properties are listed, summarize what was found.
 
 User Message: {{{userMessage}}}
 

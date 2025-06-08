@@ -7,6 +7,7 @@ export interface PlotData {
   price: number;
   x: number; // Percentage from left
   y: number; // Percentage from top
+  size?: string; // e.g., "5 Marla", "1 Kanal", "250 Sq. Yd."
   details?: string; // Optional additional details
 }
 
@@ -17,6 +18,7 @@ export interface Property {
   imageUrl?: string;
   imageFile?: File; // For local preview before upload
   imageType?: 'photo' | 'pdf'; // To distinguish file types
+  propertyType?: string; // e.g., "Residential Plot", "Commercial Plot", "House", "File", "Shop", "Apartment"
   plots: PlotData[];
 
   // Installment related
@@ -40,7 +42,7 @@ export interface PaymentRecord {
   amount: number;
   date: string; // ISO date string
   paymentMethod?: string;
-  type: 'rent' | 'installment' | 'sale';
+  type: 'rent' | 'installment' | 'sale' | 'token'; // Added 'token' as a common payment type
   notes?: string;
 }
 
@@ -65,3 +67,4 @@ export interface Employee {
   avatarUrl?: string;
   department?: string;
 }
+

@@ -7,10 +7,11 @@ import type { Property, PlotData } from "@/types";
 import { PlotPinner } from "@/components/properties/plot-pinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Edit, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { getPropertyById, updateProperty } from "@/lib/mock-db"; // Updated imports
+import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -24,9 +25,8 @@ export default function PropertyDetailsPage() {
   useEffect(() => {
     if (propertyId) {
       setIsLoading(true);
-      // Simulate API delay for fetching
       setTimeout(() => {
-        const data = getPropertyById(propertyId); // Use centralized mock data
+        const data = getPropertyById(propertyId); 
         setProperty(data || null);
         setIsLoading(false);
       }, 500);
@@ -36,7 +36,7 @@ export default function PropertyDetailsPage() {
   const handlePlotsChange = (updatedPlots: PlotData[]) => {
     if (property) {
       const updatedPropertyData = { ...property, plots: updatedPlots };
-      const result = updateProperty(property.id, { plots: updatedPlots }); // Update centralized mock data
+      const result = updateProperty(property.id, { plots: updatedPlots }); 
       if (result) {
         setProperty(result);
         toast({
@@ -72,6 +72,12 @@ export default function PropertyDetailsPage() {
           <div>
             <CardTitle className="text-3xl font-bold">{property.name}</CardTitle>
             <CardDescription className="text-lg">{property.address}</CardDescription>
+            {property.propertyType && (
+                 <Badge variant="secondary" className="mt-2 inline-flex items-center gap-1">
+                    <Package className="h-4 w-4" />
+                    {property.propertyType}
+                </Badge>
+            )}
           </div>
           <Button variant="outline" size="icon" onClick={() => alert('Edit property details modal/page should open here.')}>
             <Edit className="h-5 w-5" />

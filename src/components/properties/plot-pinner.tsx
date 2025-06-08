@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { PlotData } from "@/types";
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Edit2, Trash2, MapPin } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, MapPin, Scaling } from "lucide-react"; // Added Scaling icon
 import { useToast } from "@/hooks/use-toast";
 
 interface PlotPinnerProps {
@@ -38,11 +39,9 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     
-    // Check if click is on an existing pin
     for (const plot of plots) {
-      // Approximate hit area for a pin (e.g., 2% radius)
       const distance = Math.sqrt(Math.pow(plot.x - x, 2) + Math.pow(plot.y - y, 2));
-      if (distance < 3) { // Adjust sensitivity as needed
+      if (distance < 3) { 
         setSelectedPlot(plot);
         setIsEditing(true);
         setShowDialog(true);
@@ -51,7 +50,6 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
       }
     }
 
-    // If not on existing pin, prepare for new pin
     setTempPin({ x, y });
     setSelectedPlot(null);
     setIsEditing(false);
@@ -71,7 +69,7 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
       };
       newPlots = [...plots, newPlot];
     } else {
-      return; // Should not happen
+      return; 
     }
     setPlots(newPlots);
     onPlotsChange(newPlots);
@@ -120,12 +118,12 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
             className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-150 ease-out hover:scale-125"
             style={{ left: `${plot.x}%`, top: `${plot.y}%`, backgroundColor: 'rgba(var(--color-accent-hsl), 0.7)', border: '2px solid hsl(var(--accent-foreground))' }}
             onClick={(e) => { e.stopPropagation(); setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}
-            title={`Plot ${plot.plotNumber}`}
+            title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
           >
             <MapPin className="w-4 h-4 text-accent-foreground" />
           </div>
         ))}
-        {tempPin && !showDialog && ( // Show temporary pin visual feedback before dialog opens, if needed
+        {tempPin && !showDialog && ( 
             <div
               className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/70 border-2 border-primary-foreground flex items-center justify-center"
               style={{ left: `${tempPin.x}%`, top: `${tempPin.y}%` }}
@@ -154,8 +152,8 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
             {plots.map(plot => (
               <li key={plot.id} className="flex items-center justify-between p-3 border rounded-md bg-card hover:bg-secondary/50 transition-colors">
                 <div>
-                  <p className="font-medium text-foreground">Plot #{plot.plotNumber}</p>
-                  <p className="text-xs text-muted-foreground">Buyer: {plot.buyerName || "N/A"} - Price: ${plot.price?.toLocaleString() || "N/A"}</p>
+                  <p className="font-medium text-foreground">Plot #{plot.plotNumber} {plot.size && <span className="text-xs text-muted-foreground">({plot.size})</span>}</p>
+                  <p className="text-xs text-muted-foreground">Buyer: {plot.buyerName || "N/A"} - Price: PKR {plot.price?.toLocaleString() || "N/A"}</p>
                 </div>
                 <div className="space-x-1">
                   <Button variant="ghost" size="icon" onClick={() => { setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}>
@@ -187,6 +185,7 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
   const [buyerName, setBuyerName] = useState(plotData?.buyerName || "");
   const [buyerContact, setBuyerContact] = useState(plotData?.buyerContact || "");
   const [price, setPrice] = useState<number | string>(plotData?.price || "");
+  const [size, setSize] = useState(plotData?.size || ""); // New state for plot size
   const [details, setDetails] = useState(plotData?.details || "");
 
   useEffect(() => {
@@ -195,13 +194,14 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
       setBuyerName(plotData.buyerName);
       setBuyerContact(plotData.buyerContact);
       setPrice(plotData.price);
+      setSize(plotData.size || "");
       setDetails(plotData.details || "");
     } else {
-      // Reset for new plot
       setPlotNumber("");
       setBuyerName("");
       setBuyerContact("");
       setPrice("");
+      setSize("");
       setDetails("");
     }
   }, [plotData, isOpen]);
@@ -212,6 +212,7 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
       buyerName, 
       buyerContact, 
       price: Number(price),
+      size,
       details
     });
   };
@@ -228,6 +229,12 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
             <Input id="plotNumber" value={plotNumber} onChange={(e) => setPlotNumber(e.target.value)} className="col-span-3" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="size" className="text-right flex items-center">
+              <Scaling className="h-3 w-3 mr-1 inline"/> Size
+            </Label>
+            <Input id="size" value={size} onChange={(e) => setSize(e.target.value)} className="col-span-3" placeholder="e.g., 5 Marla, 1 Kanal"/>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="buyerName" className="text-right">Buyer Name</Label>
             <Input id="buyerName" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="col-span-3" />
           </div>
@@ -236,7 +243,7 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
             <Input id="buyerContact" value={buyerContact} onChange={(e) => setBuyerContact(e.target.value)} className="col-span-3" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="text-right">Price ($)</Label>
+            <Label htmlFor="price" className="text-right">Price (PKR)</Label>
             <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="col-span-3" />
           </div>
            <div className="grid grid-cols-4 items-center gap-4">

@@ -9,12 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit3, Trash2, Eye, Search } from "lucide-react";
+import { PlusCircle, Edit3, Trash2, Eye, Search, Package } from "lucide-react"; // Added Package for property type
 import type { Property } from "@/types";
 import Image from "next/image";
 import { getProperties, deleteProperty as deletePropertyFromDb } from "@/lib/mock-db";
 
-type FilterStatus = "all" | "available" | "installment";
+type FilterStatus = "all" | "available" | "installment" | "rented";
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -33,7 +33,6 @@ export default function PropertiesPage() {
   const handleDeleteProperty = (id: string) => {
     if (deletePropertyFromDb(id)) {
       setProperties(prev => prev.filter(p => p.id !== id));
-      // Consider adding a toast notification here
     }
   };
 
@@ -41,12 +40,14 @@ export default function PropertiesPage() {
     return properties.filter(property => {
       const matchesSearchTerm = 
         property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.address.toLowerCase().includes(searchTerm.toLowerCase());
+        property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (property.propertyType && property.propertyType.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesFilterStatus = 
         filterStatus === "all" ||
-        (filterStatus === "available" && !property.isSoldOnInstallment) ||
-        (filterStatus === "installment" && property.isSoldOnInstallment);
+        (filterStatus === "available" && !property.isSoldOnInstallment && !property.isRented) ||
+        (filterStatus === "installment" && property.isSoldOnInstallment) ||
+        (filterStatus === "rented" && property.isRented);
       
       return matchesSearchTerm && matchesFilterStatus;
     });
@@ -65,7 +66,7 @@ export default function PropertiesPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search name or address..."
+              placeholder="Search name, address, type..."
               className="pl-8 w-full sm:w-[250px] shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -79,6 +80,7 @@ export default function PropertiesPage() {
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="available">Available</SelectItem>
               <SelectItem value="installment">Sold (Installment)</SelectItem>
+              <SelectItem value="rented">Rented</SelectItem>
             </SelectContent>
           </Select>
           <Link href="/properties/add" passHref>
@@ -106,6 +108,7 @@ export default function PropertiesPage() {
                   <TableHead className="w-[100px]">Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Address</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Plots</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -126,12 +129,22 @@ export default function PropertiesPage() {
                     </TableCell>
                     <TableCell className="font-medium">{property.name}</TableCell>
                     <TableCell>{property.address}</TableCell>
+                    <TableCell>
+                        {property.propertyType ? (
+                            <Badge variant="outline" className="flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                {property.propertyType}
+                            </Badge>
+                        ) : "N/A"}
+                    </TableCell>
                     <TableCell>{property.plots.length}</TableCell>
                     <TableCell>
                       {property.isSoldOnInstallment ? (
                         <Badge variant="secondary">Installment</Badge>
+                      ) : property.isRented ? (
+                        <Badge variant="default" className="bg-blue-500 hover:bg-blue-600 text-white">Rented</Badge>
                       ) : (
-                        <Badge variant="outline">Available</Badge>
+                        <Badge variant="outline" className="border-green-500 text-green-600">Available</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
