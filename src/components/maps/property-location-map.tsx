@@ -3,7 +3,6 @@
 
 // Leaflet CSS is imported in RootLayout
 // Import leaflet-defaulticon-compatibility to make default icons work with bundlers like Webpack
-// import 'leaflet-defaulticon-compatibility'; -- Moved to useEffect
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import type L from 'leaflet'; // Import Leaflet type for map instance
@@ -71,8 +70,8 @@ export function PropertyLocationMap({
 
   if (!isClient) {
     return (
-      <div 
-        className={cn("bg-muted flex items-center justify-center rounded-md", className)} 
+      <div
+        className={cn("bg-muted flex items-center justify-center rounded-md", className)}
         style={{ height: mapHeight }}
       >
         <p>Loading map...</p>
@@ -81,12 +80,13 @@ export function PropertyLocationMap({
   }
 
   const mapCenter = position || DEFAULT_CENTER;
-  const mapZoom = position ? (zoom || LOCATION_SET_ZOOM) : DEFAULT_ZOOM;
+  const currentZoom = position ? (zoom || LOCATION_SET_ZOOM) : DEFAULT_ZOOM;
 
   return (
     <MapContainer
+      key={position ? `${position[0]}-${position[1]}-${currentZoom}` : 'default-map-key'}
       center={mapCenter}
-      zoom={mapZoom}
+      zoom={currentZoom}
       scrollWheelZoom={interactive}
       dragging={interactive}
       touchZoom={interactive}
