@@ -13,7 +13,8 @@ import {
   Settings,
   UserCircle,
   Briefcase, 
-  MessageSquareText, // Added for AI Assistant
+  MessageSquareText,
+  Home, // Added for Rentals
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -44,6 +45,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard" },
   { href: "/properties", icon: <Building2 />, label: "Properties", tooltip: "Properties" },
+  { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management" },
   { href: "/payments", icon: <CreditCard />, label: "Payments", tooltip: "Payments" },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments" },
   { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, 

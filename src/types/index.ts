@@ -14,21 +14,29 @@ export interface Property {
   id:string;
   name: string;
   address: string;
-  imageUrl?: string; 
+  imageUrl?: string;
   imageFile?: File; // For local preview before upload
   imageType?: 'photo' | 'pdf'; // To distinguish file types
   plots: PlotData[];
+
+  // Installment related
   isSoldOnInstallment?: boolean;
   purchaseDate?: string; // ISO date string
   totalInstallmentPrice?: number;
+
+  // Rental related
+  isRented?: boolean;
+  tenantName?: string;
+  rentAmount?: number;
+  nextRentDueDate?: string; // ISO date string for the next due date
 }
 
 export interface PaymentRecord {
   id: string;
-  propertyId: string; 
+  propertyId: string;
   propertyName?: string; // For display convenience
   plotNumber?: string; // For display convenience
-  tenantOrBuyerName: string;
+  tenantOrBuyerName: string; // Could be tenant for rent, buyer for installment/sale
   amount: number;
   date: string; // ISO date string
   paymentMethod?: string;
@@ -37,11 +45,14 @@ export interface PaymentRecord {
 }
 
 export interface InstallmentDetails extends Property {
-  // Specific installment fields can be added if needed, 
-  // or rely on Property's installment fields and PaymentRecord for tracking
   paidAmount?: number;
   remainingAmount?: number;
-  nextDueDate?: string;
+  nextDueDate?: string; // Calculated next installment due date
+}
+
+export interface RentedPropertyDetails extends Property {
+  lastRentPaymentDate?: string; // ISO date string of the last rent payment
+  // Potentially add rentPaymentStatus derived in mock-db if needed
 }
 
 export interface Employee {
