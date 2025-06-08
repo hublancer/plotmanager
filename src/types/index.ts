@@ -1,3 +1,4 @@
+
 export interface PlotData {
   id: string;
   plotNumber: string;
@@ -41,4 +42,15 @@ export interface InstallmentDetails extends Property {
   paidAmount?: number;
   remainingAmount?: number;
   nextDueDate?: string;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  position: string;
+  email: string;
+  phone?: string;
+  hireDate: string; // ISO date string
+  avatarUrl?: string;
+  department?: string;
 }

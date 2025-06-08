@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -11,6 +12,7 @@ import {
   FileText,
   Settings,
   UserCircle,
+  Briefcase, // Added Briefcase icon
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -43,6 +45,7 @@ const navItems: NavItem[] = [
   { href: "/properties", icon: <Building2 />, label: "Properties", tooltip: "Properties" },
   { href: "/payments", icon: <CreditCard />, label: "Payments", tooltip: "Payments" },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments" },
+  { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, // Added Employees nav item
   { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports" },
 ];
 
@@ -77,10 +80,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                       pathname.startsWith(item.href) && "bg-primary/10 text-primary hover:bg-primary/20"
                     )}
                   >
-                    <a> {/* legacyBehavior requires <a> tag, but asChild handles this when Link doesn't have legacyBehavior */}
+                    {/* Link component no longer needs legacyBehavior or passHref when asChild is on Button */}
+                    <>
                       {item.icon}
                       <span>{item.label}</span>
-                    </a>
+                    </>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
