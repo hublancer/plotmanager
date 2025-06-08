@@ -7,7 +7,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import type L from 'leaflet'; // Import Leaflet type for map instance
 import type { LatLngExpression } from 'leaflet';
-import { useEffect, useState, useRef } from 'react'; // Added useRef
+import { useEffect, useState, useRef } from 'react'; 
 import { cn } from "@/lib/utils";
 
 interface PropertyLocationMapProps {
@@ -47,7 +47,7 @@ export function PropertyLocationMap({
   onPositionChange,
 }: PropertyLocationMapProps) {
   const [isClient, setIsClient] = useState(false);
-  const mapRef = useRef<L.Map | null>(null); // Ref to store map instance
+  const mapRef = useRef<L.Map | null>(null); 
 
   useEffect(() => {
     setIsClient(true);
@@ -57,13 +57,14 @@ export function PropertyLocationMap({
 
   // Effect for cleaning up the map instance on unmount
   useEffect(() => {
-    // The key prop on this component's instance (e.g., in PropertyForm)
+    // This cleanup runs when the PropertyLocationMap component unmounts.
+    // The key prop on this component's instance (e.g., in PropertyForm or PropertyDetailsPage)
     // is important for forcing React to unmount and remount it,
     // allowing this cleanup logic to run effectively.
     return () => {
       if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
+        mapRef.current.remove(); // Properly destroy the Leaflet map instance
+        mapRef.current = null;   // Nullify the ref
       }
     };
   }, []); // Empty dependency array: runs cleanup only on unmount
@@ -80,11 +81,13 @@ export function PropertyLocationMap({
   }
 
   const mapCenter = position || DEFAULT_CENTER;
+  // Use the zoom prop if provided and a position is set, otherwise use LOCATION_SET_ZOOM for a new pin or DEFAULT_ZOOM for initial view.
   const currentZoom = position ? (zoom || LOCATION_SET_ZOOM) : DEFAULT_ZOOM;
 
   return (
     <MapContainer
-      key={position ? `${position[0]}-${position[1]}-${currentZoom}` : 'default-map-key'}
+      // Removed the key from here. We rely on the parent component's keying of PropertyLocationMap
+      // to ensure this component, and thus the MapContainer, is fully remounted.
       center={mapCenter}
       zoom={currentZoom}
       scrollWheelZoom={interactive}
@@ -93,7 +96,7 @@ export function PropertyLocationMap({
       doubleClickZoom={interactive}
       className={cn("w-full rounded-md shadow-md", className)}
       style={{ height: mapHeight, zIndex: 0 }} // zIndex important for ShadCN dialogs/popovers
-      whenCreated={instance => { mapRef.current = instance; }} // Store map instance
+      whenCreated={instance => { mapRef.current = instance; }} 
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
