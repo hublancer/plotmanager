@@ -12,7 +12,8 @@ import {
   FileText,
   Settings,
   UserCircle,
-  Briefcase, // Added Briefcase icon
+  Briefcase, 
+  MessageSquareText, // Added for AI Assistant
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -45,8 +46,9 @@ const navItems: NavItem[] = [
   { href: "/properties", icon: <Building2 />, label: "Properties", tooltip: "Properties" },
   { href: "/payments", icon: <CreditCard />, label: "Payments", tooltip: "Payments" },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments" },
-  { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, // Added Employees nav item
+  { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, 
   { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports" },
+  { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -80,8 +82,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   )}
                 >
                   <Link href={item.href}>
-                    {item.icon}
-                    <span>{item.label}</span>
+                      {item.icon}
+                      <span>{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
