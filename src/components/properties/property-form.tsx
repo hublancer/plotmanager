@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -13,7 +13,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Property } from "@/types";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { UploadCloud, FileText } from "lucide-react"; // Added FileText
+import { UploadCloud, FileText, MapPin } from "lucide-react"; 
+import dynamic from 'next/dynamic';
+import type { LatLngExpression } from 'leaflet';
+import { cn } from "@/lib/utils";
+
+const PropertyLocationMap = dynamic(
+  () => import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
+  { 
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full rounded-md bg-muted flex items-center justify-center"><p>Loading map...</p></div>
+  }
+);
 
 const propertyTypes = [
   "Residential Plot",
@@ -30,8 +41,14 @@ const propertyFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   propertyType: z.string().min(1, "Property type is required"),
-  imageFile: z.any().optional(), 
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
+  imageFile: z.any().optional(),
+}).refine(data => (data.latitude === undefined && data.longitude === undefined) || (data.latitude !== undefined && data.longitude !== undefined), {
+  message: "Both latitude and longitude must be provided, or neither.",
+  path: ["latitude"], // Show error near latitude, or choose a general path
 });
+
 
 type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
@@ -44,6 +61,22 @@ interface PropertyFormProps {
 export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFormProps) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(initialData?.imageUrl || null);
   const [imagePreviewType, setImagePreviewType] = useState<'image' | 'pdf' | null>(null);
+  
+  const form = useForm<PropertyFormValues>({
+    resolver: zodResolver(propertyFormSchema),
+    defaultValues: {
+      name: initialData?.name || "",
+      address: initialData?.address || "",
+      propertyType: initialData?.propertyType || "",
+      latitude: initialData?.latitude,
+      longitude: initialData?.longitude,
+      imageFile: undefined,
+    },
+  });
+
+  const watchedLatitude = form.watch("latitude");
+  const watchedLongitude = form.watch("longitude");
+  const [mapPosition, setMapPosition] = useState<LatLngExpression | null>(null);
 
   useEffect(() => {
     if (initialData?.imageUrl) {
@@ -53,22 +86,22 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       } else if (initialData.imageType === 'photo') {
         setImagePreviewType('image');
       } else {
-         // If imageType is undefined but imageUrl exists, assume it's an image for backward compatibility or generic URLs
         setImagePreviewType('image');
       }
     }
+    if (initialData?.latitude && initialData?.longitude) {
+      setMapPosition([initialData.latitude, initialData.longitude]);
+    }
   }, [initialData]);
 
+  useEffect(() => {
+    if (typeof watchedLatitude === 'number' && typeof watchedLongitude === 'number') {
+      setMapPosition([watchedLatitude, watchedLongitude]);
+    } else {
+      setMapPosition(null);
+    }
+  }, [watchedLatitude, watchedLongitude]);
 
-  const form = useForm<PropertyFormValues>({
-    resolver: zodResolver(propertyFormSchema),
-    defaultValues: {
-      name: initialData?.name || "",
-      address: initialData?.address || "",
-      propertyType: initialData?.propertyType || "",
-      imageFile: undefined,
-    },
-  });
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -82,7 +115,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
         } else if (file.type.startsWith("image/")) {
           setImagePreviewType("image");
         } else {
-          setImagePreviewType(null); // Fallback for unknown types
+          setImagePreviewType(null);
         }
       };
       reader.readAsDataURL(file);
@@ -101,7 +134,11 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
   const handleSubmit = (values: PropertyFormValues) => {
     onSubmit({ ...values, imagePreviewUrl: imagePreviewUrl || undefined, imageType: imagePreviewType || undefined });
   };
-
+  
+  const handleMapClick = (latlng: { lat: number; lng: number }) => {
+    form.setValue("latitude", parseFloat(latlng.lat.toFixed(6)));
+    form.setValue("longitude", parseFloat(latlng.lng.toFixed(6)));
+  };
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -110,7 +147,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
             <FormField
               control={form.control}
               name="name"
@@ -157,6 +194,49 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                 </FormItem>
               )}
             />
+
+            <Card className="p-4 pt-2 bg-secondary/30">
+              <FormLabel className="text-base font-semibold flex items-center gap-2 mb-3"><MapPin className="h-5 w-5 text-primary" /> Location on Map</FormLabel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="latitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Latitude</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" placeholder="e.g., 31.5204" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="longitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Longitude</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" placeholder="e.g., 74.3587" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormDescription className="mt-2 text-xs">
+                Enter coordinates manually or click on the map to set the location. Geocoding from address is a future enhancement.
+              </FormDescription>
+              <div className="mt-4">
+                <PropertyLocationMap 
+                  position={mapPosition} 
+                  popupText={form.getValues("name") || "Property Location"}
+                  onPositionChange={handleMapClick} 
+                />
+              </div>
+            </Card>
+            
             <FormField
               control={form.control}
               name="imageFile"
