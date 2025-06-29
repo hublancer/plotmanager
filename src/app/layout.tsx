@@ -2,6 +2,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { LoadingProvider } from '@/context/loading-context';
+import { PageLoader } from '@/components/layout/page-loader';
+import { AuthProvider } from '@/context/auth-context';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css'; // For default icon compatibility
 
@@ -23,7 +26,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <LoadingProvider>
+          <PageLoader />
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </LoadingProvider>
         <Toaster />
       </body>
     </html>

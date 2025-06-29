@@ -3,8 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
-import { useContext, useEffect } from "react";
+import { type ReactNode, useContext, useEffect } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -16,6 +15,7 @@ import {
   Briefcase, 
   MessageSquareText,
   Home,
+  LogOut,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -35,7 +35,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { PlotPilotLogo } from "@/components/icons/logo";
 import { cn } from "@/lib/utils";
 import { LoadingContext } from "@/context/loading-context";
-
+import { useAuth } from "@/context/auth-context";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 
 interface NavItem {
   href: string;
@@ -58,19 +60,26 @@ const navItems: NavItem[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { start, complete } = useContext(LoadingContext);
+  const { user } = useAuth();
 
-  // This effect runs after the new page component has rendered,
-  // so we can safely turn off the loading indicator.
   useEffect(() => {
     complete();
   }, [pathname, complete]);
 
   const handleNavigation = (href: string) => {
-    // If we're already on the page or a sub-page, do nothing.
-    // Otherwise, turn on the loading indicator.
     if (!pathname.startsWith(href)) {
       start();
     }
+  };
+
+  const handleLogout = async () => {
+    if (!auth) {
+      // Silently fail if firebase is not configured, as user cannot be logged in anyway.
+      return;
+    }
+    start();
+    await signOut(auth);
+    // The AuthProvider will handle the redirect to the login page.
   };
 
   return (
@@ -114,25 +123,30 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="justify-start w-full p-2 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:justify-center">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://placehold.co/100x100.png" alt="User" data-ai-hint="user avatar" />
-                  <AvatarFallback>PP</AvatarFallback>
+                  <AvatarImage src={user?.photoURL || undefined} alt={user?.displayName || "User"} data-ai-hint="user avatar" />
+                  <AvatarFallback>{user?.displayName?.substring(0,2).toUpperCase() || "PP"}</AvatarFallback>
                 </Avatar>
-                <span className="ml-2 group-data-[collapsible=icon]:hidden">User Name</span>
+                <span className="ml-2 group-data-[collapsible=icon]:hidden">{user?.displayName || "User"}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.email || "My Account"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <UserCircle className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
+              <Link href="/profile" passHref>
+                <DropdownMenuItem>
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/settings" passHref>
+                <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                </DropdownMenuItem>
+              </Link>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
