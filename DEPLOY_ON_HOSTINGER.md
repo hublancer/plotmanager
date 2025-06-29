@@ -4,7 +4,7 @@ This guide will walk you through deploying this Next.js application to a Hosting
 
 ### The Core Concept
 
-Hostinger uses a main web server (Apache/LiteSpeed). Your Next.js application is a separate server (Node.js). The goal is to tell the main web server to forward all traffic for your domain to your running Next.js app. The `.htaccess` file is what does this.
+Hostinger uses a main web server (like Apache/LiteSpeed). Your Next.js application is a separate server (Node.js). The goal is to tell the main web server to forward all traffic for your domain to your running Next.js app. The `.htaccess` file is what does this.
 
 ---
 
@@ -39,7 +39,8 @@ Before uploading, you need to build your project. This creates an optimized prod
 3.  Click **Create application**.
 4.  **Application root**: Enter the path to the folder you created in Step 2 (e.g., `plotpilot_app`).
 5.  **Application startup file**: Leave this **blank**. Your `package.json` already has the correct "start" command.
-6.  Click **Create**. Hostinger will detect your `package.json` and start your app.
+6.  **Node.js version**: Choose a recent version like **20.x.x**.
+7.  Click **Create**. Hostinger will detect your `package.json` and start your app.
 
 ---
 
@@ -93,3 +94,11 @@ This is the final and most critical step to connect your domain to your app.
 1.  Go back to the **Node.js** section in hPanel.
 2.  Click the **Restart** button for your application.
 3.  Wait a minute, then visit `https://plotpilot.hublancer.pk/` in your browser. Your site should now be live.
+
+---
+
+### Troubleshooting Common Node.js Issues
+
+- **403 Forbidden Error**: This almost always means your `.htaccess` file is missing, in the wrong folder, or has the wrong content. Double-check Step 5. The `.htaccess` file must be in the public document root of your subdomain, NOT in the `plotpilot_app` folder.
+- **500 Timeout Error**: This usually means the port in your `.htaccess` file doesn't match the port assigned to your app in the Node.js section of hPanel. It can also happen if your app crashes on startup. Check the application logs in the Node.js section for errors.
+- **App Crashes**: Make sure all your **Environment Variables** (Step 4) are set correctly. A missing variable can cause the app to fail on startup. Also ensure you have selected a modern **Node.js version** (like 20.x) in Step 3. The `start` script `next start -p $PORT` in `package.json` is correct and should not be changed, as Hostinger provides the `$PORT` variable automatically.
