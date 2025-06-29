@@ -1,18 +1,14 @@
-#
-# .htaccess for Next.js on Hostinger
-#
-# This file tells the Hostinger server to forward all incoming traffic
-# to your running Node.js application.
-#
+# This file is for Hostinger's server (LiteSpeed/Apache).
+# It tells the server to send all traffic to your running Next.js application.
 
-<IfModule mod_rewrite.c>
-  RewriteEngine On
+# Turn on the rewrite engine
+RewriteEngine On
 
-  # This is the main rule. It captures every incoming request (.*) and forwards it
-  # to your Node.js application's internal port.
-  # The [P,L] flags mean "Proxy" (pass it through) and "Last" (stop processing rules).
-  #
-  # IMPORTANT: You MUST replace YOUR_NODE_APP_PORT with the actual port number
-  # provided in your Hostinger Node.js control panel.
-  RewriteRule ^(.*)$ http://127.0.0.1:YOUR_NODE_APP_PORT/$1 [P,L]
-</IfModule>
+# DO NOT send requests for existing files (like images in /public) to Next.js
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Send all other requests to your Node.js app's port
+# IMPORTANT: Replace YOUR_NODE_APP_PORT with the port from your Hostinger panel.
+RewriteRule ^(.*)$ http://127.0.0.1:YOUR_NODE_APP_PORT/$1 [P,L]
