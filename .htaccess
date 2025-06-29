@@ -1,11 +1,18 @@
-# Enable Rewrite Engine
-RewriteEngine On
+#
+# .htaccess for Next.js on Hostinger
+#
+# This file tells the Hostinger server to forward all incoming traffic
+# to your running Node.js application.
+#
 
-# Proxy requests to your Node.js app's port
-# IMPORTANT: Replace YOUR_NODE_APP_PORT with the actual port from your Hostinger control panel.
-RewriteRule ^(.*)$ http://127.0.0.1:YOUR_NODE_APP_PORT/$1 [P,L]
+<IfModule mod_rewrite.c>
+  RewriteEngine On
 
-# Handle WebSocket connections for Next.js Fast Refresh (HMR)
-RewriteCond %{REQUEST_URI} ^/_next/webpack-hmr [NC]
-RewriteCond %{HTTP:Upgrade} websocket [NC]
-RewriteRule .* ws://127.0.0.1:YOUR_NODE_APP_PORT/$0 [P,L]
+  # This is the main rule. It captures every incoming request (.*) and forwards it
+  # to your Node.js application's internal port.
+  # The [P,L] flags mean "Proxy" (pass it through) and "Last" (stop processing rules).
+  #
+  # IMPORTANT: You MUST replace YOUR_NODE_APP_PORT with the actual port number
+  # provided in your Hostinger Node.js control panel.
+  RewriteRule ^(.*)$ http://127.0.0.1:YOUR_NODE_APP_PORT/$1 [P,L]
+</IfModule>
