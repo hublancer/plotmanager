@@ -5,10 +5,12 @@
 RewriteEngine On
 
 # DO NOT send requests for existing files (like images in /public) to Next.js
+# This allows your Next.js public folder to work correctly.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Send all other requests to your Node.js app's port
+# Send all other requests to your Node.js app's port.
+# The [P,L] flags mean "Proxy" and "Last". It forwards the request and stops processing other rules.
 # IMPORTANT: Replace YOUR_NODE_APP_PORT with the port from your Hostinger panel.
 RewriteRule ^(.*)$ http://127.0.0.1:YOUR_NODE_APP_PORT/$1 [P,L]
