@@ -1,0 +1,14 @@
+# This file is for deploying your Next.js app on Hostinger.
+# 1. Upload this file to your domain's root directory (usually public_html) on Hostinger.
+# 2. Rename it to .htaccess
+# 3. IMPORTANT: Find your Node.js application's port in Hostinger's hPanel
+#    and replace YOUR_NODE_APP_PORT below with the actual port number.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Forward requests to the Node.js app
+  RewriteRule ^$ http://127.0.0.1:YOUR_NODE_APP_PORT/ [P,L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ http://127.0.0.1:YOUR_NODE_APP_PORT/$1 [P,L]
+</IfModule>
