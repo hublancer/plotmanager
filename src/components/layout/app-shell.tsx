@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { useContext, useEffect } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -14,7 +15,7 @@ import {
   UserCircle,
   Briefcase, 
   MessageSquareText,
-  Home, // Added for Rentals
+  Home,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -33,6 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PlotPilotLogo } from "@/components/icons/logo";
 import { cn } from "@/lib/utils";
+import { LoadingContext } from "@/context/loading-context";
 
 
 interface NavItem {
@@ -55,12 +57,27 @@ const navItems: NavItem[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { setIsLoading } = useContext(LoadingContext);
+
+  // This effect runs after the new page component has rendered,
+  // so we can safely turn off the loading indicator.
+  useEffect(() => {
+    setIsLoading(false);
+  }, [pathname, setIsLoading]);
+
+  const handleNavigation = (href: string) => {
+    // If we're already on the page or a sub-page, do nothing.
+    // Otherwise, turn on the loading indicator.
+    if (!pathname.startsWith(href)) {
+      setIsLoading(true);
+    }
+  };
 
   return (
     <SidebarProvider defaultOpen={true} >
       <Sidebar collapsible="icon" side="left" variant="sidebar">
         <SidebarHeader className="flex items-center justify-between p-3">
-          <Link href="/dashboard" className="flex items-center gap-2 hover:no-underline">
+          <Link href="/dashboard" className="flex items-center gap-2 hover:no-underline" onClick={() => handleNavigation('/dashboard')}>
             <PlotPilotLogo className="h-7 w-7 text-primary" />
             <span className="font-semibold text-lg text-foreground group-data-[collapsible=icon]:hidden">
               PlotPilot
@@ -83,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     pathname.startsWith(item.href) && "bg-primary/10 text-primary hover:bg-primary/20"
                   )}
                 >
-                  <Link href={item.href}>
+                  <Link href={item.href} onClick={() => handleNavigation(item.href)}>
                       {item.icon}
                       <span>{item.label}</span>
                   </Link>
