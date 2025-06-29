@@ -1,10 +1,13 @@
 # Deploying Your Next.js App on Hostinger: A Step-by-Step Guide
 
-This guide will walk you through deploying this Next.js application to a Hostinger shared hosting environment. Follow these steps carefully to avoid common errors like "403 Forbidden" or "500 Timeout".
+This guide will walk you through deploying this Next.js application to a Hostinger hosting environment. Follow these steps carefully to avoid common errors like "403 Forbidden" or "500 Timeout".
 
-### The Core Concept
+### **IMPORTANT: Hosting Plan Requirement**
 
-Hostinger uses a main web server (like Apache/LiteSpeed). Your Next.js application is a separate server (Node.js). The goal is to tell the main web server to forward all traffic for your domain to your running Next.js app. The `.htaccess` file is what does this.
+This guide is for Hostinger plans that include the **Node.js** feature. A Next.js app cannot run on basic static web hosting.
+
+- To check if you have this, log into your Hostinger hPanel, go to **Websites** → **Manage**, and look for **Node.js** under the "Advanced" section on the sidebar.
+- If you do not see this option, you may need to check if your current Hostinger plan supports Node.js applications.
 
 ---
 
@@ -102,3 +105,5 @@ This is the final and most critical step to connect your domain to your app.
 - **403 Forbidden Error**: This almost always means your `.htaccess` file is missing, in the wrong folder, or has the wrong content. Double-check Step 5. The `.htaccess` file must be in the public document root of your subdomain, NOT in the `plotpilot_app` folder.
 - **500 Timeout Error**: This usually means the port in your `.htaccess` file doesn't match the port assigned to your app in the Node.js section of hPanel. It can also happen if your app crashes on startup. Check the application logs in the Node.js section for errors.
 - **App Crashes**: Make sure all your **Environment Variables** (Step 4) are set correctly. A missing variable can cause the app to fail on startup. Also ensure you have selected a modern **Node.js version** (like 20.x) in Step 3. The `start` script `next start -p $PORT` in `package.json` is correct and should not be changed, as Hostinger provides the `$PORT` variable automatically.
+
+    
