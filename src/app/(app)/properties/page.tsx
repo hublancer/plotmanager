@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,19 +17,10 @@ import { getProperties, deleteProperty as deletePropertyFromDb } from "@/lib/moc
 type FilterStatus = "all" | "available" | "installment" | "rented";
 
 export default function PropertiesPage() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [properties, setProperties] = useState<Property[]>(() => getProperties());
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setProperties(getProperties());
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-  
   const handleDeleteProperty = (id: string) => {
     if (deletePropertyFromDb(id)) {
       setProperties(prev => prev.filter(p => p.id !== id));
@@ -52,10 +43,6 @@ export default function PropertiesPage() {
       return matchesSearchTerm && matchesFilterStatus;
     });
   }, [properties, searchTerm, filterStatus]);
-
-  if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Loading properties...</div>;
-  }
 
   return (
     <div className="space-y-6">
