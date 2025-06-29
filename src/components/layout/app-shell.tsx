@@ -57,19 +57,19 @@ const navItems: NavItem[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { setIsLoading } = useContext(LoadingContext);
+  const { start, complete } = useContext(LoadingContext);
 
   // This effect runs after the new page component has rendered,
   // so we can safely turn off the loading indicator.
   useEffect(() => {
-    setIsLoading(false);
-  }, [pathname, setIsLoading]);
+    complete();
+  }, [pathname, complete]);
 
   const handleNavigation = (href: string) => {
     // If we're already on the page or a sub-page, do nothing.
     // Otherwise, turn on the loading indicator.
     if (!pathname.startsWith(href)) {
-      setIsLoading(true);
+      start();
     }
   };
 
