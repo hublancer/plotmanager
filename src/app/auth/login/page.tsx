@@ -20,11 +20,13 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  getAdditionalUserInfo,
+  getAdditionalUserInfo
+} from "firebase/auth";
+import {
   setDoc,
   doc,
   serverTimestamp
-} from "firebase/auth";
+} from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
