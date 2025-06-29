@@ -4,15 +4,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Building2, CreditCard, FileText, Users } from "lucide-react";
 import Image from "next/image";
-import { useState, useEffect } from "react";
 import { getProperties } from "@/lib/mock-db";
 
 export default function DashboardPage() {
-  const [totalProperties, setTotalProperties] = useState(0);
-
-  useEffect(() => {
-    setTotalProperties(getProperties().length);
-  }, []);
+  const totalProperties = getProperties().length;
 
   const summaryStats = [
     { title: "Total Properties", value: totalProperties.toString(), icon: <Building2 className="h-6 w-6 text-primary" />, description: "+5 since last month" }, // Description is static for now
