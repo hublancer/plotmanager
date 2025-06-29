@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,14 +13,16 @@ const firebaseConfig = {
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
+let db: Firestore | null = null;
 
 // This check prevents the app from crashing if Firebase is not configured.
 // It also provides a clear warning to the developer.
 if (firebaseConfig.apiKey) {
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
+    db = getFirestore(app);
 } else {
     console.warn("Firebase API key is missing. Authentication features will be disabled. Please add your Firebase credentials to a .env.local file and restart the development server to enable authentication.");
 }
 
-export { app, auth };
+export { app, auth, db };

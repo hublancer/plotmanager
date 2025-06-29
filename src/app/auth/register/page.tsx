@@ -19,8 +19,11 @@ import {
   createUserWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { doc, setDoc } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
+
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -31,7 +34,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!auth) {
+    if (!auth || !db) {
       toast({
         title: "Registration Unavailable",
         description: "Firebase is not configured. See developer console for details.",
@@ -50,9 +53,20 @@ export default function RegisterPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, { displayName: name });
+      const user = userCredential.user;
+      if (user) {
+        await updateProfile(user, { displayName: name });
+        
+        // Create a user document in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          displayName: name,
+          email: email,
+          createdAt: serverTimestamp(),
+          photoURL: user.photoURL || null,
+        });
       }
+
       toast({
         title: 'Account Created',
         description: 'You have been successfully registered.',

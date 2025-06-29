@@ -20,8 +20,12 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  getAdditionalUserInfo,
+  setDoc,
+  doc,
+  serverTimestamp
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
@@ -57,7 +61,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!auth) {
+    if (!auth || !db) {
       toast({
         title: "Login Unavailable",
         description: "Firebase is not configured. See developer console for details.",
@@ -68,7 +72,24 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const additionalInfo = getAdditionalUserInfo(result);
+
+      // If it's a new user, create their document in Firestore
+      if (additionalInfo?.isNewUser) {
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: serverTimestamp(),
+          photoURL: user.photoURL || null,
+        });
+        toast({
+          title: "Account Created",
+          description: `Welcome, ${user.displayName}!`,
+        });
+      }
       // Redirect is handled by AuthProvider
     } catch (error: any) {
       toast({
