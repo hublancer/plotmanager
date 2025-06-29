@@ -38,6 +38,7 @@ import { LoadingContext } from "@/context/loading-context";
 import { useAuth } from "@/context/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 interface NavItem {
   href: string;
@@ -61,6 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { start, complete } = useContext(LoadingContext);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     complete();
@@ -74,7 +76,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const handleLogout = async () => {
     if (!auth) {
-      // Silently fail if firebase is not configured, as user cannot be logged in anyway.
+      toast({
+        title: "Logout Unavailable",
+        description: "Firebase is not configured. Please check your setup.",
+        variant: "destructive",
+      });
       return;
     }
     start();

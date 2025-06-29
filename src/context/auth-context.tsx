@@ -25,7 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pageLoader = useContext(LoadingContext);
 
   useEffect(() => {
-    // If firebase is not configured, we are not loading and there is no user.
+    // If firebase is not configured, auth will be null.
+    // We'll set authLoading to false, and user will remain null,
+    // which will trigger the redirect logic in the other useEffect.
     if (!auth) {
       setAuthLoading(false);
       return;
@@ -38,41 +40,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // If firebase is not configured, we don't redirect and just let the user browse.
-    if (!auth) {
-      if(pageLoader.isLoading) pageLoader.complete();
-      return;
-    }
-    
     const isAuthPage = pathname.startsWith('/auth');
     
     if (authLoading) {
-      pageLoader.start();
+      // While we are checking for a user, show the loader on main app pages.
+      if (!isAuthPage) {
+        pageLoader.start();
+      }
     } else {
       pageLoader.complete();
     }
 
-    // If auth is still loading, don't do any redirects yet
+    // Don't run redirect logic until auth state is confirmed
     if (authLoading) return;
 
-    // If not logged in and not on an auth page, redirect to login
+    // If we are done loading, and there's no user, redirect to login unless we're already on an auth page.
     if (!user && !isAuthPage) {
       router.push('/auth/login');
     }
-
-    // If logged in and on an auth page, redirect to dashboard
+    
+    // If we are done loading, and there IS a user, redirect to dashboard if they try to access an auth page.
     if (user && isAuthPage) {
       router.push('/dashboard');
     }
-  }, [user, authLoading, pathname, router, pageLoader, pageLoader.isLoading, pageLoader.complete, pageLoader.start]);
+  }, [user, authLoading, pathname, router, pageLoader]);
 
   // While checking auth, show the loader. For auth pages, render them immediately.
-  if (auth && authLoading && !pathname.startsWith('/auth')) {
+  if (authLoading && !pathname.startsWith('/auth')) {
     return null; // PageLoader is handled by its context provider
   }
 
   // Prevent flashing the app shell for a moment before redirecting
-  if (auth && !user && !pathname.startsWith('/auth')) {
+  if (!user && !pathname.startsWith('/auth')) {
     return null;
   }
 
