@@ -19,7 +19,7 @@ let properties: Property[] = [
     isRented: true,
     tenantName: "Mike Wheeler",
     rentAmount: 75000,
-    nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(), // Next month's 1st
+    nextRentDueDate: "2025-01-01T00:00:00.000Z",
   },
   {
     id: "prop2",
@@ -47,7 +47,7 @@ let properties: Property[] = [
     isRented: true,
     tenantName: "Eleven Hopper",
     rentAmount: 50000,
-    nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 15).toISOString(), // This month's 15th
+    nextRentDueDate: "2024-12-15T00:00:00.000Z",
   },
   {
     id: "pdf-property",
@@ -153,9 +153,9 @@ export const addEmployee = (employeeData: Omit<Employee, 'id'>): Employee => {
 
 // Payments Data
 let payments: PaymentRecord[] = [
-  { id: "pay1", propertyId: "prop1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "Mike Wheeler", amount: 75000, date: new Date(new Date().getFullYear(), new Date().getMonth() -1, 1).toISOString(), type: "rent", paymentMethod: "Bank Transfer" },
+  { id: "pay1", propertyId: "prop1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "Mike Wheeler", amount: 75000, date: "2024-11-01T00:00:00.000Z", type: "rent", paymentMethod: "Bank Transfer" },
   { id: "pay2", propertyId: "prop2", propertyName: "Greenwood Heights Plot", tenantOrBuyerName: "Alice Wonderland", amount: 500000, date: new Date(2023,11,1).toISOString(), type: "installment", paymentMethod: "Card", notes: "Down payment for plot" },
-  { id: "pay3", propertyId: "prop3", propertyName: "Lakeside Estate Apartment", tenantOrBuyerName: "Eleven Hopper", amount: 50000, date: new Date(new Date().getFullYear(), new Date().getMonth() -1, 15).toISOString(), type: "rent", paymentMethod: "Cash" },
+  { id: "pay3", propertyId: "prop3", propertyName: "Lakeside Estate Apartment", tenantOrBuyerName: "Eleven Hopper", amount: 50000, date: "2024-11-15T00:00:00.000Z", type: "rent", paymentMethod: "Cash" },
   { id: "pay4", propertyId: "prop1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "John Doe", amount: 1000000, date: new Date(2023, 10, 5).toISOString(), type: "token", paymentMethod: "Cheque", notes: "Token money for Plot 101" },
 ];
 
@@ -208,7 +208,7 @@ export const getInstallmentProperties = (): InstallmentDetails[] => {
       if (remainingAmount > 0) {
         const lastPaymentDate = relatedPayments.length > 0
             ? new Date(relatedPayments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date)
-            : new Date(p.purchaseDate || Date.now());
+            : new Date(p.purchaseDate || '2023-01-01T00:00:00.000Z');
         nextDueDate = new Date(lastPaymentDate.setMonth(lastPaymentDate.getMonth() + 1)).toISOString();
       }
 
@@ -252,7 +252,7 @@ export const resetMockData = () => {
         { id: "p2", plotNumber: "102", buyerName: "Jane Smith", buyerContact: "555-5678", price: 12000000, x: 50, y: 60, size: "8 Marla", details: "Garden facing plot" },
       ],
       imageType: 'photo', latitude: 31.4709, longitude: 74.4023,
-      isRented: true, tenantName: "Mike Wheeler", rentAmount: 75000, nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
+      isRented: true, tenantName: "Mike Wheeler", rentAmount: 75000, nextRentDueDate: "2025-01-01T00:00:00.000Z",
     },
     {
       id: "prop2", name: "Greenwood Heights Plot", address: "Plot 52, Block C, Bahria Town, Rawalpindi", propertyType: "Residential Plot", plots: [], imageType: 'photo',
@@ -262,7 +262,7 @@ export const resetMockData = () => {
     {
       id: "prop3", name: "Lakeside Estate Apartment", address: "Apt 3B, Lakeside Towers, Clifton, Karachi", propertyType: "Apartment", plots: [], imageType: 'photo',
       latitude: 24.8271, longitude: 67.0251,
-      isRented: true, tenantName: "Eleven Hopper", rentAmount: 50000, nextRentDueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 15).toISOString(),
+      isRented: true, tenantName: "Eleven Hopper", rentAmount: 50000, nextRentDueDate: "2024-12-15T00:00:00.000Z",
     },
     { id: "pdf-property", name: "PDF Plan Property (File)", address: "File # 123, Sector F, Capital Smart City", imageUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", imageType: 'pdf', propertyType: "File", plots: [], latitude: null, longitude: null },
   ];
@@ -272,9 +272,9 @@ export const resetMockData = () => {
     { id: "emp3", name: "Carol White", position: "Sales Executive", email: "carol.w@example.com", hireDate: new Date(2023, 0, 20).toISOString(), department: "Sales" },
   ];
   payments = [
-    { id: "pay1", propertyId: "prop1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "Mike Wheeler", amount: 75000, date: new Date(new Date().getFullYear(), new Date().getMonth() -1, 1).toISOString(), type: "rent", paymentMethod: "Bank Transfer" },
+    { id: "pay1", propertyId: "prop1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "Mike Wheeler", amount: 75000, date: "2024-11-01T00:00:00.000Z", type: "rent", paymentMethod: "Bank Transfer" },
     { id: "pay2", propertyId: "prop2", propertyName: "Greenwood Heights Plot", tenantOrBuyerName: "Alice Wonderland", amount: 500000, date: new Date(2023,11,1).toISOString(), type: "installment", paymentMethod: "Card", notes: "Down payment for plot" },
-    { id: "pay3", propertyId: "prop3", propertyName: "Lakeside Estate Apartment", tenantOrBuyerName: "Eleven Hopper", amount: 50000, date: new Date(new Date().getFullYear(), new Date().getMonth() -1, 15).toISOString(), type: "rent", paymentMethod: "Cash" },
+    { id: "pay3", propertyId: "prop3", propertyName: "Lakeside Estate Apartment", tenantOrBuyerName: "Eleven Hopper", amount: 50000, date: "2024-11-15T00:00:00.000Z", type: "rent", paymentMethod: "Cash" },
     { id: "pay4", propertyId: "prop1", propertyName: "Sunset Villa", plotNumber: "101", tenantOrBuyerName: "John Doe", amount: 1000000, date: new Date(2023, 10, 5).toISOString(), type: "token", paymentMethod: "Cheque", notes: "Token money for Plot 101" },
   ];
 };
