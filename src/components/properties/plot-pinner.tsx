@@ -9,17 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Edit2, Trash2, MapPin, Scaling, FileText } from "lucide-react"; // Added Scaling and FileText icons
+import { PlusCircle, Edit2, Trash2, MapPin, Scaling } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface PlotPinnerProps {
   imageUrl: string;
   initialPlots?: PlotData[];
   onPlotsChange: (plots: PlotData[]) => void;
-  imageType?: 'photo' | 'pdf';
+  imageType?: 'photo' | 'pdf'; // Kept for type consistency, but logic assumes image
 }
 
-export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageType }: PlotPinnerProps) {
+export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotPinnerProps) {
   const [plots, setPlots] = useState<PlotData[]>(initialPlots);
   const [selectedPlot, setSelectedPlot] = useState<PlotData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,11 +34,6 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
   
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!imageContainerRef.current) return;
-
-    // If it's a PDF and we are showing the link, don't trigger pinning.
-    // This check is now implicitly handled by the component structure below.
-    // We only render the interactive image area if imageType is not 'pdf'
-    // OR if we decide to attempt rendering PDF as image (which will likely break).
 
     const rect = imageContainerRef.current.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -99,25 +94,17 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
       <div
         ref={imageContainerRef}
         className="relative w-full aspect-[16/9] border rounded-lg overflow-hidden cursor-crosshair bg-muted/30 shadow-inner"
-        onClick={imageType !== 'pdf' ? handleImageClick : undefined} // Only allow click if not PDF, or remove this line to allow click on broken PDF image
+        onClick={handleImageClick}
         role="button"
         tabIndex={0}
         aria-label="Property image area, click to add a plot pin"
       >
-        {/* 
-          Attempt to render image. If imageType is 'pdf', this will likely show a broken image icon.
-          The user will still be able to click and pin, but without seeing the PDF content.
-        */}
         <Image 
           src={imageUrl} 
-          alt="Property to pin plots on. If PDF, this may not render correctly." 
+          alt="Property layout to pin plots on." 
           layout="fill" 
           objectFit="contain" 
           data-ai-hint="property aerial map site plan" 
-          onError={(e) => {
-            // Optionally handle image loading errors, e.g., for PDFs.
-            // (e.target as HTMLImageElement).style.display = 'none'; // Hide broken image icon
-          }}
         />
         
         {plots.map(plot => (
@@ -140,16 +127,6 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange, imageTy
             </div>
         )}
       </div>
-      
-      {imageType === 'pdf' && (
-         <div className="p-3 border rounded-md bg-secondary/50 text-center text-sm">
-           <p className="text-muted-foreground">
-             You are viewing a PDF. Visual pinning works best with image files (PNG, JPG). 
-             <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="ml-1 underline text-primary">View PDF directly.</a>
-           </p>
-         </div>
-      )}
-
 
       {showDialog && (
         <PlotDialog
@@ -286,5 +263,3 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
     </Dialog>
   );
 }
-
-

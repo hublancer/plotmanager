@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Property } from "@/types";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, FileText, MapPin } from "lucide-react";
+import { UploadCloud, FileText, MapPin, Loader2 } from "lucide-react";
 import type { LatLngExpression } from 'leaflet';
 import dynamic from 'next/dynamic';
+import { useToast } from "@/hooks/use-toast";
 
 const DynamicPropertyLocationMap = dynamic(() => 
   import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
@@ -57,12 +58,14 @@ interface PropertyFormProps {
 export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFormProps) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(initialData?.imageUrl || null);
   const [imagePreviewType, setImagePreviewType] = useState<'image' | 'pdf' | null>(null);
+  const [isRenderingPdf, setIsRenderingPdf] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [mapPosition, setMapPosition] = useState<LatLngExpression | null>(
     initialData?.latitude && initialData?.longitude
       ? [initialData.latitude, initialData.longitude]
       : null
   );
+  const { toast } = useToast();
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
@@ -80,7 +83,8 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     if (initialData) {
       if (initialData.imageUrl) {
         setImagePreviewUrl(initialData.imageUrl);
-        setImagePreviewType(initialData.imageType === 'pdf' ? 'pdf' : (initialData.imageType === 'photo' ? 'image' : null));
+        // Since we now convert PDFs, all existing imageUrls should be treated as photos for rendering.
+        setImagePreviewType('image');
       }
       if (initialData.latitude && initialData.longitude) {
         const pos: LatLngExpression = [initialData.latitude, initialData.longitude];
@@ -95,23 +99,56 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     const file = event.target.files?.[0];
     if (file) {
       form.setValue("imageFile", file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviewUrl(reader.result as string);
-        if (file.type === "application/pdf") {
-          setImagePreviewType("pdf");
-        } else if (file.type.startsWith("image/")) {
+
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviewUrl(reader.result as string);
           setImagePreviewType("image");
-        } else {
-          setImagePreviewType(null);
-        }
-      };
-      reader.readAsDataURL(file);
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === "application/pdf") {
+        setIsRenderingPdf(true);
+        setImagePreviewType("pdf");
+        setImagePreviewUrl(null);
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const pdfData = e.target?.result;
+            if (pdfData instanceof ArrayBuffer) {
+                try {
+                    const pdfjs = await import('pdfjs-dist/build/pdf');
+                    pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+                    const pdf = await pdfjs.getDocument({ data: pdfData }).promise;
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 2.0 });
+
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    if (!context) throw new Error("Could not get canvas context");
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({ canvasContext: context, viewport }).promise;
+                    setImagePreviewUrl(canvas.toDataURL('image/png'));
+                    setImagePreviewType("image"); // Treat the converted PDF as an image for preview
+                } catch (err) {
+                    console.error("Error rendering PDF preview:", err);
+                    toast({ title: "PDF Error", description: "Could not render PDF preview.", variant: "destructive" });
+                    setImagePreviewUrl(null);
+                } finally {
+                    setIsRenderingPdf(false);
+                }
+            }
+        };
+        reader.readAsArrayBuffer(file);
+      }
     } else {
       form.setValue("imageFile", undefined);
       if (initialData?.imageUrl) {
         setImagePreviewUrl(initialData.imageUrl);
-        setImagePreviewType(initialData.imageType === 'pdf' ? 'pdf' : (initialData.imageUrl && initialData.imageType !== 'pdf' ? 'image' : null));
+        setImagePreviewType('image');
       } else {
         setImagePreviewUrl(null);
         setImagePreviewType(null);
@@ -129,7 +166,8 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     onSubmit({ 
         ...values, 
         imagePreviewUrl: imagePreviewUrl || undefined, 
-        imageType: imagePreviewType === 'image' ? 'photo' : imagePreviewType === 'pdf' ? 'pdf' : undefined
+        // After conversion, all files are treated as 'photo' type for storage and display
+        imageType: imagePreviewUrl ? 'photo' : undefined 
     });
   };
   
@@ -137,19 +175,15 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     const lat = form.getValues('latitude');
     const lng = form.getValues('longitude');
     if (lat && lng) {
-        // Only update if the values are actually different to prevent unnecessary re-renders/key changes
         if (!mapPosition || (Array.isArray(mapPosition) && (mapPosition[0] !== lat || mapPosition[1] !== lng))) {
             setMapPosition([lat, lng]);
         }
     } else {
-        // Only set to null if it's not already null
         if (mapPosition !== null) {
             setMapPosition(null);
         }
     }
-  // form.watch values trigger this effect. mapPosition itself is set within, so it's not needed as a direct dependency
-  // as long as the conditions prevent infinite loops.
-  }, [form.watch('latitude'), form.watch('longitude'), form]);
+  }, [form.watch('latitude'), form.watch('longitude'), form, mapPosition]);
 
 
   return (
@@ -274,15 +308,17 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                   <FormControl>
                     <div className="flex flex-col items-center space-y-2">
                        <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                        {imagePreviewUrl && imagePreviewType === 'image' ? (
+                        {isRenderingPdf ? (
+                           <div className="flex flex-col items-center justify-center text-center p-4">
+                            <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                            <p className="text-sm text-muted-foreground mt-2">Converting PDF to image...</p>
+                          </div>
+                        ) : imagePreviewUrl && imagePreviewType === 'image' ? (
                           <Image src={imagePreviewUrl} alt="Preview" width={200} height={150} className="object-contain max-h-40 rounded-md" data-ai-hint="property image" />
-                        ) : imagePreviewUrl && imagePreviewType === 'pdf' ? (
-                          <div className="flex flex-col items-center justify-center text-center p-4">
+                        ) : imagePreviewType === 'pdf' ? ( // This is a transient state before rendering starts
+                           <div className="flex flex-col items-center justify-center text-center p-4">
                             <FileText className="w-16 h-16 text-muted-foreground" />
                             <p className="text-sm text-muted-foreground mt-2">PDF Selected</p>
-                            {form.getValues("imageFile") && (
-                                <p className="text-xs text-muted-foreground truncate max-w-[150px]">{(form.getValues("imageFile") as File).name}</p>
-                            )}
                           </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -295,13 +331,13 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                       </label>
                     </div>
                   </FormControl>
-                  <FormDescription>Upload an image, society map, or PDF of the property. PDF pinning is limited.</FormDescription>
+                  <FormDescription>Upload an image or society map. PDFs will be converted to an image for pinning.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : (initialData ? "Save Changes" : "Add Property")}
+            <Button type="submit" className="w-full" disabled={isSubmitting || isRenderingPdf}>
+              {isSubmitting ? "Submitting..." : (isRenderingPdf ? "Processing PDF..." : (initialData ? "Save Changes" : "Add Property"))}
             </Button>
           </form>
         </Form>
