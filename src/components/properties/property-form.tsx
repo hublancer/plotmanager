@@ -242,8 +242,8 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                 </FormDescription>
             </div>
 
-            <FormField control={form.control} name="latitude" render={({ field }) => (<FormItem className="hidden"><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-            <FormField control={form.control} name="longitude" render={({ field }) => (<FormItem className="hidden"><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+            <FormField control={form.control} name="latitude" render={({ field }) => (<FormItem className="hidden"><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+            <FormField control={form.control} name="longitude" render={({ field }) => (<FormItem className="hidden"><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
 
             {showMap && (
                 <div className="h-[350px] w-full rounded-md overflow-hidden border shadow-sm">
