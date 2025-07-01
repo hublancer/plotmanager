@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDkcJVdGbA211ODtqeEtZLiE6nwzj1SfqU",
   authDomain: "plotpilot-gi902.firebaseapp.com",
   projectId: "plotpilot-gi902",
-  storageBucket: "plotpilot-gi902.appspot.com",
+  storageBucket: "plotpilot-gi902.firebasestorage.app",
   messagingSenderId: "668482620016",
   appId: "1:668482620016:web:2110c3605663151d0342b5"
 };

@@ -93,11 +93,10 @@ export default function LoginPage() {
       }
       // Redirect is handled by AuthProvider
     } catch (error: any) {
+      console.error("Google Sign-In Error:", error);
       toast({
         title: "Google Sign-In Failed",
-        description: error.code.includes('auth/popup-closed-by-user')
-          ? "The sign-in popup was closed before completion."
-          : "An error occurred during Google sign-in.",
+        description: `Error: ${error.code}. Please ensure popups are enabled and your domain is authorized in Firebase.`,
         variant: "destructive",
       });
     } finally {
