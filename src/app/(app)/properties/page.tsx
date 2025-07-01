@@ -2,27 +2,39 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit3, Trash2, Eye, Search, Package, FileText } from "lucide-react"; // Added FileText
+import { PlusCircle, Edit3, Trash2, Eye, Search, Package, FileText, Loader2 } from "lucide-react";
 import type { Property } from "@/types";
 import Image from "next/image";
-import { getProperties, deleteProperty as deletePropertyFromDb } from "@/lib/mock-db";
+import { getProperties, deleteProperty } from "@/lib/mock-db";
 
 type FilterStatus = "all" | "available" | "installment" | "rented";
 
 export default function PropertiesPage() {
-  const [properties, setProperties] = useState<Property[]>(() => getProperties());
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
 
-  const handleDeleteProperty = (id: string) => {
-    if (deletePropertyFromDb(id)) {
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setIsLoading(true);
+      const data = await getProperties();
+      setProperties(data);
+      setIsLoading(false);
+    };
+    fetchProperties();
+  }, []);
+
+  const handleDeleteProperty = async (id: string) => {
+    const success = await deleteProperty(id);
+    if (success) {
       setProperties(prev => prev.filter(p => p.id !== id));
     }
   };
@@ -78,31 +90,38 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {filteredProperties.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground">
-              {properties.length === 0 ? "No properties found. Get started by adding a new property." : "No properties match your current search/filter criteria."}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="shadow-lg">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
+      <Card className="shadow-lg">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Image/File</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Plots</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
                 <TableRow>
-                  <TableHead className="w-[100px]">Image/File</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Plots</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={7} className="text-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin inline-block" />
+                    <p className="mt-2">Loading properties...</p>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProperties.map((property) => (
+              ) : filteredProperties.length === 0 ? (
+                 <TableRow>
+                    <TableCell colSpan={7} className="text-center h-48">
+                      <p className="text-muted-foreground">
+                        {properties.length === 0 ? "No properties found. Get started by adding a new property." : "No properties match your current search/filter criteria."}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+              ) : (
+                filteredProperties.map((property) => (
                   <TableRow key={property.id}>
                     <TableCell>
                       {property.imageType === 'pdf' && property.imageUrl ? (
@@ -130,7 +149,7 @@ export default function PropertiesPage() {
                             </Badge>
                         ) : "N/A"}
                     </TableCell>
-                    <TableCell>{property.plots.length}</TableCell>
+                    <TableCell>{property.plots?.length || 0}</TableCell>
                     <TableCell>
                       {property.isSoldOnInstallment ? (
                         <Badge variant="secondary">Installment</Badge>
@@ -154,12 +173,12 @@ export default function PropertiesPage() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

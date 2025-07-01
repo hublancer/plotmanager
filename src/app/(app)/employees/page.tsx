@@ -7,34 +7,39 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
 import type { Employee } from "@/types";
-import Image from "next/image"; // Import next/image
-import { getEmployees } from "@/lib/mock-db"; // Updated import
+import { getEmployees } from "@/lib/mock-db";
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching data
-    const timer = setTimeout(() => {
-      setEmployees(getEmployees()); // Use centralized mock data
+    const fetchEmployees = async () => {
+      setIsLoading(true);
+      const data = await getEmployees();
+      setEmployees(data);
       setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    };
+    fetchEmployees();
   }, []);
   
-  const handleDeleteEmployee = (id: string) => {
+  const handleDeleteEmployee = async (id: string) => {
     // In a real app, you'd call an API to delete the employee
     // For now, this just filters the local state. It won't persist if mock-db isn't updated.
     // To make delete work with mock-db, we'd need a deleteEmployee function there.
-    setEmployees(prev => prev.filter(e => e.id !== id));
-    alert(`Employee with ID: ${id} would be deleted. (Local state only for now)`);
+    // setEmployees(prev => prev.filter(e => e.id !== id));
+    alert(`Deletion is not implemented in this version.`);
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Loading employees...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading employees...</span>
+      </div>
+    );
   }
 
   return (

@@ -5,16 +5,23 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, DollarSign, Edit, PlusCircle } from "lucide-react"; 
+import { Eye, DollarSign, Edit, PlusCircle, Loader2 } from "lucide-react"; 
 import type { RentedPropertyDetails } from "@/types";
 import Link from "next/link";
 import { getRentedProperties } from "@/lib/mock-db";
 
 export default function RentalsPage() {
   const [rentedProperties, setRentedProperties] = useState<RentedPropertyDetails[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setRentedProperties(getRentedProperties());
+    const fetchRentals = async () => {
+      setIsLoading(true);
+      const data = await getRentedProperties();
+      setRentedProperties(data);
+      setIsLoading(false);
+    }
+    fetchRentals();
   }, []);
 
   const handleAddRental = () => {
@@ -44,38 +51,46 @@ export default function RentalsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rentedProperties.map((prop) => (
-                <TableRow key={prop.id}>
-                  <TableCell>
-                    <div className="font-medium">{prop.name}</div>
-                    <div className="text-xs text-muted-foreground">{prop.address}</div>
-                  </TableCell>
-                  <TableCell>{prop.tenantName || "N/A"}</TableCell>
-                  <TableCell>PKR {prop.rentAmount?.toLocaleString() || "N/A"}</TableCell>
-                  <TableCell>
-                    {prop.nextRentDueDate ? new Date(prop.nextRentDueDate).toLocaleDateString() : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {prop.lastRentPaymentDate ? new Date(prop.lastRentPaymentDate).toLocaleDateString() : "No payments yet"}
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                     <Link href={`/properties/${prop.id}`} passHref>
-                        <Button variant="ghost" size="icon" title="View Property Details">
-                            <Eye className="h-4 w-4" />
-                        </Button>
-                     </Link>
-                     <Link href={`/payments?propertyId=${prop.id}&type=rent`} passHref>
-                        <Button variant="ghost" size="icon" title="View Payments">
-                            <DollarSign className="h-4 w-4" />
-                        </Button>
-                     </Link>
-                     <Button variant="ghost" size="icon" title="Edit Rental Details" onClick={() => alert(`Edit rental for ${prop.name}`)} disabled>
-                        <Edit className="h-4 w-4" />
-                    </Button>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center h-24">
+                    <Loader2 className="h-6 w-6 animate-spin inline-block" />
+                    <span className="ml-2">Loading...</span>
                   </TableCell>
                 </TableRow>
-              ))}
-              {rentedProperties.length === 0 && (
+              ) : rentedProperties.length > 0 ? (
+                rentedProperties.map((prop) => (
+                  <TableRow key={prop.id}>
+                    <TableCell>
+                      <div className="font-medium">{prop.name}</div>
+                      <div className="text-xs text-muted-foreground">{prop.address}</div>
+                    </TableCell>
+                    <TableCell>{prop.tenantName || "N/A"}</TableCell>
+                    <TableCell>PKR {prop.rentAmount?.toLocaleString() || "N/A"}</TableCell>
+                    <TableCell>
+                      {prop.nextRentDueDate ? new Date(prop.nextRentDueDate).toLocaleDateString() : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      {prop.lastRentPaymentDate ? new Date(prop.lastRentPaymentDate).toLocaleDateString() : "No payments yet"}
+                    </TableCell>
+                    <TableCell className="text-right space-x-1">
+                       <Link href={`/properties/${prop.id}`} passHref>
+                          <Button variant="ghost" size="icon" title="View Property Details">
+                              <Eye className="h-4 w-4" />
+                          </Button>
+                       </Link>
+                       <Link href={`/payments?propertyId=${prop.id}&type=rent`} passHref>
+                          <Button variant="ghost" size="icon" title="View Payments">
+                              <DollarSign className="h-4 w-4" />
+                          </Button>
+                       </Link>
+                       <Button variant="ghost" size="icon" title="Edit Rental Details" onClick={() => alert(`Edit rental for ${prop.name}`)} disabled>
+                          <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                  <TableRow>
                   <TableCell colSpan={6} className="text-center h-24">No rented properties found.</TableCell>
                 </TableRow>

@@ -8,11 +8,10 @@ import { PlotPinner } from "@/components/properties/plot-pinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Package, MapPin } from "lucide-react";
+import { ArrowLeft, Edit, Package, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
-// import { PropertyLocationMap } from "@/components/maps/property-location-map"; // Static import removed
 import type { LatLngExpression } from 'leaflet';
 import dynamic from 'next/dynamic';
 
@@ -36,18 +35,19 @@ export default function PropertyDetailsPage() {
 
   useEffect(() => {
     if (propertyId) {
-      setIsLoading(true);
-      setTimeout(() => {
-        const data = getPropertyById(propertyId); 
+      const fetchProperty = async () => {
+        setIsLoading(true);
+        const data = await getPropertyById(propertyId); 
         setProperty(data || null);
         setIsLoading(false);
-      }, 500);
+      };
+      fetchProperty();
     }
   }, [propertyId]);
 
-  const handlePlotsChange = (updatedPlots: PlotData[]) => {
+  const handlePlotsChange = async (updatedPlots: PlotData[]) => {
     if (property) {
-      const result = updateProperty(property.id, { plots: updatedPlots }); 
+      const result = await updateProperty(property.id, { plots: updatedPlots }); 
       if (result) {
         setProperty(result);
         toast({
@@ -73,7 +73,12 @@ export default function PropertyDetailsPage() {
 
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Loading property details...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading property details...</span>
+      </div>
+    );
   }
 
   if (!property) {
@@ -154,5 +159,3 @@ export default function PropertyDetailsPage() {
     </div>
   );
 }
-
-    

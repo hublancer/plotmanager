@@ -47,8 +47,8 @@ const PromptInputSchema = z.object({
 
 
 export async function generateSalesReport(input: GenerateSalesReportInput): Promise<GenerateSalesReportOutput> {
-  const allProperties = getProperties();
-  const allPayments = getPayments();
+  const allProperties = await getProperties();
+  const allPayments = await getPayments();
   const salesDetails: z.infer<typeof PromptInputSalesRecordSchema>[] = [];
 
   // Process properties sold on installment

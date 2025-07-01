@@ -11,11 +11,11 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { 
-    addProperty as addPropertyToDb, 
-    getProperties as getPropertiesFromDb,
-    getPropertyById as getPropertyByIdFromDb,
-    getPropertyByName as getPropertyByNameFromDb,
-    updateProperty as updatePropertyInDb,
+    addProperty, 
+    getProperties,
+    getPropertyById,
+    getPropertyByName,
+    updateProperty,
 } from '@/lib/mock-db';
 import type { Property } from '@/types';
 
@@ -57,7 +57,7 @@ const listPropertiesTool = ai.defineTool(
     outputSchema: ListPropertiesOutputSchema,
   },
   async (input) => {
-    let allProperties = getPropertiesFromDb();
+    let allProperties = await getProperties();
     
     if (input.location) {
         allProperties = allProperties.filter(p => p.address.toLowerCase().includes(input.location!.toLowerCase()));
@@ -114,8 +114,9 @@ const addPropertyTool = ai.defineTool(
         name: input.name,
         address: input.address,
         propertyType: input.propertyType,
+        plots: [],
     };
-    const createdProperty = addPropertyToDb(newPropertyData);
+    const createdProperty = await addProperty(newPropertyData);
     return {
       propertyId: createdProperty.id,
       message: `Successfully added property "${createdProperty.name}" (${createdProperty.propertyType || 'Type N/A'}) with ID ${createdProperty.id}. You can add more details like images or plots via the Properties page.`,
@@ -142,9 +143,9 @@ const getPropertyDetailsTool = ai.defineTool(
     async ({ identifier, identifierType }) => {
         let property: Property | undefined | null = null;
         if (identifierType === 'id') {
-            property = getPropertyByIdFromDb(identifier);
+            property = await getPropertyById(identifier);
         } else {
-            property = getPropertyByNameFromDb(identifier);
+            property = await getPropertyByName(identifier);
         }
 
         if (property) {
@@ -180,7 +181,7 @@ const updatePropertyDetailsTool = ai.defineTool(
         if (Object.keys(updates).length === 0) {
             return { updatedProperty: null, message: "No updates provided. Please specify what you want to change." };
         }
-        const updatedProperty = updatePropertyInDb(propertyId, updates as Partial<Property>);
+        const updatedProperty = await updateProperty(propertyId, updates as Partial<Property>);
         if (updatedProperty) {
             return { updatedProperty, message: `Successfully updated property ID ${propertyId}. Name: ${updatedProperty.name}, Address: ${updatedProperty.address}, Type: ${updatedProperty.propertyType}.` };
         } else {

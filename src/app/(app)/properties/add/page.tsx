@@ -5,7 +5,7 @@ import { PropertyForm } from "@/components/properties/property-form";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addProperty as addPropertyToDb } from "@/lib/mock-db"; 
+import { addProperty } from "@/lib/mock-db"; 
 import type { Property } from "@/types";
 
 export default function AddPropertyPage() {
@@ -15,19 +15,24 @@ export default function AddPropertyPage() {
 
   const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imagePreviewUrl, imageType
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     
-    const newPropertyData: Omit<Property, 'id' | 'plots'> = {
+    // In a real app with file uploads, you'd upload the file to Firebase Storage first
+    // and get the URL. For this version, we'll continue using the data URL if it's a new image.
+    const imageUrl = data.imageFile ? data.imagePreviewUrl : (data.imageUrl || null);
+
+
+    const newPropertyData: Omit<Property, 'id'> = {
         name: data.name,
         address: data.address,
         propertyType: data.propertyType,
-        imageUrl: data.imagePreviewUrl, 
+        imageUrl: imageUrl, 
         imageType: data.imageType,
         latitude: data.latitude,
         longitude: data.longitude,
+        plots: [], // Initialize with empty plots array
     };
 
-    addPropertyToDb(newPropertyData); 
+    await addProperty(newPropertyData); 
     
     toast({
       title: "Property Added",

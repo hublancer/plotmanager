@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
 import type { PaymentRecord, Property } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,7 +40,8 @@ type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [mockProperties, setMockProperties] = useState<Pick<Property, 'id' | 'name'>[]>([]);
+  const [properties, setProperties] = useState<Pick<Property, 'id' | 'name'>[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentRecord | null>(null);
   const { toast } = useToast();
@@ -53,8 +54,17 @@ export default function PaymentsPage() {
   });
 
   useEffect(() => {
-    setPayments(getPayments());
-    setMockProperties(getAllMockProperties());
+    const fetchData = async () => {
+      setIsLoading(true);
+      const [paymentsData, propertiesData] = await Promise.all([
+        getPayments(),
+        getAllMockProperties()
+      ]);
+      setPayments(paymentsData);
+      setProperties(propertiesData);
+      setIsLoading(false);
+    };
+    fetchData();
   }, []);
   
   useEffect(() => {
@@ -70,15 +80,15 @@ export default function PaymentsPage() {
   }, [editingPayment, form, isDialogOpen]);
 
 
-  const handleFormSubmit = (values: PaymentFormValues) => {
+  const handleFormSubmit = async (values: PaymentFormValues) => {
     if (editingPayment) {
-      const updated = updatePayment(editingPayment.id, { ...values, date: values.date.toISOString() });
+      const updated = await updatePayment(editingPayment.id, { ...values, date: values.date.toISOString() });
       if (updated) {
         setPayments(payments.map(p => p.id === editingPayment.id ? updated : p));
         toast({ title: "Payment Updated", description: "The payment record has been updated." });
       }
     } else {
-      const newPayment = addPayment({ ...values, date: values.date.toISOString() });
+      const newPayment = await addPayment({ ...values, date: values.date.toISOString() });
       setPayments([...payments, newPayment]);
       toast({ title: "Payment Added", description: "New payment record created." });
     }
@@ -96,8 +106,9 @@ export default function PaymentsPage() {
     setIsDialogOpen(true);
   };
 
-  const handleDeletePayment = (id: string) => {
-    if (deletePayment(id)) {
+  const handleDeletePayment = async (id: string) => {
+    const success = await deletePayment(id);
+    if (success) {
       setPayments(payments.filter(p => p.id !== id));
       toast({ title: "Payment Deleted", description: "Payment record removed.", variant: "destructive" });
     }
@@ -130,7 +141,7 @@ export default function PaymentsPage() {
                         <SelectTrigger><SelectValue placeholder="Select a property" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mockProperties.map(prop => (
+                        {properties.map(prop => (
                           <SelectItem key={prop.id} value={prop.id}>{prop.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -275,26 +286,34 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell>{payment.propertyName || payment.propertyId}</TableCell>
-                  <TableCell>{payment.plotNumber || "N/A"}</TableCell>
-                  <TableCell>{payment.tenantOrBuyerName}</TableCell>
-                  <TableCell>PKR {payment.amount.toLocaleString()}</TableCell>
-                  <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                  <TableCell className="capitalize">{payment.type}</TableCell>
-                  <TableCell>{payment.paymentMethod || "N/A"}</TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(payment)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeletePayment(payment.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center h-24">
+                    <Loader2 className="h-6 w-6 animate-spin inline-block" />
+                    <span className="ml-2">Loading payments...</span>
                   </TableCell>
                 </TableRow>
-              ))}
-              {payments.length === 0 && (
+              ) : payments.length > 0 ? (
+                payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>{payment.propertyName || payment.propertyId}</TableCell>
+                    <TableCell>{payment.plotNumber || "N/A"}</TableCell>
+                    <TableCell>{payment.tenantOrBuyerName}</TableCell>
+                    <TableCell>PKR {payment.amount.toLocaleString()}</TableCell>
+                    <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="capitalize">{payment.type}</TableCell>
+                    <TableCell>{payment.paymentMethod || "N/A"}</TableCell>
+                    <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(payment)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeletePayment(payment.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center h-24">No payment records found.</TableCell>
                 </TableRow>

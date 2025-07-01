@@ -1,16 +1,26 @@
 
 "use client"; 
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Building2, CreditCard, FileText, Users } from "lucide-react";
 import Image from "next/image";
 import { getProperties } from "@/lib/mock-db";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
-  const totalProperties = getProperties().length;
+  const [totalProperties, setTotalProperties] = useState<number | null>(null);
+  
+  useEffect(() => {
+    const fetchProperties = async () => {
+      const properties = await getProperties();
+      setTotalProperties(properties.length);
+    };
+    fetchProperties();
+  }, []);
 
   const summaryStats = [
-    { title: "Total Properties", value: totalProperties.toString(), icon: <Building2 className="h-6 w-6 text-primary" />, description: "+5 since last month" }, // Description is static for now
+    { title: "Total Properties", value: totalProperties, icon: <Building2 className="h-6 w-6 text-primary" />, description: "+5 since last month" },
     { title: "Occupancy Rate", value: "85%", icon: <Users className="h-6 w-6 text-primary" />, description: "Target: 90%" },
     { title: "Pending Payments", value: "15", icon: <CreditCard className="h-6 w-6 text-destructive" />, description: "$5,200 overdue" },
     { title: "Generated Reports", value: "28", icon: <FileText className="h-6 w-6 text-primary" />, description: "Last report: Sales Q2" },
@@ -28,7 +38,11 @@ export default function DashboardPage() {
               {stat.icon}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+              {stat.value !== null ? (
+                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+              ) : (
+                <Skeleton className="h-8 w-12" />
+              )}
               <p className="text-xs text-muted-foreground">{stat.description}</p>
             </CardContent>
           </Card>
