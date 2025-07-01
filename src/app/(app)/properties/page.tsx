@@ -13,6 +13,18 @@ import { PlusCircle, Edit3, Trash2, Eye, Search, Package, FileText, Loader2 } fr
 import type { Property } from "@/types";
 import Image from "next/image";
 import { getProperties, deleteProperty } from "@/lib/mock-db";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type FilterStatus = "all" | "available" | "installment" | "rented";
 
@@ -21,6 +33,7 @@ export default function PropertiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -36,6 +49,16 @@ export default function PropertiesPage() {
     const success = await deleteProperty(id);
     if (success) {
       setProperties(prev => prev.filter(p => p.id !== id));
+      toast({
+        title: "Property Deleted",
+        description: "The property has been successfully removed.",
+      });
+    } else {
+       toast({
+        title: "Error",
+        description: "Failed to delete the property. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -168,9 +191,30 @@ export default function PropertiesPage() {
                       <Button variant="ghost" size="icon" aria-label="Edit Property" onClick={() => alert(`Edit ${property.name}`)}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete Property" className="text-destructive hover:text-destructive" onClick={() => handleDeleteProperty(property.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <Button variant="ghost" size="icon" aria-label="Delete Property" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the property "{property.name}" and all of its associated data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteProperty(property.id)}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Yes, delete property
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))
