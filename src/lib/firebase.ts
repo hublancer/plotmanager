@@ -1,6 +1,9 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { config } from 'dotenv';
+
+config(); // Load environment variables from .env file
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,7 +25,7 @@ if (firebaseConfig.apiKey) {
     auth = getAuth(app);
     db = getFirestore(app);
 } else {
-    console.warn("Firebase API key is missing. Authentication features will be disabled. Please add your Firebase credentials to a .env.local file and restart the development server to enable authentication.");
+    console.warn("Firebase API key is missing. Authentication features will be disabled. Please add your Firebase credentials to a .env file and restart the development server to enable authentication.");
 }
 
 export { app, auth, db };
