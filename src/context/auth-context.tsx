@@ -59,9 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.push('/auth/login');
     }
     
-    // If we are done loading, and there IS a user, redirect to dashboard if they try to access an auth page.
+    // If we are done loading, and there IS a user, redirect to the plans page if they try to access an auth page.
+    // This will act as the landing page after login/registration.
+    // A more advanced implementation would check if the user already has a plan.
     if (user && isAuthPage) {
-      router.push('/dashboard');
+      router.push('/plans');
     }
   }, [user, authLoading, pathname, router, pageLoader]);
 
