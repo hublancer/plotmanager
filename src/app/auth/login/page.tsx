@@ -85,6 +85,7 @@ export default function LoginPage() {
           email: user.email,
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
+          activePlan: false,
         });
         toast({
           title: "Account Created",

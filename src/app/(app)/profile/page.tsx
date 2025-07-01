@@ -5,11 +5,12 @@ import { useAuth } from '@/context/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 export default function ProfilePage() {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   if (loading || !user) {
     return (
@@ -47,6 +48,15 @@ export default function ProfilePage() {
                 {user.emailVerified ? 'Yes' : 'No'}
             </span>
           </div>
+          {userProfile?.activePlan && (
+             <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                <span className="font-medium text-muted-foreground">Subscription Plan</span>
+                <Badge variant="secondary" className="text-green-600 border-green-500">
+                    <ShieldCheck className="mr-1 h-4 w-4" />
+                    Active
+                </Badge>
+             </div>
+          )}
           <div className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
             <span className="font-medium text-muted-foreground">Account Created</span>
             <span className="font-semibold text-foreground">

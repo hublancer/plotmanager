@@ -19,6 +19,8 @@ if (!db) {
 const propertiesCollection = db ? collection(db, 'properties') : null;
 const employeesCollection = db ? collection(db, 'employees') : null;
 const paymentsCollection = db ? collection(db, 'payments') : null;
+const usersCollection = db ? collection(db, 'users') : null;
+
 
 // Helper to safely execute DB operations
 async function safeDBOperation<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
@@ -37,6 +39,23 @@ async function safeDBOperation<T>(operation: () => Promise<T>, fallback: T): Pro
 const mapDocToProperty = (doc: any): Property => ({ id: doc.id, ...doc.data() } as Property);
 const mapDocToEmployee = (doc: any): Employee => ({ id: doc.id, ...doc.data() } as Employee);
 const mapDocToPayment = (doc: any): PaymentRecord => ({ id: doc.id, ...doc.data() } as PaymentRecord);
+
+// ===== Users =====
+export const getUserProfileByUID = async (uid: string): Promise<any | null> => {
+  return safeDBOperation(async () => {
+    const docRef = doc(db!, 'users', uid);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+  }, null);
+};
+
+export const updateUser = async (uid: string, updates: any): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'users', uid);
+        await updateDoc(docRef, updates);
+        return true;
+    }, false);
+};
 
 // ===== Properties =====
 

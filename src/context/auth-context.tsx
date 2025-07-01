@@ -6,34 +6,48 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import { LoadingContext } from '@/context/loading-context';
+import { getUserProfileByUID } from '@/lib/mock-db';
+
+// Define a type for the user profile from Firestore
+interface UserProfile {
+  uid: string;
+  activePlan?: boolean;
+  // other fields can be added here
+}
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  userProfile: null,
   loading: true,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
   const pageLoader = useContext(LoadingContext);
 
   useEffect(() => {
-    // If firebase is not configured, auth will be null.
-    // We'll set authLoading to false, and user will remain null,
-    // which will trigger the redirect logic in the other useEffect.
     if (!auth) {
       setAuthLoading(false);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      if (user) {
+        const profile = await getUserProfileByUID(user.uid);
+        setUserProfile(profile);
+      } else {
+        setUserProfile(null);
+      }
       setAuthLoading(false);
     });
     return () => unsubscribe();
@@ -41,9 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const isAuthPage = pathname.startsWith('/auth');
+    const isPlansPage = pathname.startsWith('/plans');
     
     if (authLoading) {
-      // While we are checking for a user, show the loader on main app pages.
       if (!isAuthPage) {
         pageLoader.start();
       }
@@ -51,34 +65,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pageLoader.complete();
     }
 
-    // Don't run redirect logic until auth state is confirmed
     if (authLoading) return;
 
-    // If we are done loading, and there's no user, redirect to login unless we're already on an auth page.
+    // Not logged in: redirect to login unless on an auth page
     if (!user && !isAuthPage) {
       router.push('/auth/login');
+      return;
     }
     
-    // If we are done loading, and there IS a user, redirect to the plans page if they try to access an auth page.
-    // This will act as the landing page after login/registration.
-    // A more advanced implementation would check if the user already has a plan.
-    if (user && isAuthPage) {
-      router.push('/plans');
+    // Logged in:
+    if (user) {
+      // If on an auth page, redirect away
+      if (isAuthPage) {
+        // If they have a plan, go to dashboard. If not, go to plans.
+        if (userProfile?.activePlan) {
+          router.push('/dashboard');
+        } else {
+          router.push('/plans');
+        }
+        return;
+      }
+      
+      // If NO active plan, force user to the plans page
+      if (userProfile && !userProfile.activePlan && !isPlansPage) {
+        router.push('/plans');
+        return;
+      }
     }
-  }, [user, authLoading, pathname, router, pageLoader]);
+  }, [user, userProfile, authLoading, pathname, router, pageLoader]);
 
-  // While checking auth, show the loader. For auth pages, render them immediately.
-  if (authLoading && !pathname.startsWith('/auth')) {
+  // Prevent flashing content
+  const isAuthPage = pathname.startsWith('/auth');
+  const isPlansPage = pathname.startsWith('/plans');
+
+  if (authLoading || (!user && !isAuthPage) || (user && userProfile && !userProfile.activePlan && !isPlansPage && !isAuthPage)) {
     return null; // PageLoader is handled by its context provider
   }
 
-  // Prevent flashing the app shell for a moment before redirecting
-  if (!user && !pathname.startsWith('/auth')) {
-    return null;
-  }
 
   return (
-    <AuthContext.Provider value={{ user, loading: authLoading }}>
+    <AuthContext.Provider value={{ user, userProfile, loading: authLoading }}>
       {children}
     </AuthContext.Provider>
   );

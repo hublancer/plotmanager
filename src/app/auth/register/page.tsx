@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,7 @@ export default function RegisterPage() {
           email: email,
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
+          activePlan: false,
         });
       }
 
@@ -109,6 +111,7 @@ export default function RegisterPage() {
           email: user.email,
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
+          activePlan: false,
         });
         toast({
           title: "Account Created",
