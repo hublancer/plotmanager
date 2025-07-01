@@ -10,6 +10,7 @@ export interface PlotData {
   imageIndex: number; // Index in the property's imageUrls array
   size?: string; // e.g., "5 Marla", "1 Kanal", "250 Sq. Yd."
   details?: string; // Optional additional details
+  color?: string; // Color for the map pin
 }
 
 export interface Property {

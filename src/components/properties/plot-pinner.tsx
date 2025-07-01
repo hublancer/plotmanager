@@ -19,6 +19,19 @@ interface PlotPinnerProps {
   onPlotsChange: (plots: PlotData[]) => void;
 }
 
+// Define a palette of colors for the pins
+const pinColors = [
+  "rgba(59, 130, 246, 0.8)",  // Blue
+  "rgba(239, 68, 68, 0.8)",    // Red
+  "rgba(34, 197, 94, 0.8)",    // Green
+  "rgba(168, 85, 247, 0.8)",   // Purple
+  "rgba(249, 115, 22, 0.8)",   // Orange
+  "rgba(236, 72, 153, 0.8)",   // Pink
+  "rgba(20, 184, 166, 0.8)",   // Teal
+  "rgba(245, 158, 11, 0.8)",   // Amber
+];
+
+
 export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: PlotPinnerProps) {
   const [plots, setPlots] = useState<PlotData[]>(initialPlots);
   const [selectedPlot, setSelectedPlot] = useState<PlotData | null>(null);
@@ -58,17 +71,19 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
     setShowDialog(true);
   };
 
-  const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex'>) => {
+  const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex' | 'color'>) => {
     let newPlots;
     if (isEditing && selectedPlot) {
       newPlots = plots.map(p => p.id === selectedPlot.id ? { ...selectedPlot, ...formData } : p);
     } else if (tempPin) {
+      const randomColor = pinColors[Math.floor(Math.random() * pinColors.length)];
       const newPlot: PlotData = { 
         ...formData, 
         id: Date.now().toString(), 
         x: tempPin.x, 
         y: tempPin.y,
         imageIndex: currentIndex,
+        color: randomColor,
       };
       newPlots = [...plots, newPlot];
     } else {
@@ -119,7 +134,12 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
           <div
             key={plot.id}
             className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-150 ease-out hover:scale-125"
-            style={{ left: `${plot.x}%`, top: `${plot.y}%`, backgroundColor: 'rgba(var(--primary-hsl, 215 80% 60% / 0.7))', border: '2px solid hsl(var(--primary-foreground, 0 0% 100%))' }}
+            style={{ 
+              left: `${plot.x}%`, 
+              top: `${plot.y}%`, 
+              backgroundColor: plot.color || 'rgba(59, 130, 246, 0.8)', // Fallback color
+              border: '2px solid hsl(var(--primary-foreground, 0 0% 100%))' 
+            }}
             onClick={(e) => { e.stopPropagation(); setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}
             title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
           >
@@ -173,11 +193,17 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
           <ul className="space-y-2 max-h-60 overflow-y-auto">
             {currentImagePlots.map(plot => (
               <li key={plot.id} className="flex items-center justify-between p-3 border rounded-md bg-card hover:bg-secondary/50 transition-colors">
-                <div>
-                  <p className="font-medium text-foreground">Plot #{plot.plotNumber} {plot.size && <span className="text-xs text-muted-foreground">({plot.size})</span>}</p>
-                  <p className="text-xs text-muted-foreground">Buyer: {plot.buyerName || "N/A"} - Price: PKR {plot.price?.toLocaleString() || "N/A"}</p>
+                 <div className="flex items-center gap-3 flex-1 min-w-0">
+                   <span
+                    className="h-3 w-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: plot.color || 'hsl(var(--primary))' }}
+                  />
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">Plot #{plot.plotNumber} {plot.size && <span className="text-xs text-muted-foreground">({plot.size})</span>}</p>
+                    <p className="text-xs text-muted-foreground truncate">Buyer: {plot.buyerName || "N/A"} - Price: PKR {plot.price?.toLocaleString() || "N/A"}</p>
+                  </div>
                 </div>
-                <div className="space-x-1">
+                <div className="space-x-1 flex-shrink-0">
                   <Button variant="ghost" size="icon" onClick={() => { setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}>
                     <Edit2 className="h-4 w-4" />
                   </Button>
@@ -198,7 +224,7 @@ interface PlotDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   plotData: PlotData | null;
-  onSave: (data: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex'>) => void;
+  onSave: (data: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex' | 'color'>) => void;
   onDelete?: () => void;
 }
 
