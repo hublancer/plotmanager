@@ -1,6 +1,8 @@
 # PlotPilot - Firebase Setup Guide
 
-This guide will walk you through the essential steps to connect your PlotPilot application to your personal Firebase project. Your app is already coded to work with Firebase, so you just need to configure your project in the Firebase console.
+Welcome to PlotPilot! Your application is now directly connected to your Firebase project using the credentials you provided. The setup is much simpler now.
+
+There are just two quick steps you need to perform in the Firebase Console to ensure everything works correctly.
 
 ---
 
@@ -18,40 +20,28 @@ Other collections like `properties`, `employees`, and `payments` will also be cr
 
 ---
 
-### **Step 1: Get Your Firebase Project Credentials**
+### **Step 1: Enable Firebase Services**
 
-If you haven't already, you need to get your project's configuration keys.
+This is the most important step. You need to "turn on" the services your app uses in the Firebase Console.
 
-1.  Go to the [Firebase Console](https://console.firebase.google.com/) and select your project (e.g., `plotpilot-gi902`).
-2.  Click the **Project Overview** gear icon ⚙️ and select **Project settings**.
-3.  Under the **General** tab, scroll down to the **Your apps** section.
-4.  Find your web app and look for the **SDK setup and configuration** section.
-5.  Select the **Config** option to view your `firebaseConfig` object. This contains your keys.
+1.  **Go to the [Firebase Console](https://console.firebase.google.com/)** and select your project (`plotpilot-gi902`).
 
-This project uses a `.env` file to store these keys. I have already created this file for you with the keys you provided.
-
----
-
-### **Step 2: Enable Firebase Services**
-
-This is the most important step. You need to "turn on" the services your app uses.
-
-1.  **Enable Firestore Database:**
-    *   In the Firebase Console, go to the **Build** menu on the left and click **Firestore Database**.
+2.  **Enable Firestore Database:**
+    *   In the **Build** menu on the left, click **Firestore Database**.
     *   Click **Create database**.
     *   Select **Start in test mode**. This allows your app to write data without complicated security rules for now. You can change this later.
     *   Choose a location for your database and click **Enable**.
 
-2.  **Enable Authentication Methods:**
-    *   In the Firebase Console, go to the **Build** menu and click **Authentication**.
+3.  **Enable Authentication Methods:**
+    *   In the **Build** menu on the left, click **Authentication**.
     *   Go to the **Sign-in method** tab.
     *   Click on **Add new provider** and enable both **Email/Password** and **Google**.
 
 ---
 
-### **Step 3: Run the App and Verify**
+### **Step 2: Run the App and Verify**
 
-1.  If your app is running, **stop and restart it**. This is necessary for it to load the credentials from the `.env` file.
+1.  If your app is running, **stop and restart it**.
 2.  Open your app and **register a new user**.
 3.  Go back to the **Firestore Database** in the Firebase console. You should now see a new collection called `users` with one document inside it for the user you just created!
 

@@ -51,13 +51,9 @@ Before uploading, you need to build your project. This creates an optimized prod
 
 1.  Once the application is created, stay on the Node.js page.
 2.  **Find the Port**: You will see your running application listed. It will have a **Port** number assigned to it (e.g., `35482`). **Copy this port number.** You will need it in the next step.
-3.  **Set Environment Variables**:
-    *   Scroll down to the **Environment variables** section.
-    *   Click **Create**.
-    *   Add each of your Firebase keys from your local `.env` file. For example:
-        *   Key: `NEXT_PUBLIC_FIREBASE_API_KEY`, Value: `AIzaSy...`
-        *   Key: `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, Value: `plotpilot-d5a25...`
-    *   Add all the required keys.
+3.  **Set Environment Variables (Optional)**:
+    * Your Firebase keys are now built into the app, so you don't need to set them here.
+    * If you add other services (like an AI key for Genkit), you would add them here.
 
 ---
 
@@ -104,6 +100,6 @@ This is the final and most critical step to connect your domain to your app.
 
 - **403 Forbidden Error**: This almost always means your `.htaccess` file is missing, in the wrong folder, or has the wrong content. Double-check Step 5. The `.htaccess` file must be in the public document root of your subdomain, NOT in the `plotpilot_app` folder.
 - **500 Timeout Error**: This usually means the port in your `.htaccess` file doesn't match the port assigned to your app in the Node.js section of hPanel. It can also happen if your app crashes on startup. Check the application logs in the Node.js section for errors.
-- **App Crashes**: Make sure all your **Environment Variables** (Step 4) are set correctly. A missing variable can cause the app to fail on startup. Also ensure you have selected a modern **Node.js version** (like 20.x) in Step 3. The `start` script `next start -p $PORT` in `package.json` is correct and should not be changed, as Hostinger provides the `$PORT` variable automatically.
+- **App Crashes**: Ensure you have selected a modern **Node.js version** (like 20.x) in Step 3. The `start` script `next start -p $PORT` in `package.json` is correct and should not be changed, as Hostinger provides the `$PORT` variable automatically.
 
     

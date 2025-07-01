@@ -1,31 +1,30 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { config } from 'dotenv';
 
-config(); // Load environment variables from .env file
-
+// Your web app's Firebase configuration is now directly in the code.
+// This ensures a reliable connection without needing a separate .env file.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDkcJVdGbA211ODtqeEtZLiE6nwzj1SfqU",
+  authDomain: "plotpilot-gi902.firebaseapp.com",
+  projectId: "plotpilot-gi902",
+  storageBucket: "plotpilot-gi902.appspot.com",
+  messagingSenderId: "668482620016",
+  appId: "1:668482620016:web:2110c3605663151d0342b5"
 };
 
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let db: Firestore | null = null;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
 
-// This check prevents the app from crashing if Firebase is not configured.
-// It also provides a clear warning to the developer.
-if (firebaseConfig.apiKey) {
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
+// This check prevents re-initializing the app on hot reloads
+if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
 } else {
-    console.warn("Firebase API key is missing. Authentication features will be disabled. Please add your Firebase credentials to a .env file and restart the development server to enable authentication.");
+    app = getApp();
 }
+
+auth = getAuth(app);
+db = getFirestore(app);
 
 export { app, auth, db };
