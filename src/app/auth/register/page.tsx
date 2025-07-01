@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -18,12 +17,14 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   createUserWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  signInWithPopup,
+  GoogleAuthProvider,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, setDoc } from 'firebase/firestore';
-import { serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 
 export default function RegisterPage() {
@@ -31,6 +32,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { toast } = useToast();
 
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -83,6 +85,50 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+  
+  const handleGoogleLogin = async () => {
+    if (!auth || !db) {
+      toast({
+        title: "Login Unavailable",
+        description: "Firebase is not configured. See developer console for details.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const additionalInfo = getAdditionalUserInfo(result);
+
+      if (additionalInfo?.isNewUser) {
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: serverTimestamp(),
+          photoURL: user.photoURL || null,
+        });
+        toast({
+          title: "Account Created",
+          description: `Welcome, ${user.displayName}!`,
+        });
+      }
+      // Redirect is handled by AuthProvider
+    } catch (error: any) {
+      toast({
+        title: "Google Sign-In Failed",
+        description: error.code.includes('auth/popup-closed-by-user')
+          ? "The sign-in popup was closed before completion."
+          : "An error occurred during Google sign-in.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
 
   return (
     <Card className="w-full max-w-sm shadow-2xl">
@@ -92,10 +138,33 @@ export default function RegisterPage() {
         </div>
         <CardTitle className="text-2xl">Create an Account</CardTitle>
         <CardDescription>
-          Enter your details to start using PlotPilot.
+          Sign up with Google or enter your details below.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleLogin}
+          disabled={isLoading || isGoogleLoading}
+        >
+          {isGoogleLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 21.2 177.2 56.5L357 151C326.4 124.3 294.6 112 248 112c-88.3 0-160 71.7-160 160s71.7 160 160 160c97.2 0 132.2-66.6 135.2-99.2H248v-65.4h237.2c2.4 12.2 3.8 24.8 3.8 38.2z"></path></svg>
+          )}
+          Sign up with Google
+        </Button>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Or with email
+            </span>
+          </div>
+        </div>
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
@@ -104,7 +173,7 @@ export default function RegisterPage() {
               type="text"
               placeholder="John Doe"
               required
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -116,7 +185,7 @@ export default function RegisterPage() {
               type="email"
               placeholder="name@example.com"
               required
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -127,12 +196,12 @@ export default function RegisterPage() {
                 id="password" 
                 type="password" 
                 required 
-                disabled={isLoading} 
+                disabled={isLoading || isGoogleLoading} 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Account
           </Button>
