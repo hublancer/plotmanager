@@ -110,6 +110,14 @@ export const addEmployee = async (employeeData: Omit<Employee, 'id'>): Promise<E
     }, employeeData as Employee);
 };
 
+export const deleteEmployee = async (id: string): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        await deleteDoc(doc(db!, 'employees', id));
+        return true;
+    }, false);
+};
+
+
 // ===== Payments =====
 
 export const getPayments = async (): Promise<PaymentRecord[]> => {

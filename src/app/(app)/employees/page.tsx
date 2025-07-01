@@ -9,11 +9,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
 import type { Employee } from "@/types";
-import { getEmployees } from "@/lib/mock-db";
+import { getEmployees, deleteEmployee } from "@/lib/mock-db";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -26,11 +39,20 @@ export default function EmployeesPage() {
   }, []);
   
   const handleDeleteEmployee = async (id: string) => {
-    // In a real app, you'd call an API to delete the employee
-    // For now, this just filters the local state. It won't persist if mock-db isn't updated.
-    // To make delete work with mock-db, we'd need a deleteEmployee function there.
-    // setEmployees(prev => prev.filter(e => e.id !== id));
-    alert(`Deletion is not implemented in this version.`);
+    const success = await deleteEmployee(id);
+    if (success) {
+      setEmployees(prev => prev.filter(e => e.id !== id));
+      toast({
+        title: "Employee Deleted",
+        description: "The employee record has been successfully removed.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete the employee. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {
@@ -93,12 +115,33 @@ export default function EmployeesPage() {
                     <TableCell>{employee.email}</TableCell>
                     <TableCell>{new Date(employee.hireDate).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="icon" aria-label="Edit Employee" onClick={() => alert(`Edit employee: ${employee.name}`)}>
+                      <Button variant="ghost" size="icon" aria-label="Edit Employee" onClick={() => alert(`Editing is not yet implemented.`)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" aria-label="Delete Employee" className="text-destructive hover:text-destructive" onClick={() => handleDeleteEmployee(employee.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label="Delete Employee" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the record for {employee.name}.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteEmployee(employee.id)}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Yes, delete employee
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}
