@@ -15,12 +15,13 @@ import { Label } from "@/components/ui/label";
 import { PlotPilotLogo } from "@/components/icons/logo";
 import Link from "next/link";
 import { useState } from "react";
-import { Loader2, Chrome } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  getAdditionalUserInfo
+  getAdditionalUserInfo,
+  sendSignInLinkToEmail
 } from "firebase/auth";
 import {
   setDoc,
@@ -33,8 +34,10 @@ import { useToast } from "@/hooks/use-toast";
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailForLink, setEmailForLink] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isLinkLoading, setIsLinkLoading] = useState(false);
   const { toast } = useToast();
 
   const handleEmailLogin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -78,7 +81,6 @@ export default function LoginPage() {
       const user = result.user;
       const additionalInfo = getAdditionalUserInfo(result);
 
-      // If it's a new user, create their document in Firestore
       if (additionalInfo?.isNewUser) {
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
@@ -106,6 +108,40 @@ export default function LoginPage() {
     }
   };
 
+  const handleEmailLinkLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+     if (!auth) {
+      toast({
+        title: "Feature Unavailable",
+        description: "Firebase is not configured.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsLinkLoading(true);
+    const actionCodeSettings = {
+      url: `${window.location.origin}/auth/verify-email-link`,
+      handleCodeInApp: true,
+    };
+    try {
+      await sendSignInLinkToEmail(auth, emailForLink, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', emailForLink);
+      toast({
+        title: "Check your email",
+        description: `A sign-in link has been sent to ${emailForLink}.`,
+      });
+      setEmailForLink('');
+    } catch(error: any) {
+      toast({
+        title: "Failed to send link",
+        description: "Please check the email address and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLinkLoading(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-sm shadow-2xl">
       <CardHeader className="space-y-1 text-center">
@@ -122,7 +158,7 @@ export default function LoginPage() {
           variant="outline"
           className="w-full"
           onClick={handleGoogleLogin}
-          disabled={isLoading || isGoogleLoading}
+          disabled={isLoading || isGoogleLoading || isLinkLoading}
         >
           {isGoogleLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -149,7 +185,7 @@ export default function LoginPage() {
               type="email"
               placeholder="name@example.com"
               required
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading || isGoogleLoading || isLinkLoading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -160,15 +196,43 @@ export default function LoginPage() {
               id="password"
               type="password"
               required
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading || isGoogleLoading || isLinkLoading}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isLinkLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Log In with Email
           </Button>
+        </form>
+         <div className="relative pt-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Or sign in without a password
+            </span>
+          </div>
+        </div>
+         <form onSubmit={handleEmailLinkLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email-link">Email</Label>
+              <Input
+                id="email-link"
+                type="email"
+                placeholder="name@example.com"
+                required
+                disabled={isLoading || isGoogleLoading || isLinkLoading}
+                value={emailForLink}
+                onChange={(e) => setEmailForLink(e.target.value)}
+              />
+            </div>
+            <Button type="submit" variant="secondary" className="w-full" disabled={isLoading || isGoogleLoading || isLinkLoading}>
+              {isLinkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Sign-In Link
+            </Button>
         </form>
       </CardContent>
       <CardFooter className="flex flex-col space-y-2 text-sm">
