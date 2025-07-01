@@ -13,20 +13,16 @@ export default function AddPropertyPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imagePreviewUrl, imageType
+  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls
     setIsSubmitting(true);
     
-    // In a real app with file uploads, you'd upload the file to Firebase Storage first
-    // and get the URL. For this version, we'll continue using the data URL if it's a new image.
-    const imageUrl = data.imageFile ? data.imagePreviewUrl : (data.imageUrl || null);
-
-
+    // In a real app, you'd upload each file from data.imageFiles to Firebase Storage
+    // and get the URLs. For this version, we'll use the generated data URLs.
     const newPropertyData: Omit<Property, 'id'> = {
         name: data.name,
         address: data.address,
         propertyType: data.propertyType,
-        imageUrl: imageUrl, 
-        imageType: data.imageType,
+        imageUrls: data.imageUrls || [],
         latitude: data.latitude,
         longitude: data.longitude,
         plots: [], // Initialize with empty plots array

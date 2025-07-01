@@ -9,17 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Edit2, Trash2, MapPin, Scaling } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, MapPin, Scaling, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface PlotPinnerProps {
-  imageUrl: string;
+  imageUrls: string[];
   initialPlots?: PlotData[];
   onPlotsChange: (plots: PlotData[]) => void;
-  imageType?: 'photo' | 'pdf'; // Kept for type consistency, but logic assumes image
 }
 
-export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotPinnerProps) {
+export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: PlotPinnerProps) {
   const [plots, setPlots] = useState<PlotData[]>(initialPlots);
   const [selectedPlot, setSelectedPlot] = useState<PlotData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +27,7 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [tempPin, setTempPin] = useState<{ x: number; y: number } | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     setPlots(initialPlots);
@@ -39,10 +40,10 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
     
-    for (const plot of plots) {
+    // Check if clicking on an existing pin for the current image
+    for (const plot of plots.filter(p => p.imageIndex === currentIndex)) {
       const distance = Math.sqrt(Math.pow(plot.x - x, 2) + Math.pow(plot.y - y, 2));
-      // Increase clickable area for pins
-      if (distance < 3) { 
+      if (distance < 3) { // Increased clickable area
         setSelectedPlot(plot);
         setIsEditing(true);
         setShowDialog(true);
@@ -57,7 +58,7 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
     setShowDialog(true);
   };
 
-  const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y'>) => {
+  const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex'>) => {
     let newPlots;
     if (isEditing && selectedPlot) {
       newPlots = plots.map(p => p.id === selectedPlot.id ? { ...selectedPlot, ...formData } : p);
@@ -66,7 +67,8 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
         ...formData, 
         id: Date.now().toString(), 
         x: tempPin.x, 
-        y: tempPin.y 
+        y: tempPin.y,
+        imageIndex: currentIndex,
       };
       newPlots = [...plots, newPlot];
     } else {
@@ -88,26 +90,32 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
     setSelectedPlot(null);
     toast({ title: "Plot Deleted", description: "The plot has been removed.", variant: "destructive" });
   };
+  
+  const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? imageUrls.length - 1 : prev - 1));
+  const goToNext = () => setCurrentIndex(prev => (prev === imageUrls.length - 1 ? 0 : prev + 1));
+  
+  const currentImagePlots = plots.filter(p => p.imageIndex === currentIndex);
 
   return (
     <div className="space-y-4">
       <div
         ref={imageContainerRef}
-        className="relative w-full aspect-[16/9] border rounded-lg overflow-hidden cursor-crosshair bg-muted/30 shadow-inner"
+        className="relative w-full aspect-[16/9] border rounded-lg overflow-hidden cursor-crosshair bg-muted/30 shadow-inner group"
         onClick={handleImageClick}
         role="button"
         tabIndex={0}
         aria-label="Property image area, click to add a plot pin"
       >
         <Image 
-          src={imageUrl} 
-          alt="Property layout to pin plots on." 
+          key={currentIndex} // Force re-render on image change
+          src={imageUrls[currentIndex]} 
+          alt={`Property layout ${currentIndex + 1}`}
           layout="fill" 
           objectFit="contain" 
           data-ai-hint="property aerial map site plan" 
         />
         
-        {plots.map(plot => (
+        {currentImagePlots.map(plot => (
           <div
             key={plot.id}
             className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-150 ease-out hover:scale-125"
@@ -118,6 +126,7 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
             <MapPin className="w-4 h-4 text-primary-foreground" />
           </div>
         ))}
+
         {tempPin && !showDialog && ( 
             <div
               className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/70 border-2 border-primary-foreground flex items-center justify-center"
@@ -125,6 +134,20 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
             >
               <PlusCircle className="w-4 h-4 text-primary-foreground"/>
             </div>
+        )}
+
+        {imageUrls.length > 1 && (
+            <>
+                <Button variant="secondary" size="icon" onClick={(e) => {e.stopPropagation(); goToPrevious()}} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ChevronLeft className="h-5 w-5"/>
+                </Button>
+                 <Button variant="secondary" size="icon" onClick={(e) => {e.stopPropagation(); goToNext()}} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ChevronRight className="h-5 w-5"/>
+                </Button>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                    {currentIndex + 1} / {imageUrls.length}
+                </div>
+            </>
         )}
       </div>
 
@@ -139,12 +162,16 @@ export function PlotPinner({ imageUrl, initialPlots = [], onPlotsChange }: PlotP
       )}
       
       <div className="mt-4">
-        <h3 className="text-lg font-semibold mb-2">Pinned Plots ({plots.length})</h3>
+        <h3 className="text-lg font-semibold mb-2">
+            Pinned Plots ({currentImagePlots.length} on this image, {plots.length} total)
+        </h3>
         {plots.length === 0 ? (
           <p className="text-sm text-muted-foreground">No plots pinned yet. Click on the image area above to add a plot.</p>
+        ) : currentImagePlots.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No plots pinned on this image. Navigate to other images or add a new one.</p>
         ) : (
           <ul className="space-y-2 max-h-60 overflow-y-auto">
-            {plots.map(plot => (
+            {currentImagePlots.map(plot => (
               <li key={plot.id} className="flex items-center justify-between p-3 border rounded-md bg-card hover:bg-secondary/50 transition-colors">
                 <div>
                   <p className="font-medium text-foreground">Plot #{plot.plotNumber} {plot.size && <span className="text-xs text-muted-foreground">({plot.size})</span>}</p>
@@ -171,7 +198,7 @@ interface PlotDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   plotData: PlotData | null;
-  onSave: (data: Omit<PlotData, 'id' | 'x' | 'y'>) => void;
+  onSave: (data: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex'>) => void;
   onDelete?: () => void;
 }
 
@@ -180,7 +207,7 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
   const [buyerName, setBuyerName] = useState(plotData?.buyerName || "");
   const [buyerContact, setBuyerContact] = useState(plotData?.buyerContact || "");
   const [price, setPrice] = useState<number | string>(plotData?.price || "");
-  const [size, setSize] = useState(plotData?.size || ""); // New state for plot size
+  const [size, setSize] = useState(plotData?.size || "");
   const [details, setDetails] = useState(plotData?.details || "");
 
   useEffect(() => {
@@ -206,7 +233,7 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDi
       plotNumber, 
       buyerName, 
       buyerContact, 
-      price: Number(price) || 0, // Ensure price is a number, default to 0 if empty/invalid
+      price: Number(price) || 0,
       size,
       details
     });

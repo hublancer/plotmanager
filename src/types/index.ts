@@ -7,6 +7,7 @@ export interface PlotData {
   price: number;
   x: number; // Percentage from left
   y: number; // Percentage from top
+  imageIndex: number; // Index in the property's imageUrls array
   size?: string; // e.g., "5 Marla", "1 Kanal", "250 Sq. Yd."
   details?: string; // Optional additional details
 }
@@ -15,9 +16,7 @@ export interface Property {
   id:string;
   name: string;
   address: string;
-  imageUrl?: string;
-  imageFile?: File; // For local preview before upload
-  imageType?: 'photo' | 'pdf'; // To distinguish file types
+  imageUrls?: string[];
   propertyType?: string; // e.g., "Residential Plot", "Commercial Plot", "House", "File", "Shop", "Apartment"
   plots: PlotData[];
 

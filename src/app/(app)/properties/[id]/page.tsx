@@ -140,12 +140,11 @@ export default function PropertyDetailsPage() {
           
           <div>
             <h3 className="text-xl font-semibold mb-2 mt-6">Plot Details & Layout</h3>
-            {property.imageUrl ? (
+            {property.imageUrls && property.imageUrls.length > 0 ? (
               <PlotPinner 
-                imageUrl={property.imageUrl} 
+                imageUrls={property.imageUrls}
                 initialPlots={property.plots}
                 onPlotsChange={handlePlotsChange}
-                imageType={property.imageType}
               />
             ) : (
               <div className="text-center py-10 bg-muted rounded-lg">

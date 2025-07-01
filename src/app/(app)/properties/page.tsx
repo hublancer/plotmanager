@@ -118,7 +118,7 @@ export default function PropertiesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Image/File</TableHead>
+                <TableHead className="w-[100px]">Image</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>Type</TableHead>
@@ -147,20 +147,14 @@ export default function PropertiesPage() {
                 filteredProperties.map((property) => (
                   <TableRow key={property.id}>
                     <TableCell>
-                      {property.imageType === 'pdf' && property.imageUrl ? (
-                        <a href={property.imageUrl} target="_blank" rel="noopener noreferrer" title={`View PDF for ${property.name}`} className="flex items-center justify-center h-[75px] w-[100px] bg-muted rounded hover:bg-muted/80">
-                          <FileText className="h-8 w-8 text-muted-foreground" />
-                        </a>
-                      ) : (
-                        <Image 
-                          src={property.imageUrl || "https://placehold.co/100x75.png"} 
-                          alt={property.name}
-                          width={100}
-                          height={75}
-                          className="rounded object-cover aspect-[4/3]"
-                          data-ai-hint="property exterior"
-                        />
-                      )}
+                      <Image 
+                        src={property.imageUrls?.[0] || "https://placehold.co/100x75.png"} 
+                        alt={property.name}
+                        width={100}
+                        height={75}
+                        className="rounded object-cover aspect-[4/3]"
+                        data-ai-hint="property exterior"
+                      />
                     </TableCell>
                     <TableCell className="font-medium">{property.name}</TableCell>
                     <TableCell>{property.address}</TableCell>
