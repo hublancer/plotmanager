@@ -16,6 +16,7 @@ import {
   MessageSquareText,
   Home,
   LogOut,
+  Filter,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -53,6 +54,7 @@ const navItems: NavItem[] = [
   { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management" },
   { href: "/payments", icon: <CreditCard />, label: "Payments", tooltip: "Payments" },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments" },
+  { href: "/pipeline", icon: <Filter />, label: "Pipeline", tooltip: "Sales Pipeline" },
   { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, 
   { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports" },
   { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant" },

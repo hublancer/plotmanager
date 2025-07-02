@@ -11,7 +11,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, PaymentRecord, InstallmentDetails, RentedPropertyDetails } from "@/types";
+import type { Property, Employee, PaymentRecord, InstallmentDetails, RentedPropertyDetails, Lead } from "@/types";
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -21,6 +21,7 @@ const propertiesCollection = db ? collection(db, 'properties') : null;
 const employeesCollection = db ? collection(db, 'employees') : null;
 const paymentsCollection = db ? collection(db, 'payments') : null;
 const usersCollection = db ? collection(db, 'users') : null;
+const leadsCollection = db ? collection(db, 'leads') : null;
 
 
 // Helper to safely execute DB operations
@@ -40,6 +41,7 @@ async function safeDBOperation<T>(operation: () => Promise<T>, fallback: T): Pro
 const mapDocToProperty = (doc: any): Property => ({ id: doc.id, ...doc.data() } as Property);
 const mapDocToEmployee = (doc: any): Employee => ({ id: doc.id, ...doc.data() } as Employee);
 const mapDocToPayment = (doc: any): PaymentRecord => ({ id: doc.id, ...doc.data() } as PaymentRecord);
+const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
 
 // ===== Users =====
 export const getUserProfileByUID = async (uid: string): Promise<any | null> => {
@@ -188,6 +190,39 @@ export const deletePayment = async (id: string): Promise<boolean> => {
         return true;
     }, false);
 };
+
+// ===== Leads =====
+export const getLeads = async (userId: string): Promise<Lead[]> => {
+    return safeDBOperation(async () => {
+        const q = query(leadsCollection!, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(mapDocToLead).sort((a,b) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime());
+    }, []);
+};
+
+export const addLead = async (leadData: Omit<Lead, 'id'>): Promise<Lead> => {
+    return safeDBOperation(async () => {
+        const docRef = await addDoc(leadsCollection!, { ...leadData, lastUpdate: new Date().toISOString() });
+        return { id: docRef.id, ...leadData, lastUpdate: new Date().toISOString() };
+    }, leadData as Lead);
+};
+
+export const updateLead = async (id: string, updates: Partial<Lead>): Promise<Lead | null> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'leads', id);
+        await updateDoc(docRef, { ...updates, lastUpdate: new Date().toISOString() });
+        const updatedDoc = await getDoc(docRef);
+        return updatedDoc.exists() ? mapDocToLead(updatedDoc) : null;
+    }, null);
+};
+
+export const deleteLead = async (id: string): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        await deleteDoc(doc(db!, 'leads', id));
+        return true;
+    }, false);
+};
+
 
 // ===== Combined/Derived Data =====
 export const getInstallmentProperties = async (userId: string): Promise<InstallmentDetails[]> => {

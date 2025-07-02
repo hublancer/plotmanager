@@ -83,3 +83,16 @@ export interface Employee {
   avatarUrl?: string;
   department?: string;
 }
+
+export interface Lead {
+  id: string;
+  userId: string;
+  name: string;
+  company?: string;
+  value: number;
+  status: 'New' | 'Active' | 'Deal' | 'Done';
+  lastUpdate: string; // ISO Date String
+  latitude?: number | null;
+  longitude?: number | null;
+  notes?: string;
+}
