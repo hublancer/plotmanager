@@ -1,3 +1,4 @@
+
 import {
   collection,
   getDocs,
@@ -141,11 +142,16 @@ export const deleteEmployee = async (id: string): Promise<boolean> => {
 
 // ===== Payments =====
 
-export const getPayments = async (userId: string): Promise<PaymentRecord[]> => {
+export const getPayments = async (userId: string, propertyId?: string): Promise<PaymentRecord[]> => {
     return safeDBOperation(async () => {
-        const q = query(paymentsCollection!, where("userId", "==", userId));
+        let q;
+        if (propertyId) {
+            q = query(paymentsCollection!, where("userId", "==", userId), where("propertyId", "==", propertyId));
+        } else {
+            q = query(paymentsCollection!, where("userId", "==", userId));
+        }
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToPayment);
+        return snapshot.docs.map(mapDocToPayment).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, []);
 };
 
@@ -200,17 +206,19 @@ export const getInstallmentProperties = async (userId: string): Promise<Installm
 
         const totalInstallments = p.installmentDuration || 0;
         const paidInstallments = relatedPayments.length;
+        
+        const principal = (p.totalInstallmentPrice || 0) - downPayment;
+        const installmentAmount = totalInstallments > 0 ? principal / totalInstallments : 0;
 
         let nextDueDate: Date | undefined;
-        const lastPayment = relatedPayments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-        const baseDateSrc = lastPayment ? lastPayment.date : p.purchaseDate;
-      
-        if (baseDateSrc && remainingAmount > 0.01) {
-            const baseDate = new Date(baseDateSrc);
+        // Base date for next due is based on the purchase date and number of installments paid
+        if (p.purchaseDate && remainingAmount > 0.01) {
+            const baseDate = new Date(p.purchaseDate);
+            const intervalsPaid = paidInstallments + 1; // The next interval to be paid
             if (p.installmentFrequency === 'yearly') {
-                nextDueDate = new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1));
+                nextDueDate = new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + intervalsPaid));
             } else { // default monthly
-                nextDueDate = new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
+                nextDueDate = new Date(new Date(baseDate).setMonth(baseDate.getMonth() + intervalsPaid));
             }
         }
       
@@ -232,6 +240,7 @@ export const getInstallmentProperties = async (userId: string): Promise<Installm
             status,
             paidInstallments,
             totalInstallments,
+            installmentAmount,
         };
     }).sort((a,b) => { // Sort by status: Overdue -> Active -> Fully Paid
         if (a.status === 'Overdue' && b.status !== 'Overdue') return -1;

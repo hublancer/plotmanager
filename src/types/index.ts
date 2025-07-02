@@ -63,6 +63,7 @@ export interface InstallmentDetails extends Property {
   status: 'Active' | 'Overdue' | 'Fully Paid';
   paidInstallments: number;
   totalInstallments: number;
+  installmentAmount: number; // The calculated amount for each installment
 }
 
 export interface RentedPropertyDetails extends Property {

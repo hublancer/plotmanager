@@ -25,14 +25,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { InstallmentPlanFormDialog } from "@/components/installments/installment-plan-form-dialog";
-import { Eye, PlusCircle, Loader2, Trash2 } from "lucide-react";
+import { ManageInstallmentDialog } from "@/components/installments/manage-installment-dialog";
+import { Eye, PlusCircle, Loader2, Trash2, Settings } from "lucide-react";
 
 export default function InstallmentsPage() {
   const [installments, setInstallments] = useState<InstallmentDetails[]>([]);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingInstallment, setEditingInstallment] = useState<InstallmentDetails | null>(null);
+  const [isPlanFormOpen, setIsPlanFormOpen] = useState(false);
+  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<InstallmentDetails | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -59,9 +61,13 @@ export default function InstallmentsPage() {
     fetchAllData();
   }, [fetchAllData]);
 
-  const handleOpenForm = (installment: InstallmentDetails | null = null) => {
-    setEditingInstallment(installment);
-    setIsFormOpen(true);
+  const handleOpenPlanForm = () => {
+    setIsPlanFormOpen(true);
+  };
+  
+  const handleOpenManageDialog = (plan: InstallmentDetails) => {
+    setSelectedPlan(plan);
+    setIsManageDialogOpen(true);
   };
 
   const handleEndInstallmentPlan = async (propertyId: string) => {
@@ -97,7 +103,7 @@ export default function InstallmentsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Installment Tracking</h2>
-          <Button onClick={() => handleOpenForm()}>
+          <Button onClick={handleOpenPlanForm}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add Installment Plan
           </Button>
         </div>
@@ -148,9 +154,9 @@ export default function InstallmentsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                         <Link href={`/properties/${prop.id}`} passHref>
-                            <Button variant="ghost" size="icon" title="View Property Details"><Eye className="h-4 w-4" /></Button>
-                         </Link>
+                         <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(prop)}>
+                            <Settings className="h-4 w-4 mr-2" /> Manage
+                         </Button>
                          <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
@@ -182,17 +188,26 @@ export default function InstallmentsPage() {
         </Card>
         <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
           This section tracks properties sold under installment plans. You can view payment progress, remaining balances, and due dates.
-          Currency is shown in PKR. Overdue plans are automatically moved to the top of the list.
+          Click 'Manage' to record new installment payments for a plan.
         </CardDescription>
       </div>
 
       <InstallmentPlanFormDialog
-        isOpen={isFormOpen}
-        onOpenChange={setIsFormOpen}
+        isOpen={isPlanFormOpen}
+        onOpenChange={setIsPlanFormOpen}
         onUpdate={fetchAllData}
-        initialData={editingInstallment}
+        initialData={null} // This form is only for creation now
         properties={availableProperties}
       />
+
+      {selectedPlan && (
+        <ManageInstallmentDialog
+          isOpen={isManageDialogOpen}
+          onOpenChange={setIsManageDialogOpen}
+          onUpdate={fetchAllData}
+          installmentPlan={selectedPlan}
+        />
+      )}
     </>
   );
 }
