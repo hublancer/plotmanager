@@ -15,7 +15,7 @@ export default function AddPropertyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls
+  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls & conditional fields
     if (!user) {
         toast({ title: "Authentication Error", description: "You must be logged in to add a property.", variant: "destructive" });
         setIsSubmitting(false);
@@ -23,8 +23,6 @@ export default function AddPropertyPage() {
     }
     setIsSubmitting(true);
     
-    // In a real app, you'd upload each file from data.imageFiles to Firebase Storage
-    // and get the URLs. For this version, we'll use the generated data URLs.
     const newPropertyData: Omit<Property, 'id'> = {
         userId: user.uid,
         name: data.name,
@@ -33,8 +31,26 @@ export default function AddPropertyPage() {
         imageUrls: data.imageUrls || [],
         latitude: data.latitude,
         longitude: data.longitude,
-        plots: [], // Initialize with empty plots array
+        plots: [],
+        isRented: false,
+        isSoldOnInstallment: false,
     };
+
+    if (data.status === 'rented' && data.rentStartDate) {
+        newPropertyData.isRented = true;
+        newPropertyData.tenantName = data.tenantName;
+        newPropertyData.rentAmount = data.rentAmount;
+        newPropertyData.rentFrequency = data.rentFrequency;
+        newPropertyData.rentStartDate = data.rentStartDate.toISOString();
+    } else if (data.status === 'installment' && data.purchaseDate) {
+        newPropertyData.isSoldOnInstallment = true;
+        newPropertyData.buyerName = data.buyerName;
+        newPropertyData.totalInstallmentPrice = data.totalInstallmentPrice;
+        newPropertyData.downPayment = data.downPayment;
+        newPropertyData.purchaseDate = data.purchaseDate.toISOString();
+        newPropertyData.installmentFrequency = data.installmentFrequency;
+        newPropertyData.installmentDuration = data.installmentDuration;
+    }
 
     await addProperty(newPropertyData); 
     
