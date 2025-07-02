@@ -2,11 +2,10 @@
 "use client";
 
 // Leaflet CSS is imported in RootLayout
-// Import leaflet-defaulticon-compatibility to make default icons work with bundlers like Webpack
+import 'leaflet-defaulticon-compatibility'; // Import directly at top level
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
-import { useEffect, useState } from 'react';
 import { cn } from "@/lib/utils";
 
 interface PropertyLocationMapProps {
@@ -45,27 +44,12 @@ export function PropertyLocationMap({
   interactive = true,
   onPositionChange,
 }: PropertyLocationMapProps) {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-    // Dynamically import leaflet-defaulticon-compatibility only on the client-side
-    import('leaflet-defaulticon-compatibility');
-  }, []);
-
-  if (!isClient) {
-    return (
-      <div
-        className={cn("bg-muted flex items-center justify-center rounded-md", className)}
-        style={{ height: mapHeight }}
-      >
-        <p>Loading map...</p>
-      </div>
-    );
-  }
+  // We now rely on the parent component's dynamic import with `ssr: false`
+  // to ensure this only ever runs on the client. This removes the need for
+  // the internal `isClient` state, which simplifies logic and prevents re-renders
+  // that could cause the initialization error.
 
   const mapCenter = position || DEFAULT_CENTER;
-  // Use the zoom prop if provided and a position is set, otherwise use LOCATION_SET_ZOOM for a new pin or DEFAULT_ZOOM for initial view.
   const currentZoom = position ? (zoom || LOCATION_SET_ZOOM) : DEFAULT_ZOOM;
 
   return (
