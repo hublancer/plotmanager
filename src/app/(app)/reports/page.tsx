@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useAuth } from "@/context/auth-context";
 
 const reportFormSchema = z.object({
   reportType: z.enum(["summary", "detailed"]),
@@ -23,6 +24,7 @@ export default function ReportsPage() {
   const [reportOutput, setReportOutput] = useState<GenerateSalesReportOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),
@@ -32,12 +34,17 @@ export default function ReportsPage() {
   });
 
   const onSubmit = async (values: ReportFormValues) => {
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in to generate a report.", variant: "destructive" });
+        return;
+    }
     setIsLoading(true);
     setReportOutput(null);
     try {
       // Input for the flow now only contains reportType
       const input: GenerateSalesReportInput = {
         reportType: values.reportType,
+        userId: user.uid,
       };
       const result = await generateSalesReport(input); // The flow itself will fetch and process data
       setReportOutput(result);

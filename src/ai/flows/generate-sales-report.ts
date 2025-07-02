@@ -20,6 +20,7 @@ const GenerateSalesReportInputSchema = z.object({
     .enum(['summary', 'detailed'])
     .default('summary')
     .describe('Type of sales report to generate (summary or detailed).'),
+  userId: z.string().describe("The ID of the user requesting the report."),
 });
 
 export type GenerateSalesReportInput = z.infer<typeof GenerateSalesReportInputSchema>;
@@ -47,8 +48,8 @@ const PromptInputSchema = z.object({
 
 
 export async function generateSalesReport(input: GenerateSalesReportInput): Promise<GenerateSalesReportOutput> {
-  const allProperties = await getProperties();
-  const allPayments = await getPayments();
+  const allProperties = await getProperties(input.userId);
+  const allPayments = await getPayments(input.userId);
   const salesDetails: z.infer<typeof PromptInputSalesRecordSchema>[] = [];
 
   // Process properties sold on installment

@@ -23,6 +23,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { getPayments, addPayment, updatePayment, deletePayment, getAllMockProperties } from "@/lib/mock-db"; 
+import { useAuth } from "@/context/auth-context";
 
 
 const paymentFormSchema = z.object({
@@ -45,6 +46,7 @@ export default function PaymentsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentRecord | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
@@ -54,18 +56,19 @@ export default function PaymentsPage() {
   });
 
   useEffect(() => {
+    if (!user) return;
     const fetchData = async () => {
       setIsLoading(true);
       const [paymentsData, propertiesData] = await Promise.all([
-        getPayments(),
-        getAllMockProperties()
+        getPayments(user.uid),
+        getAllMockProperties(user.uid)
       ]);
       setPayments(paymentsData);
       setProperties(propertiesData);
       setIsLoading(false);
     };
     fetchData();
-  }, []);
+  }, [user]);
   
   useEffect(() => {
     if (editingPayment) {
@@ -81,14 +84,18 @@ export default function PaymentsPage() {
 
 
   const handleFormSubmit = async (values: PaymentFormValues) => {
+    if (!user) {
+        toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
+        return;
+    }
     if (editingPayment) {
-      const updated = await updatePayment(editingPayment.id, { ...values, date: values.date.toISOString() });
+      const updated = await updatePayment(editingPayment.id, { ...values, userId: user.uid, date: values.date.toISOString() });
       if (updated) {
         setPayments(payments.map(p => p.id === editingPayment.id ? updated : p));
         toast({ title: "Payment Updated", description: "The payment record has been updated." });
       }
     } else {
-      const newPayment = await addPayment({ ...values, date: values.date.toISOString() });
+      const newPayment = await addPayment({ ...values, userId: user.uid, date: values.date.toISOString() });
       setPayments([...payments, newPayment]);
       toast({ title: "Payment Added", description: "New payment record created." });
     }

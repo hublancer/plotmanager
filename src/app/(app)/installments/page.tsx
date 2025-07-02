@@ -10,20 +10,23 @@ import { Eye, Edit, DollarSign, PlusCircle, Loader2 } from "lucide-react";
 import type { InstallmentDetails } from "@/types";
 import Link from "next/link";
 import { getInstallmentProperties } from "@/lib/mock-db"; 
+import { useAuth } from "@/context/auth-context";
 
 export default function InstallmentsPage() {
   const [installmentProperties, setInstallmentProperties] = useState<InstallmentDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     const fetchInstallments = async () => {
       setIsLoading(true);
-      const data = await getInstallmentProperties();
+      const data = await getInstallmentProperties(user.uid);
       setInstallmentProperties(data);
       setIsLoading(false);
     }
     fetchInstallments();
-  }, []);
+  }, [user]);
   
   const calculateProgress = (paid?: number, total?: number) => {
     if (paid === undefined || total === undefined || total === 0) return 0;

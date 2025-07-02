@@ -17,6 +17,7 @@ import { ArrowLeft, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useState } from "react";
+import { useAuth } from "@/context/auth-context";
 
 const employeeFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -35,6 +36,7 @@ export default function AddEmployeePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
@@ -48,10 +50,19 @@ export default function AddEmployeePage() {
   });
 
   const onSubmit = async (values: EmployeeFormValues) => {
+    if (!user) {
+        toast({
+            title: "Authentication Error",
+            description: "You must be logged in to add an employee.",
+            variant: "destructive"
+        });
+        return;
+    }
     setIsSubmitting(true);
     try {
       await addEmployee({
         ...values,
+        userId: user.uid,
         hireDate: values.hireDate.toISOString(),
       });
       toast({

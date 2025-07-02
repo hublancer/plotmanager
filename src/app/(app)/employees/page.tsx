@@ -22,21 +22,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     const fetchEmployees = async () => {
       setIsLoading(true);
-      const data = await getEmployees();
+      const data = await getEmployees(user.uid);
       setEmployees(data);
       setIsLoading(false);
     };
     fetchEmployees();
-  }, []);
+  }, [user]);
   
   const handleDeleteEmployee = async (id: string) => {
     const success = await deleteEmployee(id);

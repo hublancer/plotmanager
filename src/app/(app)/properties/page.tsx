@@ -14,6 +14,7 @@ import type { Property } from "@/types";
 import Image from "next/image";
 import { getProperties, deleteProperty } from "@/lib/mock-db";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,16 +35,18 @@ export default function PropertiesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     const fetchProperties = async () => {
       setIsLoading(true);
-      const data = await getProperties();
+      const data = await getProperties(user.uid);
       setProperties(data);
       setIsLoading(false);
     };
     fetchProperties();
-  }, []);
+  }, [user]);
 
   const handleDeleteProperty = async (id: string) => {
     const success = await deleteProperty(id);

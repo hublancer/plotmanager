@@ -9,20 +9,23 @@ import { Eye, DollarSign, Edit, PlusCircle, Loader2 } from "lucide-react";
 import type { RentedPropertyDetails } from "@/types";
 import Link from "next/link";
 import { getRentedProperties } from "@/lib/mock-db";
+import { useAuth } from "@/context/auth-context";
 
 export default function RentalsPage() {
   const [rentedProperties, setRentedProperties] = useState<RentedPropertyDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) return;
     const fetchRentals = async () => {
       setIsLoading(true);
-      const data = await getRentedProperties();
+      const data = await getRentedProperties(user.uid);
       setRentedProperties(data);
       setIsLoading(false);
     }
     fetchRentals();
-  }, []);
+  }, [user]);
 
   const handleAddRental = () => {
     alert("Functionality to add a new rental agreement or mark a property as rented would be implemented here.");

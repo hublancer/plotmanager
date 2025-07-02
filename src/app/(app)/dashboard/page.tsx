@@ -7,17 +7,20 @@ import { Building2, CreditCard, FileText, Users } from "lucide-react";
 import Image from "next/image";
 import { getProperties } from "@/lib/mock-db";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/auth-context";
 
 export default function DashboardPage() {
   const [totalProperties, setTotalProperties] = useState<number | null>(null);
+  const { user } = useAuth();
   
   useEffect(() => {
+    if (!user) return;
     const fetchProperties = async () => {
-      const properties = await getProperties();
+      const properties = await getProperties(user.uid);
       setTotalProperties(properties.length);
     };
     fetchProperties();
-  }, []);
+  }, [user]);
 
   const summaryStats = [
     { title: "Total Properties", value: totalProperties, icon: <Building2 className="h-6 w-6 text-primary" />, description: "+5 since last month" },

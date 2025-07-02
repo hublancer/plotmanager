@@ -15,6 +15,7 @@ export interface PlotData {
 
 export interface Property {
   id:string;
+  userId: string;
   name: string;
   address: string;
   imageUrls?: string[];
@@ -38,6 +39,7 @@ export interface Property {
 
 export interface PaymentRecord {
   id: string;
+  userId: string;
   propertyId: string;
   propertyName?: string; // For display convenience
   plotNumber?: string; // For display convenience
@@ -62,6 +64,7 @@ export interface RentedPropertyDetails extends Property {
 
 export interface Employee {
   id: string;
+  userId: string;
   name: string;
   position: string;
   email: string;

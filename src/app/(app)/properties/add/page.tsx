@@ -7,18 +7,26 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { addProperty } from "@/lib/mock-db"; 
 import type { Property } from "@/types";
+import { useAuth } from "@/context/auth-context";
 
 export default function AddPropertyPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in to add a property.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
     setIsSubmitting(true);
     
     // In a real app, you'd upload each file from data.imageFiles to Firebase Storage
     // and get the URLs. For this version, we'll use the generated data URLs.
     const newPropertyData: Omit<Property, 'id'> = {
+        userId: user.uid,
         name: data.name,
         address: data.address,
         propertyType: data.propertyType,

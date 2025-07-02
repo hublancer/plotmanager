@@ -59,9 +59,10 @@ export const updateUser = async (uid: string, updates: any): Promise<boolean> =>
 
 // ===== Properties =====
 
-export const getProperties = async (): Promise<Property[]> => {
+export const getProperties = async (userId: string): Promise<Property[]> => {
   return safeDBOperation(async () => {
-    const snapshot = await getDocs(propertiesCollection!);
+    const q = query(propertiesCollection!, where("userId", "==", userId));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(mapDocToProperty);
   }, []);
 };
@@ -74,9 +75,9 @@ export const getPropertyById = async (id: string): Promise<Property | undefined>
   }, undefined);
 };
 
-export const getPropertyByName = async (name: string): Promise<Property | undefined> => {
+export const getPropertyByName = async (name: string, userId: string): Promise<Property | undefined> => {
     return safeDBOperation(async () => {
-        const q = query(propertiesCollection!, where("name", "==", name));
+        const q = query(propertiesCollection!, where("name", "==", name), where("userId", "==", userId));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
             return mapDocToProperty(snapshot.docs[0]);
@@ -115,9 +116,10 @@ export const deleteProperty = async (id: string): Promise<boolean> => {
 
 // ===== Employees =====
 
-export const getEmployees = async (): Promise<Employee[]> => {
+export const getEmployees = async (userId: string): Promise<Employee[]> => {
     return safeDBOperation(async () => {
-        const snapshot = await getDocs(employeesCollection!);
+        const q = query(employeesCollection!, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
         return snapshot.docs.map(mapDocToEmployee);
     }, []);
 };
@@ -139,9 +141,10 @@ export const deleteEmployee = async (id: string): Promise<boolean> => {
 
 // ===== Payments =====
 
-export const getPayments = async (): Promise<PaymentRecord[]> => {
+export const getPayments = async (userId: string): Promise<PaymentRecord[]> => {
     return safeDBOperation(async () => {
-        const snapshot = await getDocs(paymentsCollection!);
+        const q = query(paymentsCollection!, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
         return snapshot.docs.map(mapDocToPayment);
     }, []);
 };
@@ -181,12 +184,12 @@ export const deletePayment = async (id: string): Promise<boolean> => {
 };
 
 // ===== Combined/Derived Data =====
-export const getInstallmentProperties = async (): Promise<InstallmentDetails[]> => {
+export const getInstallmentProperties = async (userId: string): Promise<InstallmentDetails[]> => {
   return safeDBOperation(async () => {
-    const propsQuery = query(propertiesCollection!, where("isSoldOnInstallment", "==", true));
+    const propsQuery = query(propertiesCollection!, where("isSoldOnInstallment", "==", true), where("userId", "==", userId));
     const propertiesSnapshot = await getDocs(propsQuery);
     const installmentProperties = propertiesSnapshot.docs.map(mapDocToProperty);
-    const allPayments = await getPayments();
+    const allPayments = await getPayments(userId);
 
     return installmentProperties.map(p => {
         const relatedPayments = allPayments.filter(pay => pay.propertyId === p.id && pay.type === 'installment');
@@ -206,12 +209,12 @@ export const getInstallmentProperties = async (): Promise<InstallmentDetails[]> 
   }, []);
 };
 
-export const getRentedProperties = async (): Promise<RentedPropertyDetails[]> => {
+export const getRentedProperties = async (userId: string): Promise<RentedPropertyDetails[]> => {
   return safeDBOperation(async () => {
-    const propsQuery = query(propertiesCollection!, where("isRented", "==", true));
+    const propsQuery = query(propertiesCollection!, where("isRented", "==", true), where("userId", "==", userId));
     const propertiesSnapshot = await getDocs(propsQuery);
     const rentedProperties = propertiesSnapshot.docs.map(mapDocToProperty);
-    const allPayments = await getPayments();
+    const allPayments = await getPayments(userId);
 
     return rentedProperties.map(p => {
         const relatedRentPayments = allPayments
@@ -224,9 +227,10 @@ export const getRentedProperties = async (): Promise<RentedPropertyDetails[]> =>
   }, []);
 };
 
-export const getAllMockProperties = async () : Promise<Pick<Property, 'id' | 'name'>[]> => {
+export const getAllMockProperties = async (userId: string) : Promise<Pick<Property, 'id' | 'name'>[]> => {
     return safeDBOperation(async () => {
-        const snapshot = await getDocs(propertiesCollection!);
+        const q = query(propertiesCollection!, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name as string}));
     }, []);
 }
