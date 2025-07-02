@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,25 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { addLead, updateLead } from "@/lib/mock-db";
 import type { Lead } from "@/types";
-import type { LatLngExpression } from 'leaflet';
-import dynamic from 'next/dynamic';
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, LocateFixed } from "lucide-react";
-
-const DynamicPropertyLocationMap = dynamic(() => 
-  import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
-  { 
-    ssr: false,
-    loading: () => <div className="h-[200px] w-full rounded-md border flex items-center justify-center bg-muted"><p>Loading map...</p></div>
-  }
-);
-
 
 const leadFormSchema = z.object({
   name: z.string().min(2, "Name is required."),
@@ -52,7 +41,6 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mapPosition, setMapPosition] = useState<LatLngExpression | null>(null);
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadFormSchema),
@@ -74,11 +62,6 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
           latitude: initialData.latitude,
           longitude: initialData.longitude,
         });
-        if (initialData.latitude && initialData.longitude) {
-          setMapPosition([initialData.latitude, initialData.longitude]);
-        } else {
-          setMapPosition(null);
-        }
       } else {
         form.reset({
           name: "",
@@ -89,22 +72,17 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
           latitude: null,
           longitude: null,
         });
-        setMapPosition(null);
       }
     }
   }, [initialData, form, isOpen]);
-  
-  const handleMapPositionChange = useCallback((newPosition: { lat: number; lng: number }) => {
-    setMapPosition([newPosition.lat, newPosition.lng]);
-    form.setValue('latitude', newPosition.lat, { shouldValidate: true });
-    form.setValue('longitude', newPosition.lng, { shouldValidate: true });
-  }, [form]);
   
   const handleGetCurrentLocation = () => {
       if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition((position) => {
               const { latitude, longitude } = position.coords;
-              handleMapPositionChange({ lat: latitude, lng: longitude });
+              form.setValue('latitude', latitude, { shouldValidate: true });
+              form.setValue('longitude', longitude, { shouldValidate: true });
+              toast({ title: "Location Captured", description: "GPS coordinates have been recorded."});
           }, (error) => {
               toast({ title: "Location Error", description: `Could not get location: ${error.message}`, variant: "destructive"});
           });
@@ -141,7 +119,7 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
         <DialogHeader>
           <DialogTitle>{initialData ? "Edit Lead" : "Add New Lead"}</DialogTitle>
           <DialogDescription>
-            Fill out the details for this lead. Click on the map to pin a location.
+            Fill out the details for this lead. You can optionally capture the GPS location.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -159,19 +137,53 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
                     <FormLabel>Location (Optional)</FormLabel>
                     <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation}>
                         <LocateFixed className="h-4 w-4 mr-2"/>
-                        Use Current Location
+                        Get Current Location
                     </Button>
                 </div>
-                <div className="h-[200px] w-full rounded-md overflow-hidden border shadow-sm">
-                    <DynamicPropertyLocationMap
-                        key={mapPosition ? `${(mapPosition as number[])[0]}-${(mapPosition as number[])[1]}` : 'map-key-lead-form'}
-                        position={mapPosition}
-                        onPositionChange={handleMapPositionChange}
-                        mapHeight="100%"
-                        interactive={true}
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Latitude"
+                            {...field}
+                            value={field.value ?? ""}
+                            disabled
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Longitude"
+                            {...field}
+                            value={field.value ?? ""}
+                            disabled
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-             </div>
+                <FormDescription>
+                    Use the button to capture GPS coordinates. Manual address can be added in the notes.
+                </FormDescription>
+            </div>
 
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>

@@ -11,6 +11,7 @@ import type { Lead } from "@/types";
 import { getLeads, deleteLead, updateLead } from "@/lib/mock-db";
 import { LeadCard } from "@/components/pipeline/lead-card";
 import { LeadFormDialog } from "@/components/pipeline/lead-form-dialog";
+import { LeadLocationDialog } from "@/components/pipeline/lead-location-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ export default function PipelinePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
+  const [viewingLeadLocation, setViewingLeadLocation] = useState<Lead | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -48,6 +51,11 @@ export default function PipelinePage() {
   const handleOpenForm = (lead: Lead | null = null) => {
     setEditingLead(lead);
     setIsFormOpen(true);
+  };
+  
+  const handleOpenLocationDialog = (lead: Lead) => {
+    setViewingLeadLocation(lead);
+    setIsLocationDialogOpen(true);
   };
 
   const handleDelete = async (leadId: string) => {
@@ -125,6 +133,7 @@ export default function PipelinePage() {
                             onEdit={() => handleOpenForm(lead)}
                             onDelete={() => handleDelete(lead.id)}
                             onStatusChange={(newStatus) => handleStatusChange(lead, newStatus)}
+                            onViewLocation={() => handleOpenLocationDialog(lead)}
                             allStages={stages}
                           />
                         ))
@@ -147,6 +156,12 @@ export default function PipelinePage() {
         onOpenChange={setIsFormOpen}
         onUpdate={fetchLeads}
         initialData={editingLead}
+      />
+      
+      <LeadLocationDialog
+        isOpen={isLocationDialogOpen}
+        onOpenChange={setIsLocationDialogOpen}
+        lead={viewingLeadLocation}
       />
     </>
   );

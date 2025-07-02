@@ -5,7 +5,7 @@ import type { Lead } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, MapPin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
@@ -14,10 +14,11 @@ interface LeadCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onStatusChange: (newStatus: Lead['status']) => void;
+  onViewLocation: () => void;
   allStages: Lead['status'][];
 }
 
-export function LeadCard({ lead, onEdit, onDelete, onStatusChange, allStages }: LeadCardProps) {
+export function LeadCard({ lead, onEdit, onDelete, onStatusChange, onViewLocation, allStages }: LeadCardProps) {
   const otherStages = allStages.filter(s => s !== lead.status);
 
   return (
@@ -42,6 +43,12 @@ export function LeadCard({ lead, onEdit, onDelete, onStatusChange, allStages }: 
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onEdit}>Edit Lead</DropdownMenuItem>
+              {lead.latitude && lead.longitude && (
+                <DropdownMenuItem onClick={onViewLocation}>
+                  <MapPin className="mr-2 h-4 w-4" />
+                  View Location
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>Move to</DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
