@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RentalFormDialog } from "@/components/rentals/rental-form-dialog";
-import { Eye, Edit, PlusCircle, Loader2, Search, Trash2, FileUp, FileDown } from "lucide-react";
+import { Eye, Edit, PlusCircle, Loader2, Search, Trash2 } from "lucide-react";
 
 export default function RentalsPage() {
   const [rentals, setRentals] = useState<RentedPropertyDetails[]>([]);
@@ -100,12 +100,6 @@ export default function RentalsPage() {
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" /> Add Rental
-            </Button>
-            <Button variant="outline" disabled className="w-full sm:w-auto">
-                <FileUp className="mr-2 h-4 w-4" /> Import
-            </Button>
-            <Button variant="outline" disabled className="w-full sm:w-auto">
-                <FileDown className="mr-2 h-4 w-4" /> Export
             </Button>
           </div>
         </div>
