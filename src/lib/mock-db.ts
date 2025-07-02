@@ -222,7 +222,30 @@ export const getRentedProperties = async (userId: string): Promise<RentedPropert
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         const lastRentPaymentDate = relatedRentPayments.length > 0 ? relatedRentPayments[0].date : undefined;
-        return { ...p, lastRentPaymentDate };
+
+        let nextDueDate: Date | undefined;
+        // Base date for calculation is the latest payment, or the start date if no payments exist.
+        const baseDateSrc = lastRentPaymentDate ? lastRentPaymentDate : p.rentStartDate;
+        
+        if (baseDateSrc) {
+            const baseDate = new Date(baseDateSrc);
+            if (p.rentFrequency === 'yearly') {
+                nextDueDate = new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1));
+            } else { // default to monthly
+                nextDueDate = new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
+            }
+        }
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize for date-only comparison
+        const status = (p.isRented && nextDueDate && nextDueDate < today) ? 'Overdue' : 'Active';
+
+        return { 
+            ...p, 
+            lastRentPaymentDate, 
+            nextRentDueDate: nextDueDate?.toISOString(),
+            status
+        };
     });
   }, []);
 };

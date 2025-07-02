@@ -34,7 +34,8 @@ export interface Property {
   isRented?: boolean;
   tenantName?: string;
   rentAmount?: number;
-  nextRentDueDate?: string; // ISO date string for the next due date
+  rentFrequency?: 'monthly' | 'yearly';
+  rentStartDate?: string; // ISO date string
 }
 
 export interface PaymentRecord {
@@ -59,7 +60,8 @@ export interface InstallmentDetails extends Property {
 
 export interface RentedPropertyDetails extends Property {
   lastRentPaymentDate?: string; // ISO date string of the last rent payment
-  // Potentially add rentPaymentStatus derived in mock-db if needed
+  nextRentDueDate?: string; // Calculated next due date
+  status?: 'Active' | 'Overdue'; // Derived from nextRentDueDate
 }
 
 export interface Employee {
