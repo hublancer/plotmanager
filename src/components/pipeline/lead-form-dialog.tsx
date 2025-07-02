@@ -164,6 +164,7 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
                 </div>
                 <div className="h-[200px] w-full rounded-md overflow-hidden border shadow-sm">
                     <DynamicPropertyLocationMap
+                        key={mapPosition ? `${(mapPosition as number[])[0]}-${(mapPosition as number[])[1]}` : 'map-key-lead-form'}
                         position={mapPosition}
                         onPositionChange={handleMapPositionChange}
                         mapHeight="100%"
