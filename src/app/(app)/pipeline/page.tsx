@@ -13,6 +13,7 @@ import { LeadCard } from "@/components/pipeline/lead-card";
 import { LeadFormDialog } from "@/components/pipeline/lead-form-dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 const stages: Lead['status'][] = ['New', 'Active', 'Deal', 'Done'];
 
