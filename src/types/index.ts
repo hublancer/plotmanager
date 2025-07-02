@@ -27,8 +27,12 @@ export interface Property {
 
   // Installment related
   isSoldOnInstallment?: boolean;
+  buyerName?: string; // For installment sales
   purchaseDate?: string; // ISO date string
   totalInstallmentPrice?: number;
+  downPayment?: number;
+  installmentFrequency?: 'monthly' | 'yearly';
+  installmentDuration?: number; // Duration in months or years
 
   // Rental related
   isRented?: boolean;
@@ -53,9 +57,12 @@ export interface PaymentRecord {
 }
 
 export interface InstallmentDetails extends Property {
-  paidAmount?: number;
-  remainingAmount?: number;
+  paidAmount: number;
+  remainingAmount: number;
   nextDueDate?: string; // Calculated next installment due date
+  status: 'Active' | 'Overdue' | 'Fully Paid';
+  paidInstallments: number;
+  totalInstallments: number;
 }
 
 export interface RentedPropertyDetails extends Property {

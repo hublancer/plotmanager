@@ -1,124 +1,198 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { getInstallmentProperties, getProperties, updateProperty } from "@/lib/mock-db"; 
+import type { InstallmentDetails, Property } from "@/types";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Eye, Edit, DollarSign, PlusCircle, Loader2 } from "lucide-react";
-import type { InstallmentDetails } from "@/types";
-import Link from "next/link";
-import { getInstallmentProperties } from "@/lib/mock-db"; 
-import { useAuth } from "@/context/auth-context";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { InstallmentPlanFormDialog } from "@/components/installments/installment-plan-form-dialog";
+import { Eye, PlusCircle, Loader2, Trash2 } from "lucide-react";
 
 export default function InstallmentsPage() {
-  const [installmentProperties, setInstallmentProperties] = useState<InstallmentDetails[]>([]);
+  const [installments, setInstallments] = useState<InstallmentDetails[]>([]);
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingInstallment, setEditingInstallment] = useState<InstallmentDetails | null>(null);
 
-  useEffect(() => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const fetchAllData = useCallback(async () => {
     if (!user) return;
-    const fetchInstallments = async () => {
-      setIsLoading(true);
-      const data = await getInstallmentProperties(user.uid);
-      setInstallmentProperties(data);
+    setIsLoading(true);
+    try {
+      const [installmentsData, propertiesData] = await Promise.all([
+        getInstallmentProperties(user.uid),
+        getProperties(user.uid),
+      ]);
+      setInstallments(installmentsData);
+      setAllProperties(propertiesData);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast({ title: "Error", description: "Could not fetch installment data.", variant: "destructive" });
+    } finally {
       setIsLoading(false);
     }
-    fetchInstallments();
-  }, [user]);
-  
+  }, [user, toast]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const handleOpenForm = (installment: InstallmentDetails | null = null) => {
+    setEditingInstallment(installment);
+    setIsFormOpen(true);
+  };
+
+  const handleEndInstallmentPlan = async (propertyId: string) => {
+    const success = await updateProperty(propertyId, { 
+      isSoldOnInstallment: false,
+      buyerName: "",
+      totalInstallmentPrice: 0,
+      downPayment: 0,
+      installmentDuration: 0,
+      installmentFrequency: undefined,
+      purchaseDate: ""
+    });
+    if (success) {
+      toast({ title: "Installment Plan Ended", description: "The property is no longer on an installment plan." });
+      fetchAllData();
+    } else {
+      toast({ title: "Error", description: "Could not end the installment plan.", variant: "destructive" });
+    }
+  };
+
   const calculateProgress = (paid?: number, total?: number) => {
     if (paid === undefined || total === undefined || total === 0) return 0;
     return (paid / total) * 100;
   };
+  
+  const availableProperties = useMemo(() => {
+    return allProperties.filter(p => !p.isRented && !p.isSoldOnInstallment);
+  }, [allProperties]);
 
-  const handleAddInstallment = () => {
-    alert("Functionality to add a new installment plan or mark a property as sold on installment would be implemented here.");
-  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Installment Tracking</h2>
-        <Button onClick={handleAddInstallment}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Installment Plan
-        </Button>
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">Installment Tracking</h2>
+          <Button onClick={() => handleOpenForm()}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Installment Plan
+          </Button>
+        </div>
+
+        <Card className="shadow-lg">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Buyer</TableHead>
+                  <TableHead>Total Price (PKR)</TableHead>
+                  <TableHead>Paid / Remaining</TableHead>
+                  <TableHead>Installments</TableHead>
+                  <TableHead>Next Due Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[200px]">Progress</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={9} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin inline-block" /></TableCell></TableRow>
+                ) : installments.length > 0 ? (
+                  installments.map((prop) => (
+                    <TableRow key={prop.id}>
+                      <TableCell>
+                        <Link href={`/properties/${prop.id}`} className="font-medium hover:underline">{prop.name}</Link>
+                        <div className="text-xs text-muted-foreground">{prop.address}</div>
+                      </TableCell>
+                       <TableCell>{prop.buyerName || "N/A"}</TableCell>
+                      <TableCell>{prop.totalInstallmentPrice?.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <div className="text-green-600">{prop.paidAmount?.toLocaleString()}</div>
+                        <div className="text-destructive">{prop.remainingAmount?.toLocaleString()}</div>
+                      </TableCell>
+                      <TableCell>{prop.paidInstallments} / {prop.totalInstallments}</TableCell>
+                      <TableCell>{prop.nextDueDate ? new Date(prop.nextDueDate).toLocaleDateString() : 'N/A'}</TableCell>
+                       <TableCell>
+                        <Badge variant={prop.status === 'Overdue' ? 'destructive' : (prop.status === 'Fully Paid' ? 'secondary' : 'outline')}>
+                          {prop.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                           <Progress value={calculateProgress(prop.paidInstallments, prop.totalInstallments)} className="h-2" />
+                           <span className="text-xs text-muted-foreground">{calculateProgress(prop.paidInstallments, prop.totalInstallments).toFixed(0)}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
+                         <Link href={`/properties/${prop.id}`} passHref>
+                            <Button variant="ghost" size="icon" title="View Property Details"><Eye className="h-4 w-4" /></Button>
+                         </Link>
+                         <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>End Installment Plan?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will remove the installment plan from "{prop.name}". This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleEndInstallmentPlan(prop.id)} className="bg-destructive hover:bg-destructive/90">
+                                Yes, End Plan
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                   <TableRow><TableCell colSpan={9} className="text-center h-24">No properties on installment plans found.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
+          This section tracks properties sold under installment plans. You can view payment progress, remaining balances, and due dates.
+          Currency is shown in PKR. Overdue plans are automatically moved to the top of the list.
+        </CardDescription>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Property</TableHead>
-                <TableHead>Total Price (PKR)</TableHead>
-                <TableHead>Amount Paid (PKR)</TableHead>
-                <TableHead>Remaining (PKR)</TableHead>
-                <TableHead>Purchase Date</TableHead>
-                <TableHead>Next Due Date</TableHead>
-                <TableHead className="w-[200px]">Progress</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center h-24">
-                    <Loader2 className="h-6 w-6 animate-spin inline-block" />
-                    <span className="ml-2">Loading...</span>
-                  </TableCell>
-                </TableRow>
-              ) : installmentProperties.length > 0 ? (
-                installmentProperties.map((prop) => (
-                  <TableRow key={prop.id}>
-                    <TableCell>
-                      <div className="font-medium">{prop.name}</div>
-                      <div className="text-xs text-muted-foreground">{prop.address}</div>
-                    </TableCell>
-                    <TableCell>{prop.totalInstallmentPrice?.toLocaleString()}</TableCell>
-                    <TableCell>{prop.paidAmount?.toLocaleString()}</TableCell>
-                    <TableCell className={prop.remainingAmount === 0 ? "text-green-600 font-semibold" : ""}>
-                      {prop.remainingAmount?.toLocaleString()}
-                    </TableCell>
-                    <TableCell>{prop.purchaseDate ? new Date(prop.purchaseDate).toLocaleDateString() : 'N/A'}</TableCell>
-                    <TableCell>{prop.nextDueDate ? new Date(prop.nextDueDate).toLocaleDateString() : (prop.remainingAmount === 0 ? 'Fully Paid' : 'N/A')}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                         <Progress value={calculateProgress(prop.paidAmount, prop.totalInstallmentPrice)} className="h-2" />
-                         <span className="text-xs text-muted-foreground">{calculateProgress(prop.paidAmount, prop.totalInstallmentPrice).toFixed(0)}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right space-x-1">
-                       <Link href={`/properties/${prop.id}`} passHref>
-                          <Button variant="ghost" size="icon" title="View Property Details">
-                              <Eye className="h-4 w-4" />
-                          </Button>
-                       </Link>
-                       <Link href={`/payments?propertyId=${prop.id}&type=installment`} passHref>
-                          <Button variant="ghost" size="icon" title="View Payments">
-                              <DollarSign className="h-4 w-4" />
-                          </Button>
-                       </Link>
-                       <Button variant="ghost" size="icon" title="Edit Installment Details" onClick={() => alert(`Edit installment for ${prop.name}`)}>
-                          <Edit className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                 <TableRow>
-                  <TableCell colSpan={8} className="text-center h-24">No properties on installment plans found.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
-        This section tracks properties sold under installment plans. You can view payment progress, remaining balances, and due dates.
-        Currency is shown in PKR.
-      </CardDescription>
-    </div>
+      <InstallmentPlanFormDialog
+        isOpen={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onUpdate={fetchAllData}
+        initialData={editingInstallment}
+        properties={availableProperties}
+      />
+    </>
   );
 }

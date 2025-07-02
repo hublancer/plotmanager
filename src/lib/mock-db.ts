@@ -193,18 +193,52 @@ export const getInstallmentProperties = async (userId: string): Promise<Installm
 
     return installmentProperties.map(p => {
         const relatedPayments = allPayments.filter(pay => pay.propertyId === p.id && pay.type === 'installment');
-        const paidAmount = relatedPayments.reduce((sum, pay) => sum + pay.amount, 0);
+        const downPayment = p.downPayment || 0;
+        const paidInstallmentAmount = relatedPayments.reduce((sum, pay) => sum + pay.amount, 0);
+        const paidAmount = downPayment + paidInstallmentAmount;
         const remainingAmount = (p.totalInstallmentPrice || 0) - paidAmount;
-        
-        let nextDueDate: string | undefined = undefined;
-        if (remainingAmount > 0) {
-            const paymentDates = relatedPayments.map(p => new Date(p.date).getTime());
-            const purchaseDate = p.purchaseDate ? new Date(p.purchaseDate).getTime() : 0;
-            const lastEventDate = new Date(Math.max(purchaseDate, ...paymentDates));
-            nextDueDate = new Date(lastEventDate.setMonth(lastEventDate.getMonth() + 1)).toISOString();
+
+        const totalInstallments = p.installmentDuration || 0;
+        const paidInstallments = relatedPayments.length;
+
+        let nextDueDate: Date | undefined;
+        const lastPayment = relatedPayments.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        const baseDateSrc = lastPayment ? lastPayment.date : p.purchaseDate;
+      
+        if (baseDateSrc && remainingAmount > 0.01) {
+            const baseDate = new Date(baseDateSrc);
+            if (p.installmentFrequency === 'yearly') {
+                nextDueDate = new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1));
+            } else { // default monthly
+                nextDueDate = new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
+            }
+        }
+      
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+      
+        let status: 'Active' | 'Overdue' | 'Fully Paid' = 'Active';
+        if (remainingAmount <= 0.01) {
+            status = 'Fully Paid';
+        } else if (nextDueDate && nextDueDate < today) {
+            status = 'Overdue';
         }
 
-        return { ...p, paidAmount, remainingAmount, nextDueDate };
+        return { 
+            ...p,
+            paidAmount, 
+            remainingAmount: remainingAmount < 0.01 ? 0 : remainingAmount,
+            nextDueDate: nextDueDate?.toISOString(),
+            status,
+            paidInstallments,
+            totalInstallments,
+        };
+    }).sort((a,b) => { // Sort by status: Overdue -> Active -> Fully Paid
+        if (a.status === 'Overdue' && b.status !== 'Overdue') return -1;
+        if (a.status !== 'Overdue' && b.status === 'Overdue') return 1;
+        if (a.status === 'Active' && b.status === 'Fully Paid') return -1;
+        if (a.status === 'Fully Paid' && b.status === 'Active') return 1;
+        return 0;
     });
   }, []);
 };
