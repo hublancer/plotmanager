@@ -248,10 +248,17 @@ const chatAssistantFlow = ai.defineFlow(
     outputSchema: ChatAssistantOutputSchema,
   },
   async (input) => {
-    const {output} = await assistantPrompt(input);
-    if (!output) {
-        return { assistantResponse: "I'm sorry, I couldn't generate a response at this moment." };
+    try {
+      const {output} = await assistantPrompt(input);
+      // The model can sometimes return a valid structure but with no content.
+      if (output?.assistantResponse) {
+        return { assistantResponse: output.assistantResponse };
+      }
+    } catch (e) {
+      console.error("Genkit schema validation error in chat flow:", e);
     }
-    return { assistantResponse: output.assistantResponse || "I'm not sure how to respond to that. Can you try rephrasing?" };
+    
+    // Fallback for caught errors (like schema validation) and for valid but empty responses.
+    return { assistantResponse: "I'm sorry, an error occurred. Please try rephrasing your request." };
   }
 );
