@@ -4,8 +4,8 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
-import { addPayment, getPayments } from "@/lib/mock-db";
-import type { InstallmentDetails, PaymentRecord } from "@/types";
+import { addTransaction, getTransactions } from "@/lib/mock-db";
+import type { InstallmentDetails, Transaction } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +32,7 @@ interface ManageInstallmentDialogProps {
 export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, installmentPlan }: ManageInstallmentDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,8 +40,8 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
     if (isOpen && user) {
       const fetchHistory = async () => {
         setIsLoading(true);
-        const payments = await getPayments(user.uid, installmentPlan.id);
-        setPaymentHistory(payments.filter(p => p.type === 'installment'));
+        const transactions = await getTransactions(user.uid, installmentPlan.id);
+        setPaymentHistory(transactions.filter(t => t.type === 'income' && t.category === 'installment'));
         setIsLoading(false);
       };
       fetchHistory();
@@ -55,13 +55,14 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
     }
     setIsSubmitting(true);
     try {
-      await addPayment({
+      await addTransaction({
         userId: user.uid,
         propertyId: installmentPlan.id,
-        tenantOrBuyerName: installmentPlan.buyerName || "N/A",
+        contactName: installmentPlan.buyerName || "N/A",
         amount: installmentPlan.installmentAmount,
         date: new Date().toISOString(),
-        type: "installment",
+        type: "income",
+        category: "installment",
         notes: `Installment ${installmentPlan.paidInstallments + 1} of ${installmentPlan.totalInstallments}`,
       });
 

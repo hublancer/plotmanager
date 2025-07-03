@@ -42,17 +42,17 @@ export interface Property {
   rentStartDate?: string; // ISO date string
 }
 
-export interface PaymentRecord {
+export interface Transaction {
   id: string;
   userId: string;
-  propertyId: string;
-  propertyName?: string; // For display convenience
-  plotNumber?: string; // For display convenience
-  tenantOrBuyerName: string; // Could be tenant for rent, buyer for installment/sale
+  type: 'income' | 'expense';
+  category: string; // e.g., 'rent', 'sale', 'maintenance', 'salary'
   amount: number;
   date: string; // ISO date string
-  paymentMethod?: string;
-  type: 'rent' | 'installment' | 'sale' | 'token'; // Added 'token' as a common payment type
+  contactName: string; // Payer for income, Payee for expense
+  propertyId?: string; // Optional: link transaction to a property
+  propertyName?: string;
+  plotNumber?: string;
   notes?: string;
 }
 

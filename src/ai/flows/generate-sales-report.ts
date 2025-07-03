@@ -12,8 +12,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getProperties, getPayments } from '@/lib/mock-db'; // Import mock DB functions
-import type { Property, PaymentRecord } from '@/types';
+import { getProperties, getTransactions } from '@/lib/mock-db';
+import type { Property, Transaction } from '@/types';
 
 const GenerateSalesReportInputSchema = z.object({
   reportType: z
@@ -49,30 +49,16 @@ const PromptInputSchema = z.object({
 
 export async function generateSalesReport(input: GenerateSalesReportInput): Promise<GenerateSalesReportOutput> {
   const allProperties = await getProperties(input.userId);
-  const allPayments = await getPayments(input.userId);
+  const allTransactions = await getTransactions(input.userId);
   const salesDetails: z.infer<typeof PromptInputSalesRecordSchema>[] = [];
 
   // Process properties sold on installment
   allProperties.forEach(prop => {
     if (prop.isSoldOnInstallment && prop.totalInstallmentPrice) {
-      let buyerName = "N/A";
-      // Attempt to find buyer name from associated installment payments or plot data
-      const installmentPayments = allPayments.filter(p => p.propertyId === prop.id && p.type === 'installment');
-      if (installmentPayments.length > 0 && installmentPayments[0].tenantOrBuyerName) {
-          buyerName = installmentPayments[0].tenantOrBuyerName;
-      } else if (prop.plots && prop.plots.length > 0) {
-          // This is a simplification; real system might link specific plots.
-          // For now, we'll try to get a buyer from the first plot if available.
-          const firstPlotWithBuyer = prop.plots.find(plot => plot.buyerName);
-          if (firstPlotWithBuyer) {
-            buyerName = firstPlotWithBuyer.buyerName;
-          }
-      }
-
       salesDetails.push({
         propertyName: prop.name,
         address: prop.address,
-        buyerName: buyerName,
+        buyerName: prop.buyerName || "N/A",
         price: prop.totalInstallmentPrice,
         date: prop.purchaseDate || new Date().toISOString(), // Fallback to current date if purchaseDate is missing
         saleType: "Installment Sale",
@@ -81,24 +67,24 @@ export async function generateSalesReport(input: GenerateSalesReportInput): Prom
   });
 
   // Process outright sales from payment records
-  allPayments.forEach(payment => {
-    if (payment.type === 'sale') {
+  allTransactions.forEach(transaction => {
+    if (transaction.type === 'income' && transaction.category === 'sale') {
       // Avoid double-counting if this property was also marked isSoldOnInstallment
       // (though that would be a data inconsistency we want to guard against)
       const alreadyProcessedAsInstallment = salesDetails.some(
-        s => s.propertyName === payment.propertyName && s.saleType === "Installment Sale" && s.price === payment.amount
+        s => s.propertyName === transaction.propertyName && s.saleType === "Installment Sale"
       );
 
       if (!alreadyProcessedAsInstallment) {
-        const property = allProperties.find(p => p.id === payment.propertyId);
+        const property = allProperties.find(p => p.id === transaction.propertyId);
         salesDetails.push({
-          propertyName: payment.propertyName || (property?.name || "N/A"),
+          propertyName: transaction.propertyName || (property?.name || "N/A"),
           address: property?.address || "N/A",
-          buyerName: payment.tenantOrBuyerName,
-          price: payment.amount,
-          date: payment.date,
+          buyerName: transaction.contactName,
+          price: transaction.amount,
+          date: transaction.date,
           saleType: "Outright Sale",
-          plotNumber: payment.plotNumber,
+          plotNumber: transaction.plotNumber,
         });
       }
     }
@@ -123,7 +109,7 @@ const prompt = ai.definePrompt({
       - Property: {{this.propertyName}} ({{this.address}})
         {{#if this.plotNumber}}Plot: {{this.plotNumber}}{{/if}}
         Buyer: {{defaultIfEmpty this.buyerName "N/A"}}
-        Price: $ {{this.price}}
+        Price: PKR {{this.price}}
         Date: {{this.date}}
         Type: {{this.saleType}}
       {{/each}}

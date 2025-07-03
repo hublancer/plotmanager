@@ -9,9 +9,11 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, PaymentRecord, InstallmentDetails, RentedPropertyDetails, Lead } from "@/types";
+import type { Property, Employee, Transaction, InstallmentDetails, RentedPropertyDetails, Lead } from "@/types";
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -19,7 +21,7 @@ if (!db) {
 
 const propertiesCollection = db ? collection(db, 'properties') : null;
 const employeesCollection = db ? collection(db, 'employees') : null;
-const paymentsCollection = db ? collection(db, 'payments') : null;
+const transactionsCollection = db ? collection(db, 'transactions') : null;
 const usersCollection = db ? collection(db, 'users') : null;
 const leadsCollection = db ? collection(db, 'leads') : null;
 
@@ -40,7 +42,7 @@ async function safeDBOperation<T>(operation: () => Promise<T>, fallback: T): Pro
 // Helper functions to convert Firestore doc to our types
 const mapDocToProperty = (doc: any): Property => ({ id: doc.id, ...doc.data() } as Property);
 const mapDocToEmployee = (doc: any): Employee => ({ id: doc.id, ...doc.data() } as Employee);
-const mapDocToPayment = (doc: any): PaymentRecord => ({ id: doc.id, ...doc.data() } as PaymentRecord);
+const mapDocToTransaction = (doc: any): Transaction => ({ id: doc.id, ...doc.data() } as Transaction);
 const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
 
 // ===== Users =====
@@ -142,37 +144,50 @@ export const deleteEmployee = async (id: string): Promise<boolean> => {
 };
 
 
-// ===== Payments =====
+// ===== Transactions (replaces Payments) =====
 
-export const getPayments = async (userId: string, propertyId?: string): Promise<PaymentRecord[]> => {
+export const getTransactions = async (userId: string, propertyId?: string): Promise<Transaction[]> => {
     return safeDBOperation(async () => {
         let q;
         if (propertyId) {
-            q = query(paymentsCollection!, where("userId", "==", userId), where("propertyId", "==", propertyId));
+            q = query(transactionsCollection!, where("userId", "==", userId), where("propertyId", "==", propertyId), orderBy("date", "desc"));
         } else {
-            q = query(paymentsCollection!, where("userId", "==", userId));
+            q = query(transactionsCollection!, where("userId", "==", userId), orderBy("date", "desc"));
         }
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToPayment).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        return snapshot.docs.map(mapDocToTransaction);
     }, []);
 };
 
-export const addPayment = async (paymentData: Omit<PaymentRecord, 'id' | 'propertyName'>): Promise<PaymentRecord> => {
-    return safeDBOperation(async () => {
-        const property = await getPropertyById(paymentData.propertyId);
-        const dataToSave = {
-            ...paymentData,
-            propertyName: property ? property.name : "N/A",
-            tenantOrBuyerName: paymentData.tenantOrBuyerName,
-        };
-        const docRef = await addDoc(paymentsCollection!, dataToSave);
-        return { id: docRef.id, ...dataToSave };
-    }, paymentData as PaymentRecord);
+export const getRecentTransactions = async (userId: string, count: number): Promise<Transaction[]> => {
+  return safeDBOperation(async () => {
+    const q = query(transactionsCollection!, where("userId", "==", userId), orderBy("date", "desc"), limit(count));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(mapDocToTransaction);
+  }, []);
 };
 
-export const updatePayment = async (id: string, updates: Partial<PaymentRecord>): Promise<PaymentRecord | null> => {
+export const addTransaction = async (transactionData: Omit<Transaction, 'id' | 'propertyName'>): Promise<Transaction> => {
     return safeDBOperation(async () => {
-        const docRef = doc(db!, 'payments', id);
+        let propertyName: string | undefined = undefined;
+        if (transactionData.propertyId) {
+            const property = await getPropertyById(transactionData.propertyId);
+            propertyName = property ? property.name : "N/A";
+        }
+        
+        const dataToSave = {
+            ...transactionData,
+            propertyName,
+        };
+        const docRef = await addDoc(transactionsCollection!, dataToSave);
+        return { id: docRef.id, ...dataToSave };
+    }, transactionData as Transaction);
+};
+
+
+export const updateTransaction = async (id: string, updates: Partial<Transaction>): Promise<Transaction | null> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'transactions', id);
         let finalUpdates = { ...updates };
         if (updates.propertyId) {
             const property = await getPropertyById(updates.propertyId);
@@ -180,13 +195,13 @@ export const updatePayment = async (id: string, updates: Partial<PaymentRecord>)
         }
         await updateDoc(docRef, finalUpdates);
         const updatedDoc = await getDoc(docRef);
-        return updatedDoc.exists() ? mapDocToPayment(updatedDoc) : null;
+        return updatedDoc.exists() ? mapDocToTransaction(updatedDoc) : null;
     }, null);
 }
 
-export const deletePayment = async (id: string): Promise<boolean> => {
+export const deleteTransaction = async (id: string): Promise<boolean> => {
     return safeDBOperation(async () => {
-        await deleteDoc(doc(db!, 'payments', id));
+        await deleteDoc(doc(db!, 'transactions', id));
         return true;
     }, false);
 };
@@ -230,10 +245,10 @@ export const getInstallmentProperties = async (userId: string): Promise<Installm
     const propsQuery = query(propertiesCollection!, where("isSoldOnInstallment", "==", true), where("userId", "==", userId));
     const propertiesSnapshot = await getDocs(propsQuery);
     const installmentProperties = propertiesSnapshot.docs.map(mapDocToProperty);
-    const allPayments = await getPayments(userId);
+    const allTransactions = await getTransactions(userId);
 
     return installmentProperties.map(p => {
-        const relatedPayments = allPayments.filter(pay => pay.propertyId === p.id && pay.type === 'installment');
+        const relatedPayments = allTransactions.filter(t => t.propertyId === p.id && t.type === 'income' && t.category === 'installment');
         const downPayment = p.downPayment || 0;
         const paidInstallmentAmount = relatedPayments.reduce((sum, pay) => sum + pay.amount, 0);
         const paidAmount = downPayment + paidInstallmentAmount;
@@ -292,11 +307,11 @@ export const getRentedProperties = async (userId: string): Promise<RentedPropert
     const propsQuery = query(propertiesCollection!, where("isRented", "==", true), where("userId", "==", userId));
     const propertiesSnapshot = await getDocs(propsQuery);
     const rentedProperties = propertiesSnapshot.docs.map(mapDocToProperty);
-    const allPayments = await getPayments(userId);
+    const allTransactions = await getTransactions(userId);
 
     return rentedProperties.map(p => {
-        const relatedRentPayments = allPayments
-            .filter(pay => pay.propertyId === p.id && pay.type === 'rent')
+        const relatedRentPayments = allTransactions
+            .filter(t => t.propertyId === p.id && t.type === 'income' && t.category === 'rent')
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         const lastRentPaymentDate = relatedRentPayments.length > 0 ? relatedRentPayments[0].date : undefined;
