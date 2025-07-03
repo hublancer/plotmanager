@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Phone, Building, DollarSign, Info, Tag } from "lucide-react";
+import { MapPin, Phone, Building, DollarSign, Info, Tag, ExternalLink } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
 import { LocationMapEmbed } from "@/components/maps/property-location-map";
 
@@ -93,7 +93,19 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                     
                     {hasCoordinates && (
                          <div className="pt-4 border-t">
-                            <h3 className="text-base font-semibold mb-2 flex items-center gap-2"><MapPin className="h-5 w-5"/> Pinned Location</h3>
+                             <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-base font-semibold flex items-center gap-2"><MapPin className="h-5 w-5"/> Pinned Location</h3>
+                                <Button asChild variant="outline" size="sm">
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${lead.latitude},${lead.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    Open
+                                  </a>
+                                </Button>
+                             </div>
                              <div className="h-[200px] w-full rounded-md overflow-hidden border shadow-sm mt-2">
                                 <LocationMapEmbed
                                     coordinates={{ lat: lead.latitude!, lng: lead.longitude! }}

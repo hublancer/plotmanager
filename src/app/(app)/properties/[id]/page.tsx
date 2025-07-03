@@ -8,7 +8,7 @@ import { PlotPinner } from "@/components/properties/plot-pinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Package, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, Package, MapPin, Loader2, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
@@ -107,7 +107,21 @@ export default function PropertyDetailsPage() {
         <CardContent className="space-y-6">
           
           <div>
-            <h3 className="text-xl font-semibold mb-2">Property Location</h3>
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-semibold">Property Location</h3>
+                {property.latitude && property.longitude && (
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Open in Maps
+                    </a>
+                  </Button>
+                )}
+            </div>
             {hasLocation ? (
               <div className="h-[300px] w-full rounded-md overflow-hidden border shadow-sm">
                 <LocationMapEmbed
