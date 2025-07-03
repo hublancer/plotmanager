@@ -61,7 +61,7 @@ export default function PipelinePage() {
   const handleDelete = async (leadId: string) => {
     const success = await deleteLead(leadId);
     if (success) {
-      toast({ title: "Lead Deleted", description: "The lead has been removed from your pipeline." });
+      toast({ title: "Lead Deleted", description: "The lead has been removed from your survey." });
       fetchLeads();
     } else {
       toast({ title: "Error", description: "Failed to delete lead.", variant: "destructive" });
@@ -91,8 +91,8 @@ export default function PipelinePage() {
       <div className="flex flex-col h-full space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <h2 className="text-2xl font-semibold">Sales Pipeline</h2>
-            <p className="text-muted-foreground">Manage your leads from initial contact to closing the deal.</p>
+            <h2 className="text-2xl font-semibold">Lead Survey</h2>
+            <p className="text-muted-foreground">Manage your leads through the survey process.</p>
           </div>
           <Button onClick={() => handleOpenForm()}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add Lead

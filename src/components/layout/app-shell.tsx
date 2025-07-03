@@ -54,7 +54,7 @@ const navItems: NavItem[] = [
   { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management" },
   { href: "/payments", icon: <CreditCard />, label: "Transactions", tooltip: "Financial Transactions" },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments" },
-  { href: "/pipeline", icon: <Filter />, label: "Pipeline", tooltip: "Sales Pipeline" },
+  { href: "/pipeline", icon: <Filter />, label: "Lead Survey", tooltip: "Lead Survey" },
   { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, 
   { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports" },
   { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant" },
