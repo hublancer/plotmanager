@@ -30,8 +30,8 @@ export default function PipelinePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
-  const [viewingLeadLocation, setViewingLeadLocation] = useState<Lead | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [viewingLead, setViewingLead] = useState<Lead | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -53,9 +53,9 @@ export default function PipelinePage() {
     setIsFormOpen(true);
   };
   
-  const handleOpenLocationDialog = (lead: Lead) => {
-    setViewingLeadLocation(lead);
-    setIsLocationDialogOpen(true);
+  const handleViewDetails = (lead: Lead) => {
+    setViewingLead(lead);
+    setIsDetailsDialogOpen(true);
   };
 
   const handleDelete = async (leadId: string) => {
@@ -133,7 +133,7 @@ export default function PipelinePage() {
                             onEdit={() => handleOpenForm(lead)}
                             onDelete={() => handleDelete(lead.id)}
                             onStatusChange={(newStatus) => handleStatusChange(lead, newStatus)}
-                            onViewLocation={() => handleOpenLocationDialog(lead)}
+                            onViewDetails={() => handleViewDetails(lead)}
                             allStages={stages}
                           />
                         ))
@@ -159,9 +159,9 @@ export default function PipelinePage() {
       />
       
       <LeadLocationDialog
-        isOpen={isLocationDialogOpen}
-        onOpenChange={setIsLocationDialogOpen}
-        lead={viewingLeadLocation}
+        isOpen={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        lead={viewingLead}
       />
     </>
   );
