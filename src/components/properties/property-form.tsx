@@ -13,9 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Property } from "@/types";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, MapPin, Loader2, Trash2, CalendarIcon, Wallet, User, Home, GanttChartSquare } from "lucide-react";
-import type { LatLngExpression } from 'leaflet';
-import dynamic from 'next/dynamic';
+import { UploadCloud, LocateFixed, Loader2, Trash2, CalendarIcon, Wallet, User, Home, GanttChartSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
@@ -23,15 +21,6 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-
-const DynamicPropertyLocationMap = dynamic(() => 
-  import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
-  { 
-    ssr: false,
-    loading: () => <div className="h-[350px] w-full rounded-md border flex items-center justify-center bg-muted"><p>Loading map...</p></div>
-  }
-);
-
 
 const propertyTypes = [
   "Residential Plot",
@@ -49,8 +38,8 @@ const propertyFormSchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
   propertyType: z.string().min(1, "Property type is required"),
   imageFiles: z.any().optional(),
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
+  latitude: z.coerce.number().nullable().optional(),
+  longitude: z.coerce.number().nullable().optional(),
   status: z.enum(["available", "rented", "installment"], {
     required_error: "You must select a property status.",
   }),
@@ -112,12 +101,6 @@ interface PropertyFormProps {
 export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFormProps) {
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>(initialData?.imageUrls || []);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
-  const [showMap, setShowMap] = useState(false);
-  const [mapPosition, setMapPosition] = useState<LatLngExpression | null>(
-    initialData?.latitude && initialData?.longitude
-      ? [initialData.latitude, initialData.longitude]
-      : null
-  );
   const { toast } = useToast();
 
   const form = useForm<PropertyFormValues>({
@@ -148,18 +131,10 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
   const status = form.watch("status");
 
   useEffect(() => {
-    if (initialData) {
-      if (initialData.imageUrls) {
-        setImagePreviewUrls(initialData.imageUrls);
-      }
-      if (initialData.latitude && initialData.longitude) {
-        const pos: LatLngExpression = [initialData.latitude, initialData.longitude];
-        setMapPosition(pos);
-        form.setValue('latitude', initialData.latitude);
-        form.setValue('longitude', initialData.longitude);
-      }
+    if (initialData?.imageUrls) {
+      setImagePreviewUrls(initialData.imageUrls);
     }
-  }, [initialData, form]);
+  }, [initialData]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -229,12 +204,22 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
   const removeImage = (index: number) => {
     setImagePreviewUrls(prev => prev.filter((_, i) => i !== index));
   }
+  
+  const handleGetCurrentLocation = () => {
+      if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+              const { latitude, longitude } = position.coords;
+              form.setValue('latitude', latitude, { shouldValidate: true });
+              form.setValue('longitude', longitude, { shouldValidate: true });
+              toast({ title: "Location Captured", description: "GPS coordinates have been recorded."});
+          }, (error) => {
+              toast({ title: "Location Error", description: `Could not get location: ${error.message}`, variant: "destructive"});
+          });
+      } else {
+          toast({ title: "Unsupported", description: "Geolocation is not supported by this browser.", variant: "destructive"});
+      }
+  };
 
-  const handleMapPositionChange = useCallback((newPosition: { lat: number; lng: number }) => {
-    setMapPosition([newPosition.lat, newPosition.lng]);
-    form.setValue('latitude', newPosition.lat);
-    form.setValue('longitude', newPosition.lng);
-  }, [form]);
 
   const handleSubmit = (values: PropertyFormValues) => {
     onSubmit({ 
@@ -242,21 +227,6 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
         imageUrls: imagePreviewUrls || [],
     });
   };
-  
-  useEffect(() => {
-    const lat = form.getValues('latitude');
-    const lng = form.getValues('longitude');
-    if (lat && lng) {
-        if (!mapPosition || (Array.isArray(mapPosition) && (mapPosition[0] !== lat || mapPosition[1] !== lng))) {
-            setMapPosition([lat, lng]);
-        }
-    } else {
-        if (mapPosition !== null) {
-            setMapPosition(null);
-        }
-    }
-  }, [form, mapPosition]);
-
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -272,18 +242,18 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address / Location</FormLabel><FormControl><Textarea placeholder="e.g., Plot #123, Block B, Sector C, Society Name, City" {...field} /></FormControl><FormMessage /></FormItem>)} />
             <FormField control={form.control} name="propertyType" render={({ field }) => (<FormItem><FormLabel>Property Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger></FormControl><SelectContent>{propertyTypes.map(type => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
             
-            {/* Location Pinner */}
-            <div className="space-y-2">
-                <Button type="button" variant="outline" onClick={() => setShowMap(!showMap)} className="w-full sm:w-auto"><MapPin className="mr-2 h-4 w-4" />{showMap ? "Hide Map" : "Pin Location on Map"}</Button>
-                <FormDescription>{showMap ? "Click on the map to set the precise location." : "Optionally, pin the exact location on a map."}</FormDescription>
-            </div>
-            {showMap && (
-                <div className="h-[350px] w-full rounded-md overflow-hidden border shadow-sm">
-                    <DynamicPropertyLocationMap key={mapPosition ? `${mapPosition[0]}-${mapPosition[1]}` : 'map-key-form'} position={mapPosition} onPositionChange={handleMapPositionChange} mapHeight="100%" interactive={true} popupText={form.getValues('name') || "Property Location"}/>
+            {/* Location Input */}
+            <div>
+                <FormLabel>Location Coordinates (Optional)</FormLabel>
+                <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                    <FormField control={form.control} name="latitude" render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" step="any" placeholder="Latitude" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="longitude" render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" step="any" placeholder="Longitude" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
+                    <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full sm:w-auto"><LocateFixed className="mr-2 h-4 w-4" />Get Current</Button>
                 </div>
-            )}
-             <FormField control={form.control} name="latitude" render={({ field }) => (<FormItem className="hidden"><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
-             <FormField control={form.control} name="longitude" render={({ field }) => (<FormItem className="hidden"><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>)} />
+                 <FormDescription className="mt-2">
+                    Enter coordinates manually or use the button to get your current location. This is used to display the property on a map.
+                </FormDescription>
+            </div>
              
              {/* Image Uploader */}
              <FormField control={form.control} name="imageFiles" render={() => ( <FormItem> <FormLabel>Property Images (Layout, Map, Photos)</FormLabel> <FormControl> <div className="flex flex-col items-center space-y-4"> <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors"> <div className="flex flex-col items-center justify-center pt-5 pb-6"> <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" /> <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p> <p className="text-xs text-muted-foreground">PNG, JPG, or PDF files</p> </div> <Input id="imageUpload" type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*,.pdf" disabled={isProcessingFiles} /> </label> </div> </FormControl> <FormDescription>Upload one or more images or PDF files. Each page of a PDF will be converted to an image.</FormDescription> {isProcessingFiles && ( <div className="flex items-center text-sm text-muted-foreground"> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing files, please wait... </div> )} {imagePreviewUrls.length > 0 && ( <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4"> {imagePreviewUrls.map((url, index) => ( <div key={index} className="relative group"> <Image src={url} alt={`Preview ${index + 1}`} width={150} height={112} className="object-cover w-full aspect-[4/3] rounded-md border" data-ai-hint="property image" /> <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)} aria-label={`Remove image ${index + 1}`} > <Trash2 className="h-4 w-4" /> </Button> </div> ))} </div> )} <FormMessage /> </FormItem> )} />

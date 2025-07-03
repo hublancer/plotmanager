@@ -4,7 +4,7 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration is now directly in the code.
 // This ensures a reliable connection without needing a separate .env file.
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyDkcJVdGbA211ODtqeEtZLiE6nwzj1SfqU",
   authDomain: "plotpilot-gi902.firebaseapp.com",
   projectId: "plotpilot-gi902",

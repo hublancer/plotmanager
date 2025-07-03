@@ -13,17 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Building, DollarSign, Info, Tag } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
-import type { LatLngExpression } from 'leaflet';
-import dynamic from 'next/dynamic';
-
-const DynamicPropertyLocationMap = dynamic(() => 
-  import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
-  { 
-    ssr: false,
-    loading: () => <div className="h-[200px] w-full rounded-md border flex items-center justify-center bg-muted"><p>Loading map...</p></div>
-  }
-);
-
+import { LocationMapEmbed } from "@/components/maps/property-location-map";
 
 interface LeadLocationDialogProps {
     isOpen: boolean;
@@ -36,7 +26,7 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
         return null;
     }
 
-    const position: LatLngExpression | null = lead.latitude && lead.longitude ? [lead.latitude, lead.longitude] : null;
+    const hasCoordinates = lead.latitude && lead.longitude;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -101,16 +91,12 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                         </div>
                     )}
                     
-                    {position && (
+                    {hasCoordinates && (
                          <div className="pt-4 border-t">
                             <h3 className="text-base font-semibold mb-2 flex items-center gap-2"><MapPin className="h-5 w-5"/> Pinned Location</h3>
                              <div className="h-[200px] w-full rounded-md overflow-hidden border shadow-sm mt-2">
-                                <DynamicPropertyLocationMap
-                                    key={`${position[0]}-${position[1]}`}
-                                    position={position}
-                                    popupText={lead.name}
-                                    interactive={false}
-                                    mapHeight="100%"
+                                <LocationMapEmbed
+                                    coordinates={{ lat: lead.latitude!, lng: lead.longitude! }}
                                 />
                             </div>
                         </div>

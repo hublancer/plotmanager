@@ -12,16 +12,7 @@ import { ArrowLeft, Edit, Package, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
-import type { LatLngExpression } from 'leaflet';
-import dynamic from 'next/dynamic';
-
-const DynamicPropertyLocationMap = dynamic(() => 
-  import('@/components/maps/property-location-map').then(mod => mod.PropertyLocationMap),
-  { 
-    ssr: false,
-    loading: () => <div className="h-[300px] w-full rounded-md border flex items-center justify-center bg-muted"><p>Loading map...</p></div>
-  }
-);
+import { LocationMapEmbed } from "@/components/maps/property-location-map";
 
 
 export default function PropertyDetailsPage() {
@@ -64,11 +55,8 @@ export default function PropertyDetailsPage() {
     }
   };
   
-  const mapPosition = useMemo(() => {
-    if (property?.latitude && property?.longitude) {
-      return [property.latitude, property.longitude] as LatLngExpression;
-    }
-    return null;
+  const hasLocation = useMemo(() => {
+    return !!(property?.latitude && property?.longitude) || !!property?.address;
   }, [property]);
 
 
@@ -103,7 +91,7 @@ export default function PropertyDetailsPage() {
                         {property.propertyType}
                     </Badge>
                 )}
-                 {mapPosition && (
+                 {property.latitude && property.longitude && (
                     <Badge variant="outline" className="inline-flex items-center gap-1 text-sm border-green-500 text-green-600">
                         <MapPin className="h-4 w-4" />
                         Location Pinned
@@ -120,20 +108,17 @@ export default function PropertyDetailsPage() {
           
           <div>
             <h3 className="text-xl font-semibold mb-2">Property Location</h3>
-            {mapPosition ? (
+            {hasLocation ? (
               <div className="h-[300px] w-full rounded-md overflow-hidden border shadow-sm">
-                <DynamicPropertyLocationMap
-                  key={`${mapPosition[0]}-${mapPosition[1]}-details`}
-                  position={mapPosition}
-                  popupText={property.name}
-                  interactive={false} 
-                  mapHeight="100%"
+                <LocationMapEmbed
+                  coordinates={property.latitude && property.longitude ? { lat: property.latitude, lng: property.longitude } : null}
+                  address={property.address}
                 />
               </div>
             ) : (
               <div className="p-4 bg-muted rounded-md text-center">
                 <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2"/>
-                <p className="text-muted-foreground">No map location pinned for this property.</p>
+                <p className="text-muted-foreground">No location data provided for this property.</p>
               </div>
             )}
           </div>

@@ -4,8 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { LoadingProvider } from '@/context/loading-context';
 import { PageLoader } from '@/components/layout/page-loader';
 import { AuthProvider } from '@/context/auth-context';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css'; // For default icon compatibility
 
 export const metadata: Metadata = {
   title: 'PlotPilot',
