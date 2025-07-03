@@ -41,10 +41,6 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   const [tempPin, setTempPin] = useState<{ x: number; y: number } | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  useEffect(() => {
-    setPlots(initialPlots);
-  }, [initialPlots]);
-  
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!imageContainerRef.current) return;
 
