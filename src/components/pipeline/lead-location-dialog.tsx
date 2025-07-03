@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Lead } from "@/types";
@@ -13,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Building, DollarSign, Info, Tag, ExternalLink } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp";
-import { LocationMapEmbed } from "@/components/maps/property-location-map";
 
 interface LeadLocationDialogProps {
     isOpen: boolean;
@@ -93,7 +91,7 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                     
                     {hasCoordinates && (
                          <div className="pt-4 border-t">
-                             <div className="flex justify-between items-center mb-2">
+                            <div className="flex justify-between items-center">
                                 <h3 className="text-base font-semibold flex items-center gap-2"><MapPin className="h-5 w-5"/> Pinned Location</h3>
                                 <Button asChild variant="outline" size="sm">
                                   <a
@@ -101,16 +99,12 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
-                                    <ExternalLink className="h-4 w-4" />
-                                    Open
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    Open Map
                                   </a>
                                 </Button>
-                             </div>
-                             <div className="h-[200px] w-full rounded-md overflow-hidden border shadow-sm mt-2">
-                                <LocationMapEmbed
-                                    coordinates={{ lat: lead.latitude!, lng: lead.longitude! }}
-                                />
                             </div>
+                            <p className="text-xs text-muted-foreground mt-1">{`Lat: ${lead.latitude}, Lng: ${lead.longitude}`}</p>
                         </div>
                     )}
 

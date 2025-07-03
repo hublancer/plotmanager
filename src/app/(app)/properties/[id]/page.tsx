@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -12,7 +11,6 @@ import { ArrowLeft, Edit, Package, MapPin, Loader2, ExternalLink } from "lucide-
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
-import { LocationMapEmbed } from "@/components/maps/property-location-map";
 
 
 export default function PropertyDetailsPage() {
@@ -55,8 +53,8 @@ export default function PropertyDetailsPage() {
     }
   };
   
-  const hasLocation = useMemo(() => {
-    return !!(property?.latitude && property?.longitude) || !!property?.address;
+  const hasCoordinates = useMemo(() => {
+    return !!(property?.latitude && property?.longitude);
   }, [property]);
 
 
@@ -91,7 +89,7 @@ export default function PropertyDetailsPage() {
                         {property.propertyType}
                     </Badge>
                 )}
-                 {property.latitude && property.longitude && (
+                 {hasCoordinates && (
                     <Badge variant="outline" className="inline-flex items-center gap-1 text-sm border-green-500 text-green-600">
                         <MapPin className="h-4 w-4" />
                         Location Pinned
@@ -107,32 +105,34 @@ export default function PropertyDetailsPage() {
         <CardContent className="space-y-6">
           
           <div>
-            <div className="flex justify-between items-center mb-2">
-                <h3 className="text-xl font-semibold">Property Location</h3>
-                {property.latitude && property.longitude && (
-                  <Button asChild variant="outline" size="sm">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Open in Maps
-                    </a>
-                  </Button>
-                )}
-            </div>
-            {hasLocation ? (
-              <div className="h-[300px] w-full rounded-md overflow-hidden border shadow-sm">
-                <LocationMapEmbed
-                  coordinates={property.latitude && property.longitude ? { lat: property.latitude, lng: property.longitude } : null}
-                  address={property.address}
-                />
+            <h3 className="text-xl font-semibold">Property Location</h3>
+             {hasCoordinates ? (
+              <div className="mt-2 flex items-center gap-4 p-4 bg-muted/50 rounded-md border">
+                <MapPin className="h-8 w-8 text-primary flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold">Location Pinned</p>
+                  <p className="text-sm text-muted-foreground">
+                    {`Lat: ${property.latitude}, Lng: ${property.longitude}`}
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open in Maps
+                  </a>
+                </Button>
               </div>
             ) : (
-              <div className="p-4 bg-muted rounded-md text-center">
+              <div className="mt-2 p-4 bg-muted rounded-md text-center border">
                 <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2"/>
-                <p className="text-muted-foreground">No location data provided for this property.</p>
+                <p className="text-muted-foreground">No location coordinates provided for this property.</p>
+                 {property.address && (
+                    <p className="text-xs text-muted-foreground mt-1">Address: {property.address}</p>
+                 )}
               </div>
             )}
           </div>
