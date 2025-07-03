@@ -7,13 +7,7 @@ import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import { LoadingContext } from '@/context/loading-context';
 import { getUserProfileByUID } from '@/lib/mock-db';
-
-// Define a type for the user profile from Firestore
-interface UserProfile {
-  uid: string;
-  activePlan?: boolean;
-  // other fields can be added here
-}
+import type { UserProfile } from '@/types';
 
 interface AuthContextType {
   user: User | null;

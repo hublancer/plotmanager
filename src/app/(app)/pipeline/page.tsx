@@ -33,7 +33,7 @@ export default function PipelinePage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
 
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const fetchLeads = useCallback(async () => {
@@ -135,6 +135,7 @@ export default function PipelinePage() {
                             onStatusChange={(newStatus) => handleStatusChange(lead, newStatus)}
                             onViewDetails={() => handleViewDetails(lead)}
                             allStages={stages}
+                            role={userProfile?.role}
                           />
                         ))
                       ) : (

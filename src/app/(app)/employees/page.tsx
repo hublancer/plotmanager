@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
+import { Badge } from "@/components/ui/badge";
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -93,7 +94,7 @@ export default function EmployeesPage() {
                   <TableHead className="w-[80px]">Avatar</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Position</TableHead>
-                  <TableHead>Department</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Hire Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -114,7 +115,11 @@ export default function EmployeesPage() {
                     </TableCell>
                     <TableCell className="font-medium">{employee.name}</TableCell>
                     <TableCell>{employee.position}</TableCell>
-                    <TableCell>{employee.department || "N/A"}</TableCell>
+                    <TableCell>
+                      <Badge variant={employee.role === 'manager' ? 'secondary' : 'outline'} className="capitalize">
+                        {employee.role}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{employee.email}</TableCell>
                     <TableCell>{new Date(employee.hireDate).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right space-x-1">

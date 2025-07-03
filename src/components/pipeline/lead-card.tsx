@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Lead } from "@/types";
+import type { Lead, UserProfile } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,9 +16,10 @@ interface LeadCardProps {
   onStatusChange: (newStatus: Lead['status']) => void;
   onViewDetails: () => void;
   allStages: Lead['status'][];
+  role?: UserProfile['role'];
 }
 
-export function LeadCard({ lead, onEdit, onDelete, onStatusChange, onViewDetails, allStages }: LeadCardProps) {
+export function LeadCard({ lead, onEdit, onDelete, onStatusChange, onViewDetails, allStages, role }: LeadCardProps) {
   const otherStages = allStages.filter(s => s !== lead.status);
 
   // Stop propagation for dropdown menu actions to prevent triggering card click
@@ -69,10 +70,14 @@ export function LeadCard({ lead, onEdit, onDelete, onStatusChange, onViewDetails
                         </DropdownMenuSubContent>
                     </DropdownMenuPortal>
                     </DropdownMenuSub>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={(e) => handleDropdownAction(e, onDelete)} className="text-destructive">
-                    Delete Lead
-                    </DropdownMenuItem>
+                    {role !== 'agent' && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => handleDropdownAction(e, onDelete)} className="text-destructive">
+                          Delete Lead
+                        </DropdownMenuItem>
+                      </>
+                    )}
                 </DropdownMenuContent>
                 </DropdownMenu>
             </div>

@@ -13,6 +13,13 @@ export interface PlotData {
   color?: string; // Color for the map pin
 }
 
+export interface UserProfile {
+  uid: string;
+  activePlan?: boolean;
+  role?: 'admin' | 'manager' | 'agent';
+  // other fields can be added here
+}
+
 export interface Property {
   id:string;
   userId: string;
@@ -82,6 +89,7 @@ export interface Employee {
   hireDate: string; // ISO date string
   avatarUrl?: string;
   department?: string;
+  role: 'manager' | 'agent';
 }
 
 export interface Lead {

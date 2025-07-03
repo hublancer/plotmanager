@@ -26,7 +26,8 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const userRole = userProfile?.role || 'agent';
 
   useEffect(() => {
     if (!user) return;
@@ -148,32 +149,38 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Revenue (Month)</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">PKR {monthlyStats.totalRevenue.toLocaleString()}</div></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Expenses (Month)</CardTitle><ArrowDownLeft className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">PKR {monthlyStats.totalExpenses.toLocaleString()}</div></CardContent></Card>
-        <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Net Income (Month)</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">PKR {monthlyStats.netProfit.toLocaleString()}</div></CardContent></Card>
+        {userRole !== 'agent' && (
+          <>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Revenue (Month)</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">PKR {monthlyStats.totalRevenue.toLocaleString()}</div></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Expenses (Month)</CardTitle><ArrowDownLeft className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">PKR {monthlyStats.totalExpenses.toLocaleString()}</div></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Net Income (Month)</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">PKR {monthlyStats.netProfit.toLocaleString()}</div></CardContent></Card>
+          </>
+        )}
         <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Properties</CardTitle><Building2 className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{properties.length}</div></CardContent></Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Income vs. Expenses</CardTitle>
-            <CardDescription>Last 6 months</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px] w-full">
-            <ResponsiveContainer>
-              <BarChart data={incomeExpenseChartData}>
-                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `PKR ${Number(value)/1000}k`}/>
-                <Tooltip cursor={{fill: 'hsl(var(--muted))'}} contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))'}}/>
-                <Legend />
-                <Bar dataKey="income" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expense" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
+        {userRole !== 'agent' && (
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Income vs. Expenses</CardTitle>
+              <CardDescription>Last 6 months</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px] w-full">
+              <ResponsiveContainer>
+                <BarChart data={incomeExpenseChartData}>
+                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
+                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `PKR ${Number(value)/1000}k`}/>
+                  <Tooltip cursor={{fill: 'hsl(var(--muted))'}} contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))'}}/>
+                  <Legend />
+                  <Bar dataKey="income" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+        <Card className={cn(userRole === 'agent' ? "lg:col-span-5" : "lg:col-span-2")}>
             <CardHeader>
                 <CardTitle>Property Status</CardTitle>
                 <CardDescription>Current state of all properties in your portfolio.</CardDescription>
@@ -194,57 +201,59 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Income by Category</CardTitle>
-            <CardDescription>Breakdown of all revenue sources.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[350px] w-full">
-             <ResponsiveContainer>
-                <PieChart>
-                    <Pie data={incomeByCategoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                        const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-                        const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                        return (percent as number) > 0.05 ? (<text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>{(percent * 100).toFixed(0)}%</text>) : null;
-                    }}>
-                        {incomeByCategoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                    </Pie>
-                    <Tooltip contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))'}} />
-                    <Legend />
-                </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>Your last 5 recorded financial activities.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {recentTransactions.map(t => (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      <div className="font-medium capitalize">{t.category}</div>
-                      <div className="text-sm text-muted-foreground">{t.contactName}</div>
-                    </TableCell>
-                    <TableCell>{format(new Date(t.date), "dd MMM, yyyy")}</TableCell>
-                    <TableCell className={cn("text-right font-semibold", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                      {t.type === 'income' ? '+' : '-'} PKR {t.amount.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+      {userRole !== 'agent' && (
+        <div className="grid gap-6 lg:grid-cols-5">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Income by Category</CardTitle>
+              <CardDescription>Breakdown of all revenue sources.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[350px] w-full">
+              <ResponsiveContainer>
+                  <PieChart>
+                      <Pie data={incomeByCategoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                          const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                          const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                          return (percent as number) > 0.05 ? (<text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>{(percent * 100).toFixed(0)}%</text>) : null;
+                      }}>
+                          {incomeByCategoryData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                      </Pie>
+                      <Tooltip contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))'}} />
+                      <Legend />
+                  </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Recent Transactions</CardTitle>
+              <CardDescription>Your last 5 recorded financial activities.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {recentTransactions.map(t => (
+                    <TableRow key={t.id}>
+                      <TableCell>
+                        <div className="font-medium capitalize">{t.category}</div>
+                        <div className="text-sm text-muted-foreground">{t.contactName}</div>
+                      </TableCell>
+                      <TableCell>{format(new Date(t.date), "dd MMM, yyyy")}</TableCell>
+                      <TableCell className={cn("text-right font-semibold", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                        {t.type === 'income' ? '+' : '-'} PKR {t.amount.toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

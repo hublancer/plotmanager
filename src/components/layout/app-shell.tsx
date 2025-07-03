@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useContext, useEffect } from "react";
+import { type ReactNode, useContext, useEffect, useMemo } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -40,31 +40,38 @@ import { useAuth } from "@/context/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import type { UserProfile } from "@/types";
 
 interface NavItem {
   href: string;
   icon: ReactNode;
   label: string;
   tooltip: string;
+  roles: UserProfile['role'][]; // Roles that can see this item
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard" },
-  { href: "/properties", icon: <Building2 />, label: "Properties", tooltip: "Properties" },
-  { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management" },
-  { href: "/payments", icon: <CreditCard />, label: "Transactions", tooltip: "Financial Transactions" },
-  { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments" },
-  { href: "/pipeline", icon: <Filter />, label: "Lead Survey", tooltip: "Lead Survey" },
-  { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees" }, 
-  { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports" },
-  { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant" },
+  { href: "/dashboard", icon: <LayoutDashboard />, label: "Dashboard", tooltip: "Dashboard", roles: ['admin', 'manager', 'agent'] },
+  { href: "/properties", icon: <Building2 />, label: "Properties", tooltip: "Properties", roles: ['admin', 'manager', 'agent'] },
+  { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management", roles: ['admin', 'manager'] },
+  { href: "/payments", icon: <CreditCard />, label: "Transactions", tooltip: "Financial Transactions", roles: ['admin', 'manager'] },
+  { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments", roles: ['admin', 'manager'] },
+  { href: "/pipeline", icon: <Filter />, label: "Lead Survey", tooltip: "Lead Survey", roles: ['admin', 'manager', 'agent'] },
+  { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees", roles: ['admin', 'manager'] }, 
+  { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports", roles: ['admin', 'manager'] },
+  { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant", roles: ['admin', 'manager', 'agent'] },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { start, complete } = useContext(LoadingContext);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
+
+  const visibleNavItems = useMemo(() => {
+    const userRole = userProfile?.role || 'agent'; // Default to least privileged
+    return navItems.filter(item => item.roles.includes(userRole));
+  }, [userProfile]);
 
   useEffect(() => {
     complete();
@@ -106,7 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarHeader>
         <SidebarContent className="p-2">
           <SidebarMenu>
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild

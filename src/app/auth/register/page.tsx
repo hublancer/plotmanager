@@ -69,6 +69,7 @@ export default function RegisterPage() {
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
           activePlan: false,
+          role: 'admin', // New users are admins by default
         });
       }
 
@@ -112,6 +113,7 @@ export default function RegisterPage() {
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
           activePlan: false,
+          role: 'admin', // New users are admins by default
         });
         toast({
           title: "Account Created",
