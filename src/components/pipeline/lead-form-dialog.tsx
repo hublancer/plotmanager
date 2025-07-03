@@ -21,6 +21,7 @@ import { Loader2, LocateFixed } from "lucide-react";
 const leadFormSchema = z.object({
   name: z.string().min(2, "Name is required."),
   company: z.string().optional(),
+  contact: z.string().optional(),
   value: z.coerce.number().min(0, "Value must be a positive number."),
   status: z.enum(['New', 'Active', 'Deal', 'Done']),
   notes: z.string().optional(),
@@ -56,6 +57,7 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
         form.reset({
           name: initialData.name,
           company: initialData.company || "",
+          contact: initialData.contact || "",
           value: initialData.value,
           status: initialData.status,
           notes: initialData.notes || "",
@@ -66,6 +68,7 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
         form.reset({
           name: "",
           company: "",
+          contact: "",
           value: 0,
           status: "New",
           notes: "",
@@ -126,6 +129,7 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2 max-h-[70vh] overflow-y-auto px-1">
              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Lead Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
              <FormField control={form.control} name="company" render={({ field }) => (<FormItem><FormLabel>Company (Optional)</FormLabel><FormControl><Input placeholder="e.g., Acme Inc." {...field} /></FormControl><FormMessage /></FormItem>)} />
+             <FormField control={form.control} name="contact" render={({ field }) => (<FormItem><FormLabel>Contact (Phone Number)</FormLabel><FormControl><Input placeholder="e.g., 03001234567" {...field} /></FormControl><FormMessage /></FormItem>)} />
             <div className="grid grid-cols-2 gap-4">
                <FormField control={form.control} name="value" render={({ field }) => (<FormItem><FormLabel>Value (PKR)</FormLabel><FormControl><Input type="number" placeholder="50000" {...field} /></FormControl><FormMessage /></FormItem>)} />
                <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="New">New</SelectItem><SelectItem value="Active">Active</SelectItem><SelectItem value="Deal">Deal</SelectItem><SelectItem value="Done">Done</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />

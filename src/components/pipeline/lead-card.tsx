@@ -5,9 +5,10 @@ import type { Lead } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreVertical, MapPin } from "lucide-react";
+import { MoreVertical, MapPin, Phone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { WhatsAppIcon } from "@/components/icons/whatsapp";
 
 interface LeadCardProps {
   lead: Lead;
@@ -75,6 +76,22 @@ export function LeadCard({ lead, onEdit, onDelete, onStatusChange, onViewLocatio
              {formatDistanceToNow(new Date(lead.lastUpdate), { addSuffix: true })}
            </p>
         </div>
+         {lead.contact && (
+            <div className="pt-2 border-t border-border/50 flex items-center justify-end gap-2">
+                <Button asChild variant="outline" size="icon" className="h-7 w-7 bg-green-500 text-white hover:bg-green-600 border-green-600">
+                    <a href={`https://wa.me/${lead.contact.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                        <WhatsAppIcon className="h-4 w-4 fill-current" />
+                        <span className="sr-only">WhatsApp</span>
+                    </a>
+                </Button>
+                <Button asChild variant="outline" size="icon" className="h-7 w-7">
+                    <a href={`tel:${lead.contact.replace(/\D/g, '')}`} aria-label="Call">
+                        <Phone className="h-4 w-4" />
+                        <span className="sr-only">Call</span>
+                    </a>
+                </Button>
+            </div>
+        )}
       </CardContent>
     </Card>
   );

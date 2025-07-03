@@ -89,6 +89,7 @@ export interface Lead {
   userId: string;
   name: string;
   company?: string;
+  contact?: string;
   value: number;
   status: 'New' | 'Active' | 'Deal' | 'Done';
   lastUpdate: string; // ISO Date String
