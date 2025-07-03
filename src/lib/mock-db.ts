@@ -149,21 +149,30 @@ export const deleteEmployee = async (id: string): Promise<boolean> => {
 export const getTransactions = async (userId: string, propertyId?: string): Promise<Transaction[]> => {
     return safeDBOperation(async () => {
         let q;
+        // The query filters by userId and optionally propertyId. Sorting is handled client-side to avoid needing a composite index.
         if (propertyId) {
-            q = query(transactionsCollection!, where("userId", "==", userId), where("propertyId", "==", propertyId), orderBy("date", "desc"));
+            q = query(transactionsCollection!, where("userId", "==", userId), where("propertyId", "==", propertyId));
         } else {
-            q = query(transactionsCollection!, where("userId", "==", userId), orderBy("date", "desc"));
+            q = query(transactionsCollection!, where("userId", "==", userId));
         }
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToTransaction);
+        const transactions = snapshot.docs.map(mapDocToTransaction);
+        // Sort transactions by date descending in the client
+        return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, []);
 };
 
 export const getRecentTransactions = async (userId: string, count: number): Promise<Transaction[]> => {
   return safeDBOperation(async () => {
-    const q = query(transactionsCollection!, where("userId", "==", userId), orderBy("date", "desc"), limit(count));
+    // We cannot use limit() without orderBy(), so we fetch all, sort, and then limit.
+    // This avoids needing a composite index.
+    const q = query(transactionsCollection!, where("userId", "==", userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(mapDocToTransaction);
+    const transactions = snapshot.docs.map(mapDocToTransaction);
+    // Sort and then slice
+    return transactions
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, count);
   }, []);
 };
 
