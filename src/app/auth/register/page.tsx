@@ -45,9 +45,12 @@ export default function RegisterPage() {
     // Check if an employee invitation exists for this email
     const invitedEmployee = await getEmployeeByEmail(user.email!);
     let finalRole = 'admin'; // Default role for a new, uninvited user
+    let adminId: string | undefined = undefined;
+
 
     if (invitedEmployee && invitedEmployee.status === 'pending') {
       finalRole = invitedEmployee.role;
+      adminId = invitedEmployee.userId; // This is the admin's UID from the employee record
       // Link the auth account to the employee record and mark as active
       await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
       toast({
@@ -63,8 +66,9 @@ export default function RegisterPage() {
       email: user.email,
       createdAt: serverTimestamp(),
       photoURL: user.photoURL || null,
-      activePlan: finalRole === 'admin' ? false : true, // Employees don't need a plan
+      activePlan: !!adminId, // Employees have active plan by default, new admins do not.
       role: finalRole,
+      adminId: adminId || null, // Store admin's UID if it's an employee
     });
   };
 

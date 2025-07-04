@@ -17,7 +17,7 @@ export interface UserProfile {
   uid: string;
   activePlan?: boolean;
   role?: 'admin' | 'manager' | 'agent';
-  // other fields can be added here
+  adminId?: string; // For employees, the UID of their admin
 }
 
 export interface Property {
@@ -52,6 +52,7 @@ export interface Property {
 export interface Transaction {
   id: string;
   userId: string;
+  createdBy?: string; // UID of user (admin or employee) who logged the transaction
   type: 'income' | 'expense';
   category: string; // e.g., 'rent', 'sale', 'maintenance', 'salary'
   amount: number;
@@ -92,11 +93,14 @@ export interface Employee {
   department?: string;
   role: 'manager' | 'agent';
   status?: 'pending' | 'active';
+  salesCount?: number; // For tracking performance
+  leadsCount?: number; // For tracking performance
 }
 
 export interface Lead {
   id: string;
   userId: string;
+  createdBy?: string; // UID of user (admin or employee) who created the lead
   name: string;
   company?: string;
   contact?: string;

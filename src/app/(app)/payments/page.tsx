@@ -45,7 +45,7 @@ export default function TransactionsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
@@ -59,16 +59,21 @@ export default function TransactionsPage() {
     if (!user) return;
     const fetchData = async () => {
       setIsLoading(true);
+      const ownerId = userProfile?.role === 'admin' ? user.uid : userProfile?.adminId;
+      if (!ownerId) {
+        setIsLoading(false);
+        return;
+      }
       const [transactionsData, propertiesData] = await Promise.all([
-        getTransactions(user.uid),
-        getAllMockProperties(user.uid)
+        getTransactions(ownerId),
+        getAllMockProperties(ownerId)
       ]);
       setTransactions(transactionsData);
       setProperties(propertiesData);
       setIsLoading(false);
     };
     fetchData();
-  }, [user]);
+  }, [user, userProfile]);
   
   useEffect(() => {
     if (editingTransaction) {
@@ -84,24 +89,35 @@ export default function TransactionsPage() {
 
 
   const handleFormSubmit = async (values: TransactionFormValues) => {
-    if (!user) {
+    if (!user || !userProfile) {
         toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
         return;
     }
-    const dataToSave = {
-        ...values,
-        userId: user.uid,
-        date: values.date.toISOString(),
-    };
+
+    const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+    if (!ownerId) {
+        toast({ title: "Error", description: "Could not determine business owner.", variant: "destructive" });
+        return;
+    }
 
     if (editingTransaction) {
+      const dataToSave: Partial<Transaction> = {
+          ...values,
+          date: values.date.toISOString(),
+      };
       const updated = await updateTransaction(editingTransaction.id, dataToSave);
       if (updated) {
         setTransactions(transactions.map(p => p.id === editingTransaction.id ? updated : p));
         toast({ title: "Transaction Updated", description: "The transaction has been updated." });
       }
     } else {
-      const newTransaction = await addTransaction(dataToSave);
+      const dataToSave = {
+        ...values,
+        userId: ownerId,
+        createdBy: user.uid,
+        date: values.date.toISOString(),
+      };
+      const newTransaction = await addTransaction(dataToSave as Omit<Transaction, 'id' | 'propertyName'>);
       setTransactions([newTransaction, ...transactions]);
       toast({ title: "Transaction Added", description: "New transaction record created." });
     }

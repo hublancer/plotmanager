@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -82,9 +83,11 @@ export default function LoginPage() {
         // Check if an employee invitation exists for this email
         const invitedEmployee = await getEmployeeByEmail(user.email!);
         let finalRole = 'admin'; // Default role for a new, uninvited user
+        let adminId: string | undefined = undefined;
 
         if (invitedEmployee && invitedEmployee.status === 'pending') {
           finalRole = invitedEmployee.role;
+          adminId = invitedEmployee.userId;
           await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
           toast({
               title: "Welcome aboard!",
@@ -98,8 +101,9 @@ export default function LoginPage() {
           email: user.email,
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
-          activePlan: finalRole === 'admin' ? false : true, // New admin needs a plan, employee doesn't
+          activePlan: !!adminId,
           role: finalRole,
+          adminId: adminId || null,
         });
 
         if (finalRole === 'admin') {

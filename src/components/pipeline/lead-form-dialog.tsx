@@ -40,7 +40,7 @@ interface LeadFormDialogProps {
 
 export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: LeadFormDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LeadFormValues>({
@@ -95,16 +95,24 @@ export function LeadFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: 
   };
 
   const onSubmit = async (values: LeadFormValues) => {
-    if (!user) {
+    if (!user || !userProfile) {
         toast({title: "Authentication Error", variant: "destructive"});
         return;
     }
     setIsSubmitting(true);
+    
+    const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+    if (!ownerId) {
+        toast({ title: "Error", description: "Could not determine business owner.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
     try {
         if (initialData) {
-            await updateLead(initialData.id, { ...values, userId: user.uid });
+            await updateLead(initialData.id, { ...values, userId: ownerId });
         } else {
-            await addLead({ ...values, userId: user.uid, lastUpdate: new Date().toISOString() });
+            await addLead({ ...values, userId: ownerId, createdBy: user.uid, lastUpdate: new Date().toISOString() });
         }
         toast({ title: initialData ? "Lead Updated" : "Lead Added", description: `"${values.name}" has been saved.` });
         onUpdate();

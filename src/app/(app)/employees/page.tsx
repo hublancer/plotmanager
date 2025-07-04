@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, Edit, Trash2, Loader2, Hourglass, CheckCircle } from "lucide-react";
-import type { Employee } from "@/types";
-import { getEmployees, deleteEmployee } from "@/lib/mock-db";
+import type { Employee, Lead, Transaction } from "@/types";
+import { getEmployees, deleteEmployee, getLeads, getTransactions } from "@/lib/mock-db";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,13 +33,32 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     if (!user) return;
-    const fetchEmployees = async () => {
+    const fetchAndProcessData = async () => {
       setIsLoading(true);
-      const data = await getEmployees(user.uid);
-      setEmployees(data);
+      const [employeesData, leadsData, transactionsData] = await Promise.all([
+        getEmployees(user.uid),
+        getLeads(user.uid),
+        getTransactions(user.uid),
+      ]);
+
+      const salesTransactions = transactionsData.filter(t => t.category.toLowerCase() === 'sale' && t.type === 'income');
+
+      const employeesWithStats = employeesData.map(employee => {
+        // employee.authUid is the key to link to createdBy fields
+        if (!employee.authUid) {
+          return { ...employee, leadsCount: 0, salesCount: 0 };
+        }
+        
+        const leadsCount = leadsData.filter(lead => lead.createdBy === employee.authUid).length;
+        const salesCount = salesTransactions.filter(t => t.createdBy === employee.authUid).length;
+
+        return { ...employee, leadsCount, salesCount };
+      });
+
+      setEmployees(employeesWithStats);
       setIsLoading(false);
     };
-    fetchEmployees();
+    fetchAndProcessData();
   }, [user]);
   
   const handleDeleteEmployee = async (id: string) => {
@@ -97,6 +116,8 @@ export default function EmployeesPage() {
                   <TableHead>Role</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Leads Added</TableHead>
+                  <TableHead className="text-center">Sales Closed</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -132,6 +153,8 @@ export default function EmployeesPage() {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell className="text-center font-medium">{employee.leadsCount ?? 0}</TableCell>
+                    <TableCell className="text-center font-medium">{employee.salesCount ?? 0}</TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" aria-label="Edit Employee" onClick={() => alert(`Editing is not yet implemented.`)}>
                         <Edit className="h-4 w-4" />
@@ -169,7 +192,7 @@ export default function EmployeesPage() {
         </Card>
       )}
        <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
-        This section allows you to manage your company's employees. You can invite new employees, view their status, and manage their records. An employee becomes 'Active' after they sign up using the email you invited them with.
+        This section allows you to manage your company's employees. An employee becomes 'Active' after they sign up using the email you invited them with. Performance stats for leads and sales are tracked based on the employee who created the record.
       </CardDescription>
     </div>
   );
