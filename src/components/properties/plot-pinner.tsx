@@ -3,7 +3,7 @@
 
 import type { PlotData } from "@/types";
 import Image from "next/image";
-import { useState, useRef, MouseEvent, useEffect } from "react";
+import { useState, useRef, MouseEvent, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -47,29 +47,51 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isPinningMode, setIsPinningMode] = useState(false);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number, height: number } | null>(null);
 
 
-  // Reset zoom/pan when image changes
+  // Reset zoom/pan and image dimensions when image changes
   useEffect(() => {
     handleReset();
+    setImageDimensions(null);
   }, [currentIndex]);
   
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (isDragging) return; // Don't register click at the end of a drag
-    if (!imageContainerRef.current) return;
+    if (isDragging) return;
+    if (!imageContainerRef.current || !imageDimensions) return;
 
     const rect = imageContainerRef.current.getBoundingClientRect();
+    
+    // Calculate the 'contain' dimensions of the image
+    const containerRatio = rect.width / rect.height;
+    const imageRatio = imageDimensions.width / imageDimensions.height;
+    let containedWidth: number, containedHeight: number;
+    if (containerRatio > imageRatio) {
+        containedHeight = rect.height;
+        containedWidth = containedHeight * imageRatio;
+    } else {
+        containedWidth = rect.width;
+        containedHeight = containedWidth / imageRatio;
+    }
+    const horizontalPadding = (rect.width - containedWidth) / 2;
+    const verticalPadding = (rect.height - containedHeight) / 2;
+    
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    const unscaledX = (clickX - position.x) / scale;
-    const unscaledY = (clickY - position.y) / scale;
+    // De-transform the click coordinates to find where on the unscaled container we clicked
+    const unscaledContainerX = (clickX - position.x) / scale;
+    const unscaledContainerY = (clickY - position.y) / scale;
+    
+    // Account for the 'contain' padding to get click position relative to the image
+    const imageRelativeX = unscaledContainerX - horizontalPadding;
+    const imageRelativeY = unscaledContainerY - verticalPadding;
 
-    // Check if clicking on an existing plot first, regardless of mode
+    // Check if clicking on an existing plot first
     for (const plot of plots.filter(p => p.imageIndex === currentIndex)) {
-      const plotPixelX = (plot.x / 100) * rect.width;
-      const plotPixelY = (plot.y / 100) * rect.height;
-      const distance = Math.sqrt(Math.pow(plotPixelX - unscaledX, 2) + Math.pow(plotPixelY - unscaledY, 2));
+      const plotPixelX = (plot.x / 100) * containedWidth;
+      const plotPixelY = (plot.y / 100) * containedHeight;
+      const distance = Math.sqrt(Math.pow(plotPixelX - imageRelativeX, 2) + Math.pow(plotPixelY - imageRelativeY, 2));
       
       const clickableRadius = 12 / scale;
       if (distance < clickableRadius) {
@@ -77,27 +99,26 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
         setIsEditing(true);
         setShowDialog(true);
         setTempPin(null);
-        setIsPinningMode(false); // Exit pin mode when editing
+        setIsPinningMode(false);
         return;
       }
     }
 
-    // If not clicking an existing plot, and not in pinning mode, do nothing.
     if (!isPinningMode) return;
 
-    // If in pinning mode, add a new temporary pin.
-    const xPercent = (unscaledX / rect.width) * 100;
-    const yPercent = (unscaledY / rect.height) * 100;
-
-    if (xPercent < 0 || xPercent > 100 || yPercent < 0 || yPercent > 100) {
-      return; // Click was outside the image bounds
+    // Check if click is within the image bounds (not on the padding)
+    if (imageRelativeX < 0 || imageRelativeX > containedWidth || imageRelativeY < 0 || imageRelativeY > containedHeight) {
+      return;
     }
+
+    const xPercent = (imageRelativeX / containedWidth) * 100;
+    const yPercent = (imageRelativeY / containedHeight) * 100;
     
     setTempPin({ x: xPercent, y: yPercent });
     setSelectedPlot(null);
     setIsEditing(false);
     setShowDialog(true);
-    setIsPinningMode(false); // Automatically exit pin mode after placing a pin
+    setIsPinningMode(false);
   };
 
   const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex' | 'color'>) => {
@@ -139,8 +160,9 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   const handleZoomIn = () => setScale(s => Math.min(s * 1.2, 5));
   const handleZoomOut = () => {
     const newScale = Math.max(scale / 1.2, 1);
-    if (newScale === 1) {
-        handleReset(); // If zooming out to 1x, reset position too
+    // If zooming out to 1x, reset position too
+    if (newScale <= 1.01) {
+        handleReset();
     } else {
         setScale(newScale);
     }
@@ -155,27 +177,51 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || isPinningMode || scale <= 1) return;
+    if (!isDragging || isPinningMode || scale <= 1 || !imageDimensions) return;
     if (!imageContainerRef.current) return;
 
     const containerRect = imageContainerRef.current.getBoundingClientRect();
+
+    // Calculate the 'contain' dimensions of the image within the frame
+    const containerRatio = containerRect.width / containerRect.height;
+    const imageRatio = imageDimensions.width / imageDimensions.height;
+    let containedWidth: number, containedHeight: number;
+    if (containerRatio > imageRatio) {
+        containedHeight = containerRect.height;
+        containedWidth = containedHeight * imageRatio;
+    } else {
+        containedWidth = containerRect.width;
+        containedHeight = containedWidth / imageRatio;
+    }
+    
+    // The empty space on each side of the image, BEFORE scaling
+    const horizontalPadding = (containerRect.width - containedWidth) / 2;
+    const verticalPadding = (containerRect.height - containedHeight) / 2;
+    
+    // The scaled-up empty space
+    const scaledHorizontalPadding = horizontalPadding * scale;
+    const scaledVerticalPadding = verticalPadding * scale;
+
     let newX = e.clientX - dragStart.x;
     let newY = e.clientY - dragStart.y;
     
-    const scaledWidth = containerRect.width * scale;
-    const scaledHeight = containerRect.height * scale;
+    // Limits for translation. We want to prevent the scaled *image* from leaving the frame.
+    // The image's visual left edge is `position.x + scaledHorizontalPadding`. This must be <= `horizontalPadding`.
+    // So, `position.x <= horizontalPadding - scaledHorizontalPadding`. This is `maxX`.
+    const maxX = horizontalPadding - scaledHorizontalPadding;
+    // The image's visual right edge is `position.x + scaledHorizontalPadding + (containedWidth * scale)`. This must be >= `horizontalPadding + containedWidth`.
+    // So, `position.x >= (horizontalPadding + containedWidth) - (scaledHorizontalPadding + (containedWidth * scale))`. This is `minX`.
+    const minX = (horizontalPadding + containedWidth) - (scaledHorizontalPadding + (containedWidth * scale));
+    
+    const maxY = verticalPadding - scaledVerticalPadding;
+    const minY = (verticalPadding + containedHeight) - (scaledVerticalPadding + (containedHeight * scale));
 
-    const minX = containerRect.width - scaledWidth;
-    const minY = containerRect.height - scaledHeight;
-    const maxX = 0;
-    const maxY = 0;
-
+    // Clamp the new position within the calculated boundaries
     const clampedX = Math.max(minX, Math.min(newX, maxX));
     const clampedY = Math.max(minY, Math.min(newY, maxY));
 
     setPosition({ x: clampedX, y: clampedY });
   };
-
 
   const handleMouseUp = () => {
     setTimeout(() => setIsDragging(false), 50);
@@ -183,6 +229,31 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   
   const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? imageUrls.length - 1 : prev - 1));
   const goToNext = () => setCurrentIndex(prev => (prev === imageUrls.length - 1 ? 0 : prev + 1));
+  
+  const memoizedImageParams = useMemo(() => {
+    if (!imageContainerRef.current || !imageDimensions) {
+      return { width: 0, height: 0, left: 0, top: 0 };
+    }
+    const rect = imageContainerRef.current.getBoundingClientRect();
+    const containerRatio = rect.width / rect.height;
+    const imageRatio = imageDimensions.width / imageDimensions.height;
+    let containedWidth, containedHeight;
+
+    if (containerRatio > imageRatio) {
+      containedHeight = rect.height;
+      containedWidth = containedHeight * imageRatio;
+    } else {
+      containedWidth = rect.width;
+      containedHeight = containedWidth / imageRatio;
+    }
+
+    return {
+      width: containedWidth,
+      height: containedHeight,
+      left: (rect.width - containedWidth) / 2,
+      top: (rect.height - containedHeight) / 2
+    };
+  }, [imageDimensions, scale]); // Rerun when image or scale changes
   
   const currentImagePlots = plots.filter(p => p.imageIndex === currentIndex);
 
@@ -220,34 +291,41 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
             data-ai-hint="property aerial map site plan"
             draggable="false"
             priority
-            className="pointer-events-none"
+            className="pointer-events-none transition-opacity duration-300"
+            onLoad={(e) => {
+                const img = e.target as HTMLImageElement;
+                setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+            }}
+            style={{ opacity: imageDimensions ? 1 : 0 }}
           />
-          
-          {currentImagePlots.map(plot => (
-            <div
-              key={plot.id}
-              className="absolute flex items-center justify-center rounded-full"
-              style={{ 
-                left: `${plot.x}%`, 
-                top: `${plot.y}%`,
+          {imageDimensions && currentImagePlots.map(plot => {
+            const pinStyle: React.CSSProperties = {
+                left: `${memoizedImageParams.left + (plot.x / 100 * memoizedImageParams.width)}px`,
+                top: `${memoizedImageParams.top + (plot.y / 100 * memoizedImageParams.height)}px`,
                 width: `${24 / scale}px`,
                 height: `${24 / scale}px`,
                 transform: 'translate(-50%, -50%)',
                 backgroundColor: plot.color || 'rgba(59, 130, 246, 0.8)',
                 border: `${2 / scale}px solid hsl(var(--primary-foreground, 0 0% 100%))`
-              }}
-              title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
-            >
-              <MapPin style={{ height: `${16 / scale}px`, width: `${16 / scale}px` }} className="text-primary-foreground" />
-            </div>
-          ))}
+            };
+            return (
+                <div
+                key={plot.id}
+                className="absolute flex items-center justify-center rounded-full"
+                style={pinStyle}
+                title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
+                >
+                <MapPin style={{ height: `${16 / scale}px`, width: `${16 / scale}px` }} className="text-primary-foreground" />
+                </div>
+            )
+          })}
 
-          {tempPin && (
+          {imageDimensions && tempPin && (
             <div
               className="pointer-events-none absolute flex items-center justify-center rounded-full border-primary-foreground bg-primary/70"
               style={{ 
-                left: `${tempPin.x}%`, 
-                top: `${tempPin.y}%`,
+                left: `${memoizedImageParams.left + (tempPin.x / 100 * memoizedImageParams.width)}px`,
+                top: `${memoizedImageParams.top + (tempPin.y / 100 * memoizedImageParams.height)}px`,
                 width: `${24 / scale}px`,
                 height: `${24 / scale}px`,
                 borderWidth: `${2 / scale}px`,
