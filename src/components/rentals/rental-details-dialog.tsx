@@ -72,7 +72,7 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental }: RentalDeta
                     )}
                 </div>
                  <DialogFooter className="sm:justify-between items-center pt-4 border-t gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                        {rental.tenantContact && (
                         <>
                             <Button asChild variant="outline" className="flex-1 bg-green-500 text-white hover:bg-green-600 border-green-600">
@@ -89,6 +89,19 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental }: RentalDeta
                             </Button>
                         </>
                        )}
+                       {hasCoordinates && (
+                            <Button asChild variant="outline" className="flex-1">
+                                <a 
+                                    href={`https://www.google.com/maps/search/?api=1&query=${rental.latitude},${rental.longitude}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    aria-label="View on Map"
+                                >
+                                    <MapPin className="h-5 w-5 mr-2" />
+                                    Location
+                                </a>
+                            </Button>
+                        )}
                     </div>
                     <DialogClose asChild>
                         <Button type="button" variant="secondary">Close</Button>
