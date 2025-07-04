@@ -331,13 +331,14 @@ export const endRental = async (propertyId: string, plotId?: string): Promise<bo
         if (plotId) { // Ending a plot rental
             const newPlots = prop.plots.map(p => {
                 if (p.id === plotId) {
-                    return { ...p, status: 'available' as const, rentalDetails: undefined };
+                    const { rentalDetails, ...rest } = p;
+                    return { ...rest, status: 'available' as const };
                 }
                 return p;
             });
             updates = { plots: newPlots };
         } else { // Ending a property-level rental
-            updates = { isRented: false, tenantName: undefined, rentAmount: undefined, rentFrequency: undefined, rentStartDate: undefined };
+             updates = { isRented: false, tenantName: null, rentAmount: null, rentFrequency: null, rentStartDate: null };
         }
         
         await updateProperty(propertyId, updates);
@@ -392,13 +393,14 @@ export const endInstallmentPlan = async (propertyId: string, plotId?: string): P
         if (plotId) { // Ending a plot plan
             const newPlots = prop.plots.map(p => {
                 if (p.id === plotId) {
-                    return { ...p, status: 'available' as const, installmentDetails: undefined };
+                    const { installmentDetails, ...rest } = p;
+                    return { ...rest, status: 'available' as const };
                 }
                 return p;
             });
             updates = { plots: newPlots };
         } else { // Ending a property-level plan
-            updates = { isSoldOnInstallment: false, buyerName: undefined, totalInstallmentPrice: undefined, downPayment: undefined, installmentFrequency: undefined, installmentDuration: undefined, purchaseDate: undefined };
+             updates = { isSoldOnInstallment: false, buyerName: null, totalInstallmentPrice: null, downPayment: null, installmentFrequency: null, installmentDuration: null, purchaseDate: null };
         }
         
         await updateProperty(propertyId, updates);
@@ -485,3 +487,4 @@ export const getAllMockProperties = async (userId: string) : Promise<Pick<Proper
         return snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name as string}));
     }, []);
 }
+

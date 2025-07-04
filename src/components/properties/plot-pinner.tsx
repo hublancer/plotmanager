@@ -526,9 +526,9 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
     resolver: zodResolver(formSchema),
     defaultValues: plotData ? {
         ...plotData,
-        saleDetails: plotData.saleDetails ? { ...plotData.saleDetails, date: new Date(plotData.saleDetails.date) } : undefined,
-        rentalDetails: plotData.rentalDetails ? { ...plotData.rentalDetails, startDate: new Date(plotData.rentalDetails.startDate) } : undefined,
-        installmentDetails: plotData.installmentDetails ? { ...plotData.installmentDetails, purchaseDate: new Date(plotData.installmentDetails.purchaseDate) } : undefined,
+        saleDetails: plotData.saleDetails ? { ...plotData.saleDetails, date: new Date(plotData.saleDetails.date), buyerContact: plotData.saleDetails.buyerContact || '' } : undefined,
+        rentalDetails: plotData.rentalDetails ? { ...plotData.rentalDetails, startDate: new Date(plotData.rentalDetails.startDate), tenantContact: plotData.rentalDetails.tenantContact || '' } : undefined,
+        installmentDetails: plotData.installmentDetails ? { ...plotData.installmentDetails, purchaseDate: new Date(plotData.installmentDetails.purchaseDate), buyerContact: plotData.installmentDetails.buyerContact || '' } : undefined,
     } : {
         status: 'available',
         plotNumber: '',
@@ -543,9 +543,9 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
     if (plotData) {
         form.reset({
             ...plotData,
-            saleDetails: plotData.saleDetails ? { ...plotData.saleDetails, date: new Date(plotData.saleDetails.date) } : undefined,
-            rentalDetails: plotData.rentalDetails ? { ...plotData.rentalDetails, startDate: new Date(plotData.rentalDetails.startDate) } : undefined,
-            installmentDetails: plotData.installmentDetails ? { ...plotData.installmentDetails, purchaseDate: new Date(plotData.installmentDetails.purchaseDate) } : undefined,
+            saleDetails: plotData.saleDetails ? { ...plotData.saleDetails, date: new Date(plotData.saleDetails.date), buyerContact: plotData.saleDetails.buyerContact || '' } : undefined,
+            rentalDetails: plotData.rentalDetails ? { ...plotData.rentalDetails, startDate: new Date(plotData.rentalDetails.startDate), tenantContact: plotData.rentalDetails.tenantContact || '' } : undefined,
+            installmentDetails: plotData.installmentDetails ? { ...plotData.installmentDetails, purchaseDate: new Date(plotData.installmentDetails.purchaseDate), buyerContact: plotData.installmentDetails.buyerContact || '' } : undefined,
         });
     } else {
         form.reset({
@@ -559,16 +559,27 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
 
   const handleSubmit = (values: FormValues) => {
     const newPlotData: PlotData = {
-        id: plotData?.id || Date.now().toString(),
-        x: plotData?.x ?? tempPin?.x ?? 0,
-        y: plotData?.y ?? tempPin?.y ?? 0,
-        imageIndex: plotData?.imageIndex ?? imageIndex,
-        color: plotData?.color || pinColors[existingPlotsCount % pinColors.length],
-        ...values,
-        saleDetails: values.status === 'sold' ? { ...values.saleDetails, date: values.saleDetails.date.toISOString() } : undefined,
-        rentalDetails: values.status === 'rented' ? { ...values.rentalDetails, startDate: values.rentalDetails.startDate.toISOString() } : undefined,
-        installmentDetails: values.status === 'installment' ? { ...values.installmentDetails, purchaseDate: values.installmentDetails.purchaseDate.toISOString() } : undefined,
+      id: plotData?.id || Date.now().toString(),
+      x: plotData?.x ?? tempPin?.x ?? 0,
+      y: plotData?.y ?? tempPin?.y ?? 0,
+      imageIndex: plotData?.imageIndex ?? imageIndex,
+      color: plotData?.color || pinColors[existingPlotsCount % pinColors.length],
+      plotNumber: values.plotNumber,
+      size: values.size,
+      details: values.details,
+      status: values.status,
     };
+  
+    if (values.status === 'sold') {
+      newPlotData.saleDetails = { ...values.saleDetails, date: values.saleDetails.date.toISOString() };
+    }
+    if (values.status === 'rented') {
+      newPlotData.rentalDetails = { ...values.rentalDetails, startDate: values.rentalDetails.startDate.toISOString() };
+    }
+    if (values.status === 'installment') {
+      newPlotData.installmentDetails = { ...values.installmentDetails, purchaseDate: values.installmentDetails.purchaseDate.toISOString() };
+    }
+  
     onSave(newPlotData);
   };
 
