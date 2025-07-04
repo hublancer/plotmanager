@@ -52,25 +52,22 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   }, [currentIndex]);
   
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
-    // This check combined with the timeout in handleMouseUp helps differentiate a click from a drag.
     if (!imageContainerRef.current || isDragging) return;
 
     const rect = imageContainerRef.current.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
-    // Convert screen coordinates to coordinates on the unscaled image
     const unscaledX = (clickX - position.x) / scale;
     const unscaledY = (clickY - position.y) / scale;
-    
-    // Check if clicking on an existing pin
-    for (const plot of plots.filter(p => p.imageIndex === currentIndex)) {
-      const plotContainerX = plot.x / 100 * rect.width;
-      const plotContainerY = plot.y / 100 * rect.height;
-      const distance = Math.sqrt(Math.pow(plotContainerX - unscaledX, 2) + Math.pow(plotContainerY - unscaledY, 2));
 
-      // Clickable radius is 12px in the unscaled image. This area grows with zoom.
-      if (distance < 12) {
+    for (const plot of plots.filter(p => p.imageIndex === currentIndex)) {
+      const plotPixelX = (plot.x / 100) * rect.width;
+      const plotPixelY = (plot.y / 100) * rect.height;
+      const distance = Math.sqrt(Math.pow(plotPixelX - unscaledX, 2) + Math.pow(plotPixelY - unscaledY, 2));
+      
+      const clickableRadius = 12; // 12px radius in unscaled image coordinates
+      if (distance < clickableRadius) {
         setSelectedPlot(plot);
         setIsEditing(true);
         setShowDialog(true);
@@ -79,11 +76,9 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       }
     }
     
-    // Calculate percentage position for the new pin
     const xPercent = (unscaledX / rect.width) * 100;
     const yPercent = (unscaledY / rect.height) * 100;
 
-    // Prevent pinning outside the image boundaries
     if (xPercent < 0 || xPercent > 100 || yPercent < 0 || yPercent > 100) {
       return;
     }
@@ -146,7 +141,6 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   };
 
   const handleMouseUp = () => {
-    // Use a short timeout to prevent the `onClick` event from firing after a drag
     setTimeout(() => setIsDragging(false), 50);
   };
   
@@ -173,8 +167,12 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
         tabIndex={0}
       >
         <div
-          className="w-full h-full"
-          style={{ transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease-out' }}
+          className="relative h-full w-full"
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transformOrigin: "top left",
+            transition: isDragging ? "none" : "transform 0.1s ease-out",
+          }}
         >
           <Image 
             key={currentIndex}
@@ -185,42 +183,42 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
             data-ai-hint="property aerial map site plan"
             draggable="false"
             priority
+            className="pointer-events-none"
           />
-        </div>
-        
-        {currentImagePlots.map(plot => {
-          const rect = imageContainerRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          // Calculate the pin's position in screen space, accounting for zoom and pan
-          const transformedX = (plot.x / 100 * rect.width) * scale + position.x;
-          const transformedY = (plot.y / 100 * rect.height) * scale + position.y;
-          return (
+          
+          {/* Render pins inside the transformed container */}
+          {currentImagePlots.map(plot => (
             <div
               key={plot.id}
-              className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-pointer transform transition-all duration-150 ease-out hover:scale-125"
+              className="absolute flex h-6 w-6 cursor-pointer items-center justify-center rounded-full hover:z-10"
               style={{ 
-                left: `${transformedX}px`, 
-                top: `${transformedY}px`,
-                transform: `scale(${1 / scale})`, // Counter-scale the pin to keep its size consistent
+                left: `${plot.x}%`, 
+                top: `${plot.y}%`,
+                transform: `translate(-50%, -50%) scale(${1 / scale})`,
                 backgroundColor: plot.color || 'rgba(59, 130, 246, 0.8)',
                 border: `${2 / scale}px solid hsl(var(--primary-foreground, 0 0% 100%))`
               }}
               onClick={(e) => { e.stopPropagation(); setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}
               title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
             >
-              <MapPin className="w-4 h-4 text-primary-foreground" />
+              <MapPin className="h-4 w-4 text-primary-foreground" />
             </div>
-          );
-        })}
+          ))}
 
-        {tempPin && !showDialog && (
-          <div
-            className="absolute w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/70 border-2 border-primary-foreground flex items-center justify-center"
-            style={{ left: `${tempPin.x}%`, top: `${tempPin.y}%` }}
-          >
-            <PlusCircle className="w-4 h-4 text-primary-foreground"/>
-          </div>
-        )}
+          {/* Render temp pin inside transformed container */}
+          {tempPin && (
+            <div
+              className="pointer-events-none absolute flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary-foreground bg-primary/70"
+              style={{ 
+                left: `${tempPin.x}%`, 
+                top: `${tempPin.y}%`,
+                transform: `translate(-50%, -50%) scale(${1/scale})`
+              }}
+            >
+              <PlusCircle className="h-4 w-4 text-primary-foreground"/>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-card border rounded-lg p-2 space-y-2">
@@ -266,7 +264,12 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       {showDialog && (
         <PlotDialog
           isOpen={showDialog}
-          onOpenChange={setShowDialog}
+          onOpenChange={(isOpen) => {
+            setShowDialog(isOpen);
+            if (!isOpen) {
+              setTempPin(null);
+            }
+          }}
           plotData={isEditing ? selectedPlot : null}
           onSave={handleSavePlot}
           onDelete={selectedPlot ? () => handleDeletePlot(selectedPlot.id) : undefined}
