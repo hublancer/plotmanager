@@ -93,6 +93,8 @@ export interface Rental {
   rentFrequency: 'monthly' | 'yearly';
   startDate: string; // ISO date string
   notes?: string;
+  // Calculated fields
+  paymentStatus: 'Paid' | 'Due';
 }
 
 export interface Employee {

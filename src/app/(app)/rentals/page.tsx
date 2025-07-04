@@ -26,6 +26,8 @@ import { RentalFormDialog } from "@/components/rentals/rental-form-dialog";
 import { RentalDetailsDialog } from "@/components/rentals/rental-details-dialog";
 import { Edit, PlusCircle, Loader2, Search, Trash2, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function RentalsPage() {
   const [rentals, setRentals] = useState<Rental[]>([]);
@@ -124,7 +126,7 @@ export default function RentalsPage() {
                   <TableHead>Property</TableHead>
                   <TableHead>Tenant</TableHead>
                   <TableHead>Rent (PKR)</TableHead>
-                  <TableHead>Start Date</TableHead>
+                  <TableHead>Payment Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -143,7 +145,11 @@ export default function RentalsPage() {
                         {rental.rentAmount?.toLocaleString() || "N/A"}
                         <span className="text-xs text-muted-foreground capitalize ml-1">/{rental.rentFrequency?.slice(0,2)}</span>
                       </TableCell>
-                      <TableCell>{format(new Date(rental.startDate), "dd MMM, yyyy")}</TableCell>
+                       <TableCell>
+                        <Badge variant={rental.paymentStatus === 'Paid' ? 'secondary' : 'destructive'} className={cn(rental.paymentStatus === 'Paid' && "border-green-500 text-green-600")}>
+                            {rental.paymentStatus}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right space-x-1">
                         <Button variant="ghost" size="icon" title="View Details" onClick={(e) => { e.stopPropagation(); handleOpenDetails(rental); }}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" title="Edit Rental Details" onClick={(e) => { e.stopPropagation(); handleOpenForm(rental); }}><Edit className="h-4 w-4" /></Button>
@@ -189,6 +195,7 @@ export default function RentalsPage() {
         isOpen={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}
         rental={viewingRental}
+        onUpdate={fetchRentals}
       />
     </>
   );

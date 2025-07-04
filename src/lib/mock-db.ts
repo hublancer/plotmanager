@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Property, Employee, Transaction, InstallmentDetails, Rental, Lead } from "@/types";
+import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -204,8 +205,14 @@ export const addTransaction = async (transactionData: Omit<Transaction, 'id' | '
     return safeDBOperation(async () => {
         let propertyName: string | undefined = undefined;
         if (transactionData.propertyId) {
-            const property = await getPropertyById(transactionData.propertyId);
-            propertyName = property ? property.name : "N/A";
+            // Check rentals first, then properties
+            let rental = await getRentalById(transactionData.propertyId);
+            if(rental) {
+              propertyName = rental.name;
+            } else {
+              const property = await getPropertyById(transactionData.propertyId);
+              propertyName = property ? property.name : "N/A";
+            }
         }
         
         const dataToSave = {
@@ -274,17 +281,53 @@ export const deleteLead = async (id: string): Promise<boolean> => {
 // ===== Rentals (New Standalone System) =====
 export const getRentals = async (userId: string): Promise<Rental[]> => {
     return safeDBOperation(async () => {
-        const q = query(rentalsCollection!, where("userId", "==", userId));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToRental);
+        const rentalsQuery = query(rentalsCollection!, where("userId", "==", userId));
+        const [rentalsSnapshot, transactions] = await Promise.all([
+            getDocs(rentalsQuery),
+            getTransactions(userId),
+        ]);
+
+        const rentalDocs = rentalsSnapshot.docs.map(mapDocToRental);
+
+        return rentalDocs.map(rental => {
+            const now = new Date();
+            let interval: { start: Date, end: Date };
+
+            if (rental.rentFrequency === 'yearly') {
+                interval = { start: startOfYear(now), end: endOfYear(now) };
+            } else { // default to monthly
+                interval = { start: startOfMonth(now), end: endOfMonth(now) };
+            }
+
+            const hasPaid = transactions.some(t => 
+                t.propertyId === rental.id &&
+                t.type === 'income' &&
+                t.category === 'rent' &&
+                isWithinInterval(new Date(t.date), interval)
+            );
+            
+            return {
+                ...rental,
+                paymentStatus: hasPaid ? 'Paid' : 'Due'
+            };
+        });
+
     }, []);
 };
 
-export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<Rental> => {
+export const getRentalById = async (id: string): Promise<Rental | null> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'rentals', id);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists() ? mapDocToRental(docSnap) : null;
+    }, null);
+};
+
+export const addRental = async (rentalData: Omit<Rental, 'id' | 'paymentStatus'>): Promise<Rental> => {
     return safeDBOperation(async () => {
         const docRef = await addDoc(rentalsCollection!, rentalData);
-        return { id: docRef.id, ...rentalData };
-    }, rentalData as Rental);
+        return { id: docRef.id, ...rentalData, paymentStatus: 'Due' };
+    }, { ...rentalData, paymentStatus: 'Due' } as Rental);
 };
 
 export const updateRental = async (id: string, updates: Partial<Rental>): Promise<Rental | null> => {
