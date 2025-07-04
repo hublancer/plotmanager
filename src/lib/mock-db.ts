@@ -13,7 +13,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, Transaction, InstallmentDetails, RentedPropertyDetails, Lead } from "@/types";
+import type { Property, Employee, Transaction, InstallmentDetails, Rental, Lead } from "@/types";
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -24,6 +24,7 @@ const employeesCollection = db ? collection(db, 'employees') : null;
 const transactionsCollection = db ? collection(db, 'transactions') : null;
 const usersCollection = db ? collection(db, 'users') : null;
 const leadsCollection = db ? collection(db, 'leads') : null;
+const rentalsCollection = db ? collection(db, 'rentals') : null;
 
 
 // Helper to safely execute DB operations
@@ -44,6 +45,7 @@ const mapDocToProperty = (doc: any): Property => ({ id: doc.id, ...doc.data() } 
 const mapDocToEmployee = (doc: any): Employee => ({ id: doc.id, ...doc.data() } as Employee);
 const mapDocToTransaction = (doc: any): Transaction => ({ id: doc.id, ...doc.data() } as Transaction);
 const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
+const mapDocToRental = (doc: any): Rental => ({ id: doc.id, ...doc.data() } as Rental);
 
 // ===== Users =====
 export const getUserProfileByUID = async (uid: string): Promise<any | null> => {
@@ -269,6 +271,38 @@ export const deleteLead = async (id: string): Promise<boolean> => {
     }, false);
 };
 
+// ===== Rentals (New Standalone System) =====
+export const getRentals = async (userId: string): Promise<Rental[]> => {
+    return safeDBOperation(async () => {
+        const q = query(rentalsCollection!, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(mapDocToRental);
+    }, []);
+};
+
+export const addRental = async (rentalData: Omit<Rental, 'id'>): Promise<Rental> => {
+    return safeDBOperation(async () => {
+        const docRef = await addDoc(rentalsCollection!, rentalData);
+        return { id: docRef.id, ...rentalData };
+    }, rentalData as Rental);
+};
+
+export const updateRental = async (id: string, updates: Partial<Rental>): Promise<Rental | null> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'rentals', id);
+        await updateDoc(docRef, updates);
+        const updatedDoc = await getDoc(docRef);
+        return updatedDoc.exists() ? mapDocToRental(updatedDoc) : null;
+    }, null);
+};
+
+export const deleteRental = async (id: string): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        await deleteDoc(doc(db!, 'rentals', id));
+        return true;
+    }, false);
+};
+
 
 // ===== Combined/Derived Data =====
 export const getInstallmentProperties = async (userId: string): Promise<InstallmentDetails[]> => {
@@ -329,47 +363,6 @@ export const getInstallmentProperties = async (userId: string): Promise<Installm
         if (a.status === 'Active' && b.status === 'Fully Paid') return -1;
         if (a.status === 'Fully Paid' && b.status === 'Active') return 1;
         return 0;
-    });
-  }, []);
-};
-
-export const getRentedProperties = async (userId: string): Promise<RentedPropertyDetails[]> => {
-  return safeDBOperation(async () => {
-    const propsQuery = query(propertiesCollection!, where("isRented", "==", true), where("userId", "==", userId));
-    const propertiesSnapshot = await getDocs(propsQuery);
-    const rentedProperties = propertiesSnapshot.docs.map(mapDocToProperty);
-    const allTransactions = await getTransactions(userId);
-
-    return rentedProperties.map(p => {
-        const relatedRentPayments = allTransactions
-            .filter(t => t.propertyId === p.id && t.type === 'income' && t.category === 'rent')
-            .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
-        const lastRentPaymentDate = relatedRentPayments.length > 0 ? relatedRentPayments[0].date : undefined;
-
-        let nextDueDate: Date | undefined;
-        // Base date for calculation is the latest payment, or the start date if no payments exist.
-        const baseDateSrc = lastRentPaymentDate ? lastRentPaymentDate : p.rentStartDate;
-        
-        if (baseDateSrc) {
-            const baseDate = new Date(baseDateSrc);
-            if (p.rentFrequency === 'yearly') {
-                nextDueDate = new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1));
-            } else { // default to monthly
-                nextDueDate = new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
-            }
-        }
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize for date-only comparison
-        const status = (p.isRented && nextDueDate && nextDueDate < today) ? 'Overdue' : 'Active';
-
-        return { 
-            ...p, 
-            lastRentPaymentDate, 
-            nextRentDueDate: nextDueDate?.toISOString(),
-            status
-        };
     });
   }, []);
 };

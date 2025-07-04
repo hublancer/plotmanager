@@ -2,17 +2,15 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getRentedProperties, getProperties, updateProperty } from "@/lib/mock-db";
-import type { RentedPropertyDetails, Property } from "@/types";
+import { getRentals, deleteRental } from "@/lib/mock-db";
+import type { Rental } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,31 +23,32 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { RentalFormDialog } from "@/components/rentals/rental-form-dialog";
-import { Eye, Edit, PlusCircle, Loader2, Search, Trash2 } from "lucide-react";
+import { RentalDetailsDialog } from "@/components/rentals/rental-details-dialog";
+import { Edit, PlusCircle, Loader2, Search, Trash2, Eye } from "lucide-react";
+import { format } from "date-fns";
 
 export default function RentalsPage() {
-  const [rentals, setRentals] = useState<RentedPropertyDetails[]>([]);
-  const [allProperties, setAllProperties] = useState<Property[]>([]);
+  const [rentals, setRentals] = useState<Rental[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingRental, setEditingRental] = useState<RentedPropertyDetails | null>(null);
+  const [editingRental, setEditingRental] = useState<Rental | null>(null);
+
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [viewingRental, setViewingRental] = useState<Rental | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const fetchAllData = useCallback(async () => {
+  const fetchRentals = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
     try {
-      const [rentalsData, propertiesData] = await Promise.all([
-        getRentedProperties(user.uid),
-        getProperties(user.uid),
-      ]);
-      setRentals(rentalsData.sort((a, b) => (a.status === 'Overdue' ? -1 : 1))); // Sort overdues to top
-      setAllProperties(propertiesData);
+      const rentalsData = await getRentals(user.uid);
+      setRentals(rentalsData.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
     } catch (error) {
-      console.error("Failed to fetch data:", error);
+      console.error("Failed to fetch rentals:", error);
       toast({ title: "Error", description: "Could not fetch rental data.", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -57,27 +56,26 @@ export default function RentalsPage() {
   }, [user, toast]);
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    fetchRentals();
+  }, [fetchRentals]);
 
-  const handleOpenForm = (rental: RentedPropertyDetails | null = null) => {
+  const handleOpenForm = (rental: Rental | null = null) => {
     setEditingRental(rental);
     setIsFormOpen(true);
   };
   
-  const handleEndRental = async (propertyId: string) => {
-    const success = await updateProperty(propertyId, { 
-      isRented: false,
-      tenantName: "",
-      rentAmount: 0,
-      rentFrequency: "monthly",
-      rentStartDate: ""
-    });
+  const handleOpenDetails = (rental: Rental) => {
+    setViewingRental(rental);
+    setIsDetailsOpen(true);
+  }
+
+  const handleDeleteRental = async (rentalId: string) => {
+    const success = await deleteRental(rentalId);
     if (success) {
-      toast({ title: "Rental Ended", description: "The property is now marked as available." });
-      fetchAllData();
+      toast({ title: "Rental Deleted", description: "The rental listing has been removed." });
+      fetchRentals();
     } else {
-      toast({ title: "Error", description: "Could not end the rental agreement.", variant: "destructive" });
+      toast({ title: "Error", description: "Could not delete the rental listing.", variant: "destructive" });
     }
   };
 
@@ -85,7 +83,7 @@ export default function RentalsPage() {
     return rentals.filter(r => 
       r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (r.tenantName && r.tenantName.toLowerCase().includes(searchTerm.toLowerCase()))
+      r.tenantName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [rentals, searchTerm]);
 
@@ -95,7 +93,7 @@ export default function RentalsPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-2xl font-semibold">Rental Management</h2>
-            <p className="text-muted-foreground">Track your active and overdue rental properties.</p>
+            <p className="text-muted-foreground">Manage your standalone rental properties.</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
@@ -126,54 +124,44 @@ export default function RentalsPage() {
                   <TableHead>Property</TableHead>
                   <TableHead>Tenant</TableHead>
                   <TableHead>Rent (PKR)</TableHead>
-                  <TableHead>Next Due Date</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Start Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin inline-block" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin inline-block" /></TableCell></TableRow>
                 ) : filteredRentals.length > 0 ? (
-                  filteredRentals.map((prop) => (
-                    <TableRow key={prop.id}>
+                  filteredRentals.map((rental) => (
+                    <TableRow key={rental.id} className="cursor-pointer" onClick={() => handleOpenDetails(rental)}>
                       <TableCell>
-                        <div className="font-medium">{prop.name}</div>
-                        <div className="text-xs text-muted-foreground">{prop.address}</div>
+                        <div className="font-medium">{rental.name}</div>
+                        <div className="text-xs text-muted-foreground">{rental.address}</div>
                       </TableCell>
-                      <TableCell>{prop.tenantName || "N/A"}</TableCell>
+                      <TableCell>{rental.tenantName || "N/A"}</TableCell>
                       <TableCell>
-                        {prop.rentAmount?.toLocaleString() || "N/A"}
-                        <span className="text-xs text-muted-foreground capitalize ml-1">/{prop.rentFrequency?.slice(0,2)}</span>
+                        {rental.rentAmount?.toLocaleString() || "N/A"}
+                        <span className="text-xs text-muted-foreground capitalize ml-1">/{rental.rentFrequency?.slice(0,2)}</span>
                       </TableCell>
-                      <TableCell>{prop.nextRentDueDate ? new Date(prop.nextRentDueDate).toLocaleDateString() : "N/A"}</TableCell>
-                      <TableCell>
-                        {prop.status === 'Overdue' ? (
-                          <Badge variant="destructive">Overdue</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-green-600">Active</Badge>
-                        )}
-                      </TableCell>
+                      <TableCell>{format(new Date(rental.startDate), "dd MMM, yyyy")}</TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Link href={`/properties/${prop.id}`} passHref>
-                            <Button variant="ghost" size="icon" title="View Property Details"><Eye className="h-4 w-4" /></Button>
-                        </Link>
-                        <Button variant="ghost" size="icon" title="Edit Rental Details" onClick={() => handleOpenForm(prop)}><Edit className="h-4 w-4" /></Button>
-                        <AlertDialog>
+                        <Button variant="ghost" size="icon" title="View Details" onClick={(e) => { e.stopPropagation(); handleOpenDetails(rental); }}><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" title="Edit Rental Details" onClick={(e) => { e.stopPropagation(); handleOpenForm(rental); }}><Edit className="h-4 w-4" /></Button>
+                        <AlertDialog onOpenChange={(e) => e.stopPropagation()}>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="End Rental" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" title="Delete Rental" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4" /></Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>End Rental Agreement?</AlertDialogTitle>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will mark the property "{prop.name}" as available and clear the current tenant details. This action cannot be undone.
+                                This will permanently delete the rental record for "{rental.name}". This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleEndRental(prop.id)} className="bg-destructive hover:bg-destructive/90">
-                                Yes, End Rental
+                              <AlertDialogAction onClick={() => handleDeleteRental(rental.id)} className="bg-destructive hover:bg-destructive/90">
+                                Yes, Delete Rental
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -182,7 +170,7 @@ export default function RentalsPage() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24">No rented properties found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center h-24">No rental listings found.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -193,9 +181,14 @@ export default function RentalsPage() {
       <RentalFormDialog
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
-        onRentalUpdate={fetchAllData}
+        onUpdate={fetchRentals}
         initialData={editingRental}
-        properties={allProperties}
+      />
+
+      <RentalDetailsDialog
+        isOpen={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        rental={viewingRental}
       />
     </>
   );

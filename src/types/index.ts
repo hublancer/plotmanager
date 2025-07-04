@@ -1,4 +1,5 @@
 
+
 export interface PlotData {
   id: string;
   plotNumber: string;
@@ -74,10 +75,24 @@ export interface InstallmentDetails extends Property {
   installmentAmount: number; // The calculated amount for each installment
 }
 
-export interface RentedPropertyDetails extends Property {
-  lastRentPaymentDate?: string; // ISO date string of the last rent payment
-  nextRentDueDate?: string; // Calculated next due date
-  status?: 'Active' | 'Overdue'; // Derived from nextRentDueDate
+export interface Rental {
+  id: string;
+  userId: string;
+  // Property Details
+  name: string; 
+  address: string;
+  propertyType: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  // Tenant Details
+  tenantName: string;
+  tenantContact: string;
+  tenantIdCard?: string;
+  // Rental Terms
+  rentAmount: number;
+  rentFrequency: 'monthly' | 'yearly';
+  startDate: string; // ISO date string
+  notes?: string;
 }
 
 export interface Employee {
