@@ -65,6 +65,7 @@ export interface Property {
   // Installment related
   isSoldOnInstallment?: boolean;
   buyerName?: string; // For installment sales
+  buyerContact?: string;
   purchaseDate?: string; // ISO date string
   totalInstallmentPrice?: number;
   downPayment?: number;
@@ -108,6 +109,7 @@ export interface InstallmentItem {
     address: string;
     plotNumber?: string;
     buyerName: string;
+    buyerContact?: string;
     totalInstallmentPrice: number;
     paidAmount: number;
     remainingAmount: number;

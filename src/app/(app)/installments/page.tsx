@@ -128,11 +128,8 @@ export default function InstallmentsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                         <Link href={`/properties/${item.propertyId}`} passHref>
-                           <Button variant="ghost" size="icon" title="View/Edit Property"><Eye className="h-4 w-4" /></Button>
-                         </Link>
                          <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(item)}>
-                            <Settings className="h-4 w-4 mr-2" /> Manage
+                           <Eye className="h-4 w-4 mr-2" /> View / Manage
                          </Button>
                          <AlertDialog>
                           <AlertDialogTrigger asChild>

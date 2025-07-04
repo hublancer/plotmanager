@@ -13,7 +13,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData } from "@/types";
+import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead } from "@/types";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 
 if (!db) {
@@ -338,7 +338,7 @@ export const endRental = async (propertyId: string, plotId?: string): Promise<bo
             });
             updates = { plots: newPlots };
         } else { // Ending a property-level rental
-             updates = { isRented: false, tenantName: null, rentAmount: null, rentFrequency: null, rentStartDate: null };
+             updates = { isRented: false, tenantName: undefined, rentAmount: undefined, rentFrequency: undefined, rentStartDate: undefined };
         }
         
         await updateProperty(propertyId, updates);
@@ -400,7 +400,7 @@ export const endInstallmentPlan = async (propertyId: string, plotId?: string): P
             });
             updates = { plots: newPlots };
         } else { // Ending a property-level plan
-             updates = { isSoldOnInstallment: false, buyerName: null, totalInstallmentPrice: null, downPayment: null, installmentFrequency: null, installmentDuration: null, purchaseDate: null };
+             updates = { isSoldOnInstallment: false, buyerName: undefined, buyerContact: undefined, totalInstallmentPrice: undefined, downPayment: undefined, installmentFrequency: undefined, installmentDuration: undefined, purchaseDate: undefined };
         }
         
         await updateProperty(propertyId, updates);
@@ -417,6 +417,7 @@ function calculateInstallmentItem(prop: Property, transactions: Transaction[], s
         frequency: prop.installmentFrequency!,
         duration: prop.installmentDuration!,
         buyerName: prop.buyerName!,
+        buyerContact: prop.buyerContact,
     };
     
     const relatedPayments = transactions.filter(t => 
@@ -466,6 +467,7 @@ function calculateInstallmentItem(prop: Property, transactions: Transaction[], s
         address: prop.address,
         plotNumber: plot?.plotNumber,
         buyerName: details.buyerName,
+        buyerContact: details.buyerContact,
         totalInstallmentPrice: details.totalPrice,
         paidAmount,
         remainingAmount: remainingAmount < 0.01 ? 0 : remainingAmount,
@@ -487,4 +489,3 @@ export const getAllMockProperties = async (userId: string) : Promise<Pick<Proper
         return snapshot.docs.map(doc => ({id: doc.id, name: doc.data().name as string}));
     }, []);
 }
-

@@ -141,7 +141,10 @@ export default function RentalsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="icon" title="View Details" onClick={() => handleOpenDetails(rental)}><Eye className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="sm" onClick={() => handleOpenDetails(rental)}>
+                           <Eye className="h-4 w-4 mr-2" />
+                           View Details
+                        </Button>
                         <Link href={`/properties/${rental.propertyId}`} passHref>
                           <Button variant="ghost" size="icon" title="Edit Property"><Edit className="h-4 w-4" /></Button>
                         </Link>

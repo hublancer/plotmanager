@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Receipt } from "lucide-react";
+import { Loader2, Receipt, Phone } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { WhatsAppIcon } from "../icons/whatsapp";
 
 interface ManageInstallmentDialogProps {
   isOpen: boolean;
@@ -152,20 +153,40 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
              </Card>
           </div>
         </div>
-        <DialogFooter>
-          <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
-          <Button 
-            onClick={handleRecordPayment} 
-            disabled={isSubmitting || isFullyPaid}
-          >
-            {isSubmitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : isFullyPaid ? (
-              "Plan Fully Paid"
-            ) : (
-              `Record Payment (PKR ${installmentItem.installmentAmount.toLocaleString(undefined, {maximumFractionDigits: 0})})`
-            )}
-          </Button>
+        <DialogFooter className="sm:justify-between items-center pt-4 border-t flex-wrap gap-2">
+           <div className="flex items-center gap-2">
+              {installmentItem.buyerContact && (
+                  <>
+                      <Button asChild variant="outline" className="bg-green-500 text-white hover:bg-green-600 border-green-600">
+                          <a href={`https://wa.me/${installmentItem.buyerContact.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                              <WhatsAppIcon className="h-5 w-5 fill-current mr-2" />
+                              WhatsApp
+                          </a>
+                      </Button>
+                      <Button asChild variant="outline">
+                          <a href={`tel:${installmentItem.buyerContact.replace(/\D/g, '')}`} aria-label="Call">
+                              <Phone className="h-5 w-5 mr-2" />
+                              Call
+                          </a>
+                      </Button>
+                  </>
+              )}
+          </div>
+          <div className="flex items-center gap-2">
+            <DialogClose asChild><Button variant="outline">Close</Button></DialogClose>
+            <Button 
+              onClick={handleRecordPayment} 
+              disabled={isSubmitting || isFullyPaid}
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : isFullyPaid ? (
+                "Plan Fully Paid"
+              ) : (
+                `Record Payment (PKR ${installmentItem.installmentAmount.toLocaleString(undefined, {maximumFractionDigits: 0})})`
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
