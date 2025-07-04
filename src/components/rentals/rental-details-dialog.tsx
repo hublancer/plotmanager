@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Rental, Transaction } from "@/types";
@@ -21,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getTransactions, addTransaction } from "@/lib/mock-db";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { ScrollArea } from "../ui/scroll-area";
-import { Card } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 
 interface RentalDetailsDialogProps {
     isOpen: boolean;
