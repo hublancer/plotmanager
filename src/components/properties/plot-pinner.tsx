@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { PlotData } from "@/types";
@@ -53,12 +52,14 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   }, [currentIndex]);
   
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
+    // This check combined with the timeout in handleMouseUp helps differentiate a click from a drag.
     if (!imageContainerRef.current || isDragging) return;
 
     const rect = imageContainerRef.current.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
 
+    // Convert screen coordinates to coordinates on the unscaled image
     const unscaledX = (clickX - position.x) / scale;
     const unscaledY = (clickY - position.y) / scale;
     
@@ -68,7 +69,8 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       const plotContainerY = plot.y / 100 * rect.height;
       const distance = Math.sqrt(Math.pow(plotContainerX - unscaledX, 2) + Math.pow(plotContainerY - unscaledY, 2));
 
-      if (distance < 12) { // Clickable radius of 12px on unscaled image
+      // Clickable radius is 12px in the unscaled image. This area grows with zoom.
+      if (distance < 12) {
         setSelectedPlot(plot);
         setIsEditing(true);
         setShowDialog(true);
@@ -77,13 +79,14 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       }
     }
     
-    if (scale > 1) {
-      toast({ title: "Zoom Out to Pin", description: "Please reset zoom to add a new plot." });
-      return;
-    }
-
+    // Calculate percentage position for the new pin
     const xPercent = (unscaledX / rect.width) * 100;
     const yPercent = (unscaledY / rect.height) * 100;
+
+    // Prevent pinning outside the image boundaries
+    if (xPercent < 0 || xPercent > 100 || yPercent < 0 || yPercent > 100) {
+      return;
+    }
     
     setTempPin({ x: xPercent, y: yPercent });
     setSelectedPlot(null);
@@ -143,6 +146,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   };
 
   const handleMouseUp = () => {
+    // Use a short timeout to prevent the `onClick` event from firing after a drag
     setTimeout(() => setIsDragging(false), 50);
   };
   
@@ -187,6 +191,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
         {currentImagePlots.map(plot => {
           const rect = imageContainerRef.current?.getBoundingClientRect();
           if (!rect) return null;
+          // Calculate the pin's position in screen space, accounting for zoom and pan
           const transformedX = (plot.x / 100 * rect.width) * scale + position.x;
           const transformedY = (plot.y / 100 * rect.height) * scale + position.y;
           return (
@@ -196,7 +201,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
               style={{ 
                 left: `${transformedX}px`, 
                 top: `${transformedY}px`,
-                transform: `scale(${1 / scale})`, // Counter-scale the pin itself
+                transform: `scale(${1 / scale})`, // Counter-scale the pin to keep its size consistent
                 backgroundColor: plot.color || 'rgba(59, 130, 246, 0.8)',
                 border: `${2 / scale}px solid hsl(var(--primary-foreground, 0 0% 100%))`
               }}
