@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth } from "@/context/auth-context";
 
 const reportFormSchema = z.object({
-  reportType: z.enum(["summary", "detailed"]),
+  reportType: z.enum(["sales_summary", "sales_detailed", "rentals", "installments"]),
 });
 
 type ReportFormValues = z.infer<typeof reportFormSchema>;
@@ -29,7 +29,7 @@ export default function ReportsPage() {
   const form = useForm<ReportFormValues>({
     resolver: zodResolver(reportFormSchema),
     defaultValues: {
-      reportType: "summary",
+      reportType: "sales_summary",
     },
   });
 
@@ -41,14 +41,13 @@ export default function ReportsPage() {
     setIsLoading(true);
     setReportOutput(null);
     try {
-      // Input for the flow now only contains reportType
       const input: GenerateSalesReportInput = {
         reportType: values.reportType,
         userId: user.uid,
       };
-      const result = await generateSalesReport(input); // The flow itself will fetch and process data
+      const result = await generateSalesReport(input);
       setReportOutput(result);
-      toast({ title: "Report Generated", description: "AI sales report has been successfully created." });
+      toast({ title: "Report Generated", description: "AI business report has been successfully created." });
     } catch (error) {
       console.error("Error generating report:", error);
       toast({
@@ -60,14 +59,21 @@ export default function ReportsPage() {
       setIsLoading(false);
     }
   };
+  
+  const reportTypeLabels: Record<ReportFormValues['reportType'], string> = {
+    sales_summary: "Sales Summary",
+    sales_detailed: "Detailed Sales Report",
+    rentals: "Rentals Report",
+    installments: "Installments Report",
+  };
 
   return (
     <div className="space-y-6">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">AI Sales Report Generator</CardTitle>
+          <CardTitle className="text-2xl">AI Business Report Generator</CardTitle>
           <CardDescription>
-            Select the type of report you want the AI to generate. The system will use current property and sales data.
+            Select the type of report you want the AI to generate. The system will use your latest sales, rental, and installment data.
           </CardDescription>
         </CardHeader>
         <Form {...form}>
@@ -86,8 +92,10 @@ export default function ReportsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="summary">Summary Report</SelectItem>
-                          <SelectItem value="detailed">Detailed Report</SelectItem>
+                          <SelectItem value="sales_summary">Sales Summary</SelectItem>
+                          <SelectItem value="sales_detailed">Detailed Sales Report</SelectItem>
+                          <SelectItem value="rentals">Rentals Report</SelectItem>
+                          <SelectItem value="installments">Installments Report</SelectItem>
                         </SelectContent>
                       </Select>
                     <FormMessage />
@@ -127,7 +135,7 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle>Generated Report</CardTitle>
             <CardDescription>
-              AI-powered sales report ({form.getValues("reportType") === "summary" ? "Summary" : "Detailed"}).
+              AI-powered business report ({reportTypeLabels[form.getValues("reportType")]}).
             </CardDescription>
           </CardHeader>
           <CardContent>
