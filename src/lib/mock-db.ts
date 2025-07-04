@@ -13,8 +13,8 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead, UserProfile } from "@/types";
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
+import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead, UserProfile, CalendarEvent } from "@/types";
+import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, addMonths, addYears, isBefore } from 'date-fns';
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -25,6 +25,8 @@ const employeesCollection = db ? collection(db, 'employees') : null;
 const transactionsCollection = db ? collection(db, 'transactions') : null;
 const usersCollection = db ? collection(db, 'users') : null;
 const leadsCollection = db ? collection(db, 'leads') : null;
+const eventsCollection = db ? collection(db, 'events') : null;
+
 
 // Helper to safely execute DB operations
 async function safeDBOperation<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
@@ -44,6 +46,7 @@ const mapDocToProperty = (doc: any): Property => ({ id: doc.id, ...doc.data() } 
 const mapDocToEmployee = (doc: any): Employee => ({ id: doc.id, ...doc.data() } as Employee);
 const mapDocToTransaction = (doc: any): Transaction => ({ id: doc.id, ...doc.data() } as Transaction);
 const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
+const mapDocToCalendarEvent = (doc: any): CalendarEvent => ({ id: doc.id, ...doc.data() } as CalendarEvent);
 
 // ===== Users =====
 export const getUserProfileByUID = async (uid: string): Promise<UserProfile | null> => {
@@ -274,6 +277,40 @@ export const deleteLead = async (id: string): Promise<boolean> => {
     }, false);
 };
 
+// ===== Schedule / Calendar Events =====
+export const getCalendarEvents = async (userId: string): Promise<CalendarEvent[]> => {
+    return safeDBOperation(async () => {
+        const q = query(eventsCollection!, where("userId", "==", userId));
+        const snapshot = await getDocs(q);
+        const events = snapshot.docs.map(mapDocToCalendarEvent);
+        return events.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, []);
+};
+
+export const addCalendarEvent = async (eventData: Omit<CalendarEvent, 'id' | 'createdAt'>): Promise<CalendarEvent> => {
+    return safeDBOperation(async () => {
+        const dataToSave = { ...eventData, createdAt: new Date().toISOString() };
+        const docRef = await addDoc(eventsCollection!, dataToSave);
+        return { id: docRef.id, ...dataToSave };
+    }, { ...eventData, createdAt: new Date().toISOString() } as CalendarEvent);
+};
+
+export const updateCalendarEvent = async (id: string, updates: Partial<CalendarEvent>): Promise<CalendarEvent | null> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'events', id);
+        await updateDoc(docRef, updates);
+        const updatedDoc = await getDoc(docRef);
+        return updatedDoc.exists() ? mapDocToCalendarEvent(updatedDoc) : null;
+    }, null);
+};
+
+export const deleteCalendarEvent = async (id: string): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        await deleteDoc(doc(db!, 'events', id));
+        return true;
+    }, false);
+};
+
 
 // ===== DERIVED DATA FOR RENTALS & INSTALLMENTS =====
 
@@ -283,13 +320,18 @@ export const getDerivedRentals = async (userId: string): Promise<RentalItem[]> =
         const allTransactions = await getTransactions(userId);
         const derivedRentals: RentalItem[] = [];
 
+        const now = new Date();
+
         for (const prop of allProperties) {
             // Check for property-level rentals
             if (prop.isRented && prop.tenantName && prop.rentAmount && prop.rentFrequency && prop.rentStartDate) {
+                const interval = rentalInterval(prop.rentFrequency);
                 const hasPaid = allTransactions.some(t => 
                     t.propertyId === prop.id && !t.plotNumber && t.type === 'income' && t.category === 'rent' &&
-                    isWithinInterval(new Date(t.date), rentalInterval(prop.rentFrequency))
+                    isWithinInterval(new Date(t.date), interval)
                 );
+                const nextDueDate = calculateNextDueDate(new Date(prop.rentStartDate), prop.rentFrequency);
+
                 derivedRentals.push({
                     id: prop.id,
                     source: 'property',
@@ -301,6 +343,7 @@ export const getDerivedRentals = async (userId: string): Promise<RentalItem[]> =
                     rentFrequency: prop.rentFrequency,
                     startDate: prop.rentStartDate,
                     paymentStatus: hasPaid ? 'Paid' : 'Due',
+                    nextDueDate: nextDueDate.toISOString(),
                 });
             }
 
@@ -308,10 +351,12 @@ export const getDerivedRentals = async (userId: string): Promise<RentalItem[]> =
             if (prop.plots) {
                 for (const plot of prop.plots) {
                     if (plot.status === 'rented' && plot.rentalDetails) {
+                        const interval = rentalInterval(plot.rentalDetails.rentFrequency);
                         const hasPaid = allTransactions.some(t => 
                             t.propertyId === prop.id && t.plotNumber === plot.plotNumber && t.type === 'income' && t.category === 'rent' &&
-                            isWithinInterval(new Date(t.date), rentalInterval(plot.rentalDetails.rentFrequency))
+                            isWithinInterval(new Date(t.date), interval)
                         );
+                        const nextDueDate = calculateNextDueDate(new Date(plot.rentalDetails.startDate), plot.rentalDetails.rentFrequency);
                         derivedRentals.push({
                             id: plot.id,
                             source: 'plot',
@@ -324,7 +369,8 @@ export const getDerivedRentals = async (userId: string): Promise<RentalItem[]> =
                             rentAmount: plot.rentalDetails.rentAmount,
                             rentFrequency: plot.rentalDetails.rentFrequency,
                             startDate: plot.rentalDetails.startDate,
-                            paymentStatus: hasPaid ? 'Paid' : 'Due'
+                            paymentStatus: hasPaid ? 'Paid' : 'Due',
+                            nextDueDate: nextDueDate.toISOString(),
                         });
                     }
                 }
@@ -343,8 +389,7 @@ export const endRental = async (propertyId: string, plotId?: string): Promise<bo
         if (plotId) { // Ending a plot rental
             const newPlots = prop.plots.map(p => {
                 if (p.id === plotId) {
-                    const { rentalDetails, ...rest } = p;
-                    return { ...rest, status: 'available' as const, rentalDetails: undefined };
+                    return { ...p, status: 'available' as const, rentalDetails: undefined };
                 }
                 return p;
             });
@@ -361,6 +406,24 @@ export const endRental = async (propertyId: string, plotId?: string): Promise<bo
 const rentalInterval = (freq: 'monthly' | 'yearly') => {
     const now = new Date();
     return freq === 'yearly' ? { start: startOfYear(now), end: endOfYear(now) } : { start: startOfMonth(now), end: endOfMonth(now) };
+};
+
+const calculateNextDueDate = (startDate: Date, frequency: 'monthly' | 'yearly'): Date => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    let nextDueDate = new Date(startDate);
+    nextDueDate.setHours(0, 0, 0, 0);
+
+    if (frequency === 'monthly') {
+        while (isBefore(nextDueDate, now)) {
+            nextDueDate = addMonths(nextDueDate, 1);
+        }
+    } else { // yearly
+         while (isBefore(nextDueDate, now)) {
+            nextDueDate = addYears(nextDueDate, 1);
+        }
+    }
+    return nextDueDate;
 };
 
 export const getDerivedInstallmentItems = async (userId: string): Promise<InstallmentItem[]> => {
@@ -405,8 +468,7 @@ export const endInstallmentPlan = async (propertyId: string, plotId?: string): P
         if (plotId) { // Ending a plot plan
             const newPlots = prop.plots.map(p => {
                 if (p.id === plotId) {
-                    const { installmentDetails, ...rest } = p;
-                    return { ...rest, status: 'available' as const, installmentDetails: undefined };
+                    return { ...p, status: 'available' as const, installmentDetails: undefined };
                 }
                 return p;
             });
@@ -455,9 +517,9 @@ function calculateInstallmentItem(prop: Property, transactions: Transaction[], s
         const baseDate = new Date(details.purchaseDate);
         const intervalsPaid = paidInstallments + 1;
         if (details.frequency === 'yearly') {
-            nextDueDate = new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + intervalsPaid));
+            nextDueDate = addYears(baseDate, intervalsPaid);
         } else {
-            nextDueDate = new Date(new Date(baseDate).setMonth(baseDate.getMonth() + intervalsPaid));
+            nextDueDate = addMonths(baseDate, intervalsPaid);
         }
     }
   

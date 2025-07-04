@@ -1,0 +1,79 @@
+
+/* Custom FullCalendar Styles to match ShadCN theme */
+.fc {
+    --fc-border-color: hsl(var(--border));
+    --fc-daygrid-event-dot-width: 8px;
+    --fc-list-event-dot-width: 10px;
+    --fc-event-bg-color: hsl(var(--primary));
+    --fc-event-border-color: hsl(var(--primary));
+    --fc-event-text-color: hsl(var(--primary-foreground));
+    --fc-event-selected-overlay-color: hsla(var(--primary), 0.25);
+    --fc-more-link-bg-color: hsl(var(--muted));
+    --fc-more-link-text-color: hsl(var(--muted-foreground));
+    --fc-today-bg-color: hsla(var(--accent), 0.15);
+    --fc-now-indicator-color: hsl(var(--destructive));
+}
+
+.fc .fc-button-primary {
+    background-color: hsl(var(--primary));
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.fc .fc-button-primary:hover, .fc .fc-button-primary:active {
+    background-color: hsl(var(--primary) / 0.9);
+    border-color: hsl(var(--primary) / 0.9);
+}
+
+.fc .fc-button-primary:disabled {
+    background-color: hsl(var(--muted));
+    border-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+    opacity: 0.7;
+}
+
+.fc .fc-button {
+    background-color: hsl(var(--card));
+    border-color: hsl(var(--border));
+    color: hsl(var(--card-foreground));
+}
+
+.fc .fc-button:hover, .fc .fc-button:active {
+    background-color: hsl(var(--muted));
+}
+
+.fc .fc-toolbar-title {
+    color: hsl(var(--foreground));
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.fc-daygrid-day.fc-day-today {
+    background-color: var(--fc-today-bg-color) !important;
+}
+
+.fc-timegrid-col.fc-day-today {
+     background-color: var(--fc-today-bg-color) !important;
+}
+
+/* Custom event colors */
+.fc-event.event-meeting, .fc-list-event.event-meeting {
+    background-color: hsl(var(--chart-4)) !important;
+    border-color: hsl(var(--chart-4)) !important;
+}
+.fc-event.event-holiday, .fc-list-event.event-holiday {
+    background-color: hsl(var(--chart-3)) !important;
+    border-color: hsl(var(--chart-3)) !important;
+}
+.fc-event.event-rental-due, .fc-list-event.event-rental-due {
+    background-color: hsl(var(--chart-2)) !important;
+    border-color: hsl(var(--chart-2)) !important;
+}
+.fc-event.event-installment-due, .fc-list-event.event-installment-due {
+    background-color: hsl(var(--chart-1)) !important;
+    border-color: hsl(var(--chart-1)) !important;
+}
+.fc-event.event-event, .fc-list-event.event-event {
+    background-color: hsl(var(--primary)) !important;
+    border-color: hsl(var(--primary)) !important;
+}

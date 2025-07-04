@@ -134,6 +134,7 @@ export interface RentalItem {
   rentAmount: number;
   rentFrequency: 'monthly' | 'yearly';
   startDate: string;
+  nextDueDate?: string; // ISO Date String
   paymentStatus: 'Paid' | 'Due';
 }
 
@@ -170,4 +171,16 @@ export interface Lead {
   latitude?: number | null;
   longitude?: number | null;
   notes?: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  userId: string;
+  createdAt: string; // ISO
+  title: string;
+  start: string; // ISO
+  end?: string; // ISO
+  allDay: boolean;
+  type: 'event' | 'meeting' | 'holiday';
+  details?: string;
 }

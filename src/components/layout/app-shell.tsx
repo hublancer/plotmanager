@@ -17,6 +17,7 @@ import {
   Home,
   LogOut,
   Filter,
+  Calendar,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
   { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management", roles: ['admin', 'manager'] },
   { href: "/payments", icon: <CreditCard />, label: "Transactions", tooltip: "Financial Transactions", roles: ['admin', 'manager'] },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments", roles: ['admin', 'manager'] },
+  { href: "/schedule", icon: <Calendar />, label: "Schedule", tooltip: "Company Schedule", roles: ['admin', 'manager'] },
   { href: "/pipeline", icon: <Filter />, label: "Lead Survey", tooltip: "Lead Survey", roles: ['admin', 'manager', 'agent'] },
   { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees", roles: ['admin', 'manager'] }, 
   { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports", roles: ['admin', 'manager'] },
