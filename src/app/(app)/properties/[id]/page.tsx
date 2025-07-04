@@ -15,13 +15,13 @@ import { getPropertyById, updateProperty } from "@/lib/mock-db";
 
 
 export default function PropertyDetailsPage() {
-  const params = useParams();
+  const { id } = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const propertyId = typeof params.id === 'string' ? params.id : '';
+  const propertyId = typeof id === 'string' ? id : '';
 
   useEffect(() => {
     if (propertyId) {
