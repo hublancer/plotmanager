@@ -71,6 +71,9 @@ export default function PropertyDetailsPage() {
     return <div className="text-center py-10">Property not found.</div>;
   }
   
+  const hasAddress = !!property.address;
+  const hasLocationInfo = hasCoordinates || hasAddress;
+
   return (
     <div className="space-y-6">
       <Button variant="outline" onClick={() => router.back()} className="mb-4">
@@ -106,18 +109,18 @@ export default function PropertyDetailsPage() {
           
           <div>
             <h3 className="text-xl font-semibold">Property Location</h3>
-             {hasCoordinates ? (
+             {hasLocationInfo ? (
               <div className="mt-2 flex items-center gap-4 p-4 bg-muted/50 rounded-md border">
                 <MapPin className="h-8 w-8 text-primary flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="font-semibold">Location Pinned</p>
+                  <p className="font-semibold">{hasCoordinates ? "Location Pinned" : "Address Available"}</p>
                   <p className="text-sm text-muted-foreground">
-                    {`Lat: ${property.latitude}, Lng: ${property.longitude}`}
+                    {hasCoordinates ? `Lat: ${property.latitude}, Lng: ${property.longitude}` : property.address}
                   </p>
                 </div>
                 <Button asChild variant="outline">
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`}
+                    href={hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address || '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -129,10 +132,7 @@ export default function PropertyDetailsPage() {
             ) : (
               <div className="mt-2 p-4 bg-muted rounded-md text-center border">
                 <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2"/>
-                <p className="text-muted-foreground">No location coordinates provided for this property.</p>
-                 {property.address && (
-                    <p className="text-xs text-muted-foreground mt-1">Address: {property.address}</p>
-                 )}
+                <p className="text-muted-foreground">No location data provided for this property.</p>
               </div>
             )}
           </div>

@@ -102,6 +102,7 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
     if (!rental) return null;
 
     const hasCoordinates = rental.latitude && rental.longitude;
+    const hasLocationInfo = hasCoordinates || !!rental.address;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -180,10 +181,10 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
                             </Button>
                         </>
                        )}
-                       {hasCoordinates && (
+                       {hasLocationInfo && (
                             <Button asChild variant="outline" className="flex-1">
                                 <a 
-                                    href={`https://www.google.com/maps/search/?api=1&query=${rental.latitude},${rental.longitude}`} 
+                                    href={hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${rental.latitude},${rental.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rental.address)}`} 
                                     target="_blank" 
                                     rel="noopener noreferrer" 
                                     aria-label="View on Map"
