@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getRentals, deleteRental } from "@/lib/mock-db";
-import type { Rental } from "@/types";
+import { getDerivedRentals, endRental } from "@/lib/mock-db";
+import type { RentalItem } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { RentalFormDialog } from "@/components/rentals/rental-form-dialog";
 import { RentalDetailsDialog } from "@/components/rentals/rental-details-dialog";
 import { Edit, PlusCircle, Loader2, Search, Trash2, Eye } from "lucide-react";
 import { format } from "date-fns";
@@ -30,15 +29,12 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default function RentalsPage() {
-  const [rentals, setRentals] = useState<Rental[]>([]);
+  const [rentals, setRentals] = useState<RentalItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingRental, setEditingRental] = useState<Rental | null>(null);
-
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [viewingRental, setViewingRental] = useState<Rental | null>(null);
+  const [viewingRental, setViewingRental] = useState<RentalItem | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,8 +43,8 @@ export default function RentalsPage() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const rentalsData = await getRentals(user.uid);
-      setRentals(rentalsData.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
+      const rentalsData = await getDerivedRentals(user.uid);
+      setRentals(rentalsData);
     } catch (error) {
       console.error("Failed to fetch rentals:", error);
       toast({ title: "Error", description: "Could not fetch rental data.", variant: "destructive" });
@@ -61,31 +57,27 @@ export default function RentalsPage() {
     fetchRentals();
   }, [fetchRentals]);
 
-  const handleOpenForm = (rental: Rental | null = null) => {
-    setEditingRental(rental);
-    setIsFormOpen(true);
-  };
-  
-  const handleOpenDetails = (rental: Rental) => {
+  const handleOpenDetails = (rental: RentalItem) => {
     setViewingRental(rental);
     setIsDetailsOpen(true);
   }
 
-  const handleDeleteRental = async (rentalId: string) => {
-    const success = await deleteRental(rentalId);
+  const handleEndRental = async (rental: RentalItem) => {
+    const success = await endRental(rental.propertyId, rental.source === 'plot' ? rental.id : undefined);
     if (success) {
-      toast({ title: "Rental Deleted", description: "The rental listing has been removed." });
+      toast({ title: "Rental Ended", description: "The property/plot is now marked as available." });
       fetchRentals();
     } else {
-      toast({ title: "Error", description: "Could not delete the rental listing.", variant: "destructive" });
+      toast({ title: "Error", description: "Could not end the rental agreement.", variant: "destructive" });
     }
   };
 
   const filteredRentals = useMemo(() => {
     return rentals.filter(r => 
-      r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.propertyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.tenantName.toLowerCase().includes(searchTerm.toLowerCase())
+      r.tenantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.plotNumber && r.plotNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [rentals, searchTerm]);
 
@@ -95,12 +87,7 @@ export default function RentalsPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-2xl font-semibold">Rental Management</h2>
-            <p className="text-muted-foreground">Manage your standalone rental properties.</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Rental
-            </Button>
+            <p className="text-muted-foreground">Overview of all rented properties and plots.</p>
           </div>
         </div>
 
@@ -111,7 +98,7 @@ export default function RentalsPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search by property, address, or tenant..."
+                  placeholder="Search by property, plot, address, or tenant..."
                   className="pl-8 w-full shadow-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -123,7 +110,7 @@ export default function RentalsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Property</TableHead>
+                  <TableHead>Property / Plot</TableHead>
                   <TableHead>Tenant</TableHead>
                   <TableHead>Rent (PKR)</TableHead>
                   <TableHead>Payment Status</TableHead>
@@ -137,8 +124,10 @@ export default function RentalsPage() {
                   filteredRentals.map((rental) => (
                     <TableRow key={rental.id} className="cursor-pointer" onClick={() => handleOpenDetails(rental)}>
                       <TableCell>
-                        <div className="font-medium">{rental.name}</div>
-                        <div className="text-xs text-muted-foreground">{rental.address}</div>
+                        <div className="font-medium">{rental.propertyName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {rental.plotNumber ? `Plot #${rental.plotNumber}` : rental.address}
+                        </div>
                       </TableCell>
                       <TableCell>{rental.tenantName || "N/A"}</TableCell>
                       <TableCell>
@@ -152,22 +141,21 @@ export default function RentalsPage() {
                       </TableCell>
                       <TableCell className="text-right space-x-1">
                         <Button variant="ghost" size="icon" title="View Details" onClick={(e) => { e.stopPropagation(); handleOpenDetails(rental); }}><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" title="Edit Rental Details" onClick={(e) => { e.stopPropagation(); handleOpenForm(rental); }}><Edit className="h-4 w-4" /></Button>
                         <AlertDialog onOpenChange={(e) => e.stopPropagation()}>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="Delete Rental" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" title="End Rental Agreement" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4" /></Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogTitle>End Rental Agreement?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will permanently delete the rental record for "{rental.name}". This action cannot be undone.
+                                This will mark the property/plot as available and clear tenant data. This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteRental(rental.id)} className="bg-destructive hover:bg-destructive/90">
-                                Yes, Delete Rental
+                              <AlertDialogAction onClick={() => handleEndRental(rental)} className="bg-destructive hover:bg-destructive/90">
+                                Yes, End Agreement
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -183,14 +171,15 @@ export default function RentalsPage() {
           </CardContent>
         </Card>
       </div>
-
-      <RentalFormDialog
-        isOpen={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onUpdate={fetchRentals}
-        initialData={editingRental}
-      />
-
+      {/*
+        This component is no longer used for adding rentals.
+        <RentalFormDialog
+            isOpen={isFormOpen}
+            onOpenChange={setIsFormOpen}
+            onUpdate={fetchRentals}
+            initialData={editingRental}
+        />
+      */}
       <RentalDetailsDialog
         isOpen={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}

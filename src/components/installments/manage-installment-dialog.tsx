@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { addTransaction, getTransactions } from "@/lib/mock-db";
-import type { InstallmentDetails, Transaction } from "@/types";
+import type { InstallmentItem, Transaction } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,10 +26,10 @@ interface ManageInstallmentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
-  installmentPlan: InstallmentDetails;
+  installmentItem: InstallmentItem;
 }
 
-export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, installmentPlan }: ManageInstallmentDialogProps) {
+export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, installmentItem }: ManageInstallmentDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [paymentHistory, setPaymentHistory] = useState<Transaction[]>([]);
@@ -40,13 +40,13 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
     if (isOpen && user) {
       const fetchHistory = async () => {
         setIsLoading(true);
-        const transactions = await getTransactions(user.uid, installmentPlan.id);
+        const transactions = await getTransactions(user.uid, installmentItem.propertyId, installmentItem.plotNumber);
         setPaymentHistory(transactions.filter(t => t.type === 'income' && t.category === 'installment'));
         setIsLoading(false);
       };
       fetchHistory();
     }
-  }, [isOpen, user, installmentPlan.id]);
+  }, [isOpen, user, installmentItem.propertyId, installmentItem.plotNumber]);
 
   const handleRecordPayment = async () => {
     if (!user) {
@@ -57,18 +57,19 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
     try {
       await addTransaction({
         userId: user.uid,
-        propertyId: installmentPlan.id,
-        contactName: installmentPlan.buyerName || "N/A",
-        amount: installmentPlan.installmentAmount,
+        propertyId: installmentItem.propertyId,
+        plotNumber: installmentItem.plotNumber,
+        contactName: installmentItem.buyerName || "N/A",
+        amount: installmentItem.installmentAmount,
         date: new Date().toISOString(),
         type: "income",
         category: "installment",
-        notes: `Installment ${installmentPlan.paidInstallments + 1} of ${installmentPlan.totalInstallments}`,
+        notes: `Installment ${installmentItem.paidInstallments + 1} of ${installmentItem.totalInstallments} for ${installmentItem.propertyName}${installmentItem.plotNumber ? ` (Plot #${installmentItem.plotNumber})` : ''}`,
       });
 
       toast({
         title: "Payment Recorded",
-        description: `Installment for ${installmentPlan.name} has been successfully recorded.`,
+        description: `Installment for ${installmentItem.propertyName} has been successfully recorded.`,
       });
       onUpdate();
       onOpenChange(false);
@@ -84,13 +85,17 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
     }
   };
 
-  const isFullyPaid = installmentPlan.status === 'Fully Paid';
+  const isFullyPaid = installmentItem.status === 'Fully Paid';
+  const title = installmentItem.plotNumber 
+    ? `${installmentItem.propertyName} (Plot #${installmentItem.plotNumber})`
+    : installmentItem.propertyName;
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Manage Installments: {installmentPlan.name}</DialogTitle>
+          <DialogTitle>Manage Installments: {title}</DialogTitle>
           <DialogDescription>
             View payment history and record new installment payments for this plan.
           </DialogDescription>
@@ -101,13 +106,12 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
             <h3 className="font-semibold text-lg">Plan Summary</h3>
             <Card>
               <CardContent className="p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span>Buyer:</span> <span className="font-medium">{installmentPlan.buyerName}</span></div>
-                <div className="flex justify-between"><span>Total Price:</span> <span className="font-medium">PKR {installmentPlan.totalInstallmentPrice?.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span>Down Payment:</span> <span className="font-medium">PKR {installmentPlan.downPayment?.toLocaleString()}</span></div>
-                <div className="flex justify-between text-green-600"><span>Total Paid:</span> <span className="font-medium">PKR {installmentPlan.paidAmount?.toLocaleString()}</span></div>
-                <div className="flex justify-between text-red-600"><span>Remaining:</span> <span className="font-medium">PKR {installmentPlan.remainingAmount?.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span>Installments Paid:</span> <span className="font-medium">{installmentPlan.paidInstallments} / {installmentPlan.totalInstallments}</span></div>
-                <div className="flex justify-between"><span>Installment Amount:</span> <span className="font-medium">PKR {installmentPlan.installmentAmount.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                <div className="flex justify-between"><span>Buyer:</span> <span className="font-medium">{installmentItem.buyerName}</span></div>
+                <div className="flex justify-between"><span>Total Price:</span> <span className="font-medium">PKR {installmentItem.totalInstallmentPrice?.toLocaleString()}</span></div>
+                <div className="flex justify-between text-green-600"><span>Total Paid:</span> <span className="font-medium">PKR {installmentItem.paidAmount?.toLocaleString()}</span></div>
+                <div className="flex justify-between text-red-600"><span>Remaining:</span> <span className="font-medium">PKR {installmentItem.remainingAmount?.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span>Installments Paid:</span> <span className="font-medium">{installmentItem.paidInstallments} / {installmentItem.totalInstallments}</span></div>
+                <div className="flex justify-between"><span>Installment Amount:</span> <span className="font-medium">PKR {installmentItem.installmentAmount.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
               </CardContent>
             </Card>
           </div>
@@ -123,7 +127,7 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
                         <div className="flex flex-col items-center justify-center h-full text-center p-4">
                             <Receipt className="h-10 w-10 text-muted-foreground mb-2"/>
                             <p className="text-muted-foreground">No installment payments recorded yet.</p>
-                            <p className="text-xs text-muted-foreground">Down payment is not listed here.</p>
+                            <p className="text-xs text-muted-foreground">Down payment is not shown here.</p>
                         </div>
                     ) : (
                         <Table>
@@ -159,7 +163,7 @@ export function ManageInstallmentDialog({ isOpen, onOpenChange, onUpdate, instal
             ) : isFullyPaid ? (
               "Plan Fully Paid"
             ) : (
-              `Record Payment (PKR ${installmentPlan.installmentAmount.toLocaleString(undefined, {maximumFractionDigits: 0})})`
+              `Record Payment (PKR ${installmentItem.installmentAmount.toLocaleString(undefined, {maximumFractionDigits: 0})})`
             )}
           </Button>
         </DialogFooter>

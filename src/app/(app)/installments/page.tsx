@@ -5,8 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getInstallmentProperties, updateProperty } from "@/lib/mock-db"; 
-import type { InstallmentDetails } from "@/types";
+import { getDerivedInstallmentItems, endInstallmentPlan } from "@/lib/mock-db"; 
+import type { InstallmentItem } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,16 +24,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { InstallmentPlanFormDialog } from "@/components/installments/installment-plan-form-dialog";
 import { ManageInstallmentDialog } from "@/components/installments/manage-installment-dialog";
 import { Eye, PlusCircle, Loader2, Trash2, Settings } from "lucide-react";
 
 export default function InstallmentsPage() {
-  const [installments, setInstallments] = useState<InstallmentDetails[]>([]);
+  const [installments, setInstallments] = useState<InstallmentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlanFormOpen, setIsPlanFormOpen] = useState(false);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<InstallmentDetails | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<InstallmentItem | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -42,7 +40,7 @@ export default function InstallmentsPage() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const installmentsData = await getInstallmentProperties(user.uid);
+      const installmentsData = await getDerivedInstallmentItems(user.uid);
       setInstallments(installmentsData);
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -55,28 +53,16 @@ export default function InstallmentsPage() {
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
-
-  const handleOpenPlanForm = () => {
-    setIsPlanFormOpen(true);
-  };
   
-  const handleOpenManageDialog = (plan: InstallmentDetails) => {
+  const handleOpenManageDialog = (plan: InstallmentItem) => {
     setSelectedPlan(plan);
     setIsManageDialogOpen(true);
   };
 
-  const handleEndInstallmentPlan = async (propertyId: string) => {
-    const success = await updateProperty(propertyId, { 
-      isSoldOnInstallment: false,
-      buyerName: "",
-      totalInstallmentPrice: 0,
-      downPayment: 0,
-      installmentDuration: 0,
-      installmentFrequency: undefined,
-      purchaseDate: ""
-    });
+  const handleEndInstallmentPlan = async (item: InstallmentItem) => {
+    const success = await endInstallmentPlan(item.propertyId, item.source === 'plot' ? item.id : undefined);
     if (success) {
-      toast({ title: "Installment Plan Ended", description: "The property is no longer on an installment plan." });
+      toast({ title: "Installment Plan Ended", description: "The property/plot is now marked as available." });
       fetchAllData();
     } else {
       toast({ title: "Error", description: "Could not end the installment plan.", variant: "destructive" });
@@ -93,9 +79,7 @@ export default function InstallmentsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Installment Tracking</h2>
-          <Button onClick={handleOpenPlanForm}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Installment Plan
-          </Button>
+          <p className="text-sm text-muted-foreground">Add new installment plans from the property details page.</p>
         </div>
 
         <Card className="shadow-lg">
@@ -103,7 +87,7 @@ export default function InstallmentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Property</TableHead>
+                  <TableHead>Property / Plot</TableHead>
                   <TableHead>Buyer</TableHead>
                   <TableHead>Total Price (PKR)</TableHead>
                   <TableHead>Paid / Remaining</TableHead>
@@ -118,33 +102,33 @@ export default function InstallmentsPage() {
                 {isLoading ? (
                   <TableRow><TableCell colSpan={9} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin inline-block" /></TableCell></TableRow>
                 ) : installments.length > 0 ? (
-                  installments.map((prop) => (
-                    <TableRow key={prop.id}>
+                  installments.map((item) => (
+                    <TableRow key={item.id}>
                       <TableCell>
-                        <Link href={`/properties/${prop.id}`} className="font-medium hover:underline">{prop.name}</Link>
-                        <div className="text-xs text-muted-foreground">{prop.address}</div>
+                        <Link href={`/properties/${item.propertyId}`} className="font-medium hover:underline">{item.propertyName}</Link>
+                        <div className="text-xs text-muted-foreground">{item.plotNumber ? `Plot #${item.plotNumber}`: item.address}</div>
                       </TableCell>
-                       <TableCell>{prop.buyerName || "N/A"}</TableCell>
-                      <TableCell>{prop.totalInstallmentPrice?.toLocaleString()}</TableCell>
+                       <TableCell>{item.buyerName || "N/A"}</TableCell>
+                      <TableCell>{item.totalInstallmentPrice?.toLocaleString()}</TableCell>
                       <TableCell>
-                        <div className="text-green-600">{prop.paidAmount?.toLocaleString()}</div>
-                        <div className="text-destructive">{prop.remainingAmount?.toLocaleString()}</div>
+                        <div className="text-green-600">{item.paidAmount?.toLocaleString()}</div>
+                        <div className="text-destructive">{item.remainingAmount?.toLocaleString()}</div>
                       </TableCell>
-                      <TableCell>{prop.paidInstallments} / {prop.totalInstallments}</TableCell>
-                      <TableCell>{prop.nextDueDate ? new Date(prop.nextDueDate).toLocaleDateString() : 'N/A'}</TableCell>
+                      <TableCell>{item.paidInstallments} / {item.totalInstallments}</TableCell>
+                      <TableCell>{item.nextDueDate ? new Date(item.nextDueDate).toLocaleDateString() : 'N/A'}</TableCell>
                        <TableCell>
-                        <Badge variant={prop.status === 'Overdue' ? 'destructive' : (prop.status === 'Fully Paid' ? 'secondary' : 'outline')}>
-                          {prop.status}
+                        <Badge variant={item.status === 'Overdue' ? 'destructive' : (item.status === 'Fully Paid' ? 'secondary' : 'outline')}>
+                          {item.status}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                           <Progress value={calculateProgress(prop.paidInstallments, prop.totalInstallments)} className="h-2" />
-                           <span className="text-xs text-muted-foreground">{calculateProgress(prop.paidInstallments, prop.totalInstallments).toFixed(0)}%</span>
+                           <Progress value={calculateProgress(item.paidInstallments, item.totalInstallments)} className="h-2" />
+                           <span className="text-xs text-muted-foreground">{calculateProgress(item.paidInstallments, item.totalInstallments).toFixed(0)}%</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                         <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(prop)}>
+                         <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(item)}>
                             <Settings className="h-4 w-4 mr-2" /> Manage
                          </Button>
                          <AlertDialog>
@@ -155,12 +139,12 @@ export default function InstallmentsPage() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>End Installment Plan?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will remove the installment plan from "{prop.name}". This action cannot be undone.
+                                This will remove the installment plan from "{item.propertyName} {item.plotNumber ? `(Plot #${item.plotNumber})` : ''}". This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleEndInstallmentPlan(prop.id)} className="bg-destructive hover:bg-destructive/90">
+                              <AlertDialogAction onClick={() => handleEndInstallmentPlan(item)} className="bg-destructive hover:bg-destructive/90">
                                 Yes, End Plan
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -177,23 +161,17 @@ export default function InstallmentsPage() {
           </CardContent>
         </Card>
         <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
-          This section tracks properties sold under installment plans. You can view payment progress, remaining balances, and due dates.
+          This section tracks properties and plots sold under installment plans. You can view payment progress, remaining balances, and due dates.
           Click 'Manage' to record new installment payments for a plan.
         </CardDescription>
       </div>
-
-      <InstallmentPlanFormDialog
-        isOpen={isPlanFormOpen}
-        onOpenChange={setIsPlanFormOpen}
-        onUpdate={fetchAllData}
-      />
 
       {selectedPlan && (
         <ManageInstallmentDialog
           isOpen={isManageDialogOpen}
           onOpenChange={setIsManageDialogOpen}
           onUpdate={fetchAllData}
-          installmentPlan={selectedPlan}
+          installmentItem={selectedPlan}
         />
       )}
     </>

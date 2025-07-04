@@ -3,16 +3,44 @@
 export interface PlotData {
   id: string;
   plotNumber: string;
-  buyerName: string;
-  buyerContact: string;
-  price: number;
-  x: number; // Percentage from left
-  y: number; // Percentage from top
-  imageIndex: number; // Index in the property's imageUrls array
-  size?: string; // e.g., "5 Marla", "1 Kanal", "250 Sq. Yd."
-  details?: string; // Optional additional details
-  color?: string; // Color for the map pin
+  size?: string;
+  details?: string;
+  x: number;
+  y: number;
+  imageIndex: number;
+  color?: string;
+
+  status: 'available' | 'sold' | 'rented' | 'installment';
+
+  // For 'sold' status
+  saleDetails?: {
+    buyerName: string;
+    buyerContact?: string;
+    price: number;
+    date: string; // ISO
+  };
+
+  // For 'rented' status
+  rentalDetails?: {
+    tenantName: string;
+    tenantContact?: string;
+    rentAmount: number;
+    rentFrequency: 'monthly' | 'yearly';
+    startDate: string; // ISO
+  };
+
+  // For 'installment' status
+  installmentDetails?: {
+    buyerName: string;
+    buyerContact?: string;
+    totalPrice: number;
+    downPayment: number;
+    duration: number;
+    frequency: 'monthly' | 'yearly';
+    purchaseDate: string; // ISO
+  };
 }
+
 
 export interface UserProfile {
   uid: string;
@@ -48,6 +76,11 @@ export interface Property {
   rentAmount?: number;
   rentFrequency?: 'monthly' | 'yearly';
   rentStartDate?: string; // ISO date string
+  
+  // Sold related
+  isSold?: boolean;
+  salePrice?: number;
+  saleDate?: string;
 }
 
 export interface Transaction {
@@ -65,37 +98,42 @@ export interface Transaction {
   notes?: string;
 }
 
-export interface InstallmentDetails extends Property {
-  paidAmount: number;
-  remainingAmount: number;
-  nextDueDate?: string; // Calculated next installment due date
-  status: 'Active' | 'Overdue' | 'Fully Paid';
-  paidInstallments: number;
-  totalInstallments: number;
-  installmentAmount: number; // The calculated amount for each installment
+// Derived type for the Installments Page
+export interface InstallmentItem {
+    id: string; // property.id or plot.id
+    source: 'property' | 'plot';
+    propertyId: string;
+    propertyName: string;
+    address: string;
+    plotNumber?: string;
+    buyerName: string;
+    totalInstallmentPrice: number;
+    paidAmount: number;
+    remainingAmount: number;
+    nextDueDate?: string; // Calculated next installment due date
+    status: 'Active' | 'Overdue' | 'Fully Paid';
+    paidInstallments: number;
+    totalInstallments: number;
+    installmentAmount: number; // The calculated amount for each installment
 }
 
-export interface Rental {
-  id: string;
-  userId: string;
-  // Property Details
-  name: string; 
+
+// Derived type for the Rentals page
+export interface RentalItem {
+  id: string; // property.id if top-level, plot.id if plot-level
+  source: 'property' | 'plot'; // to know how to handle updates/deletes
+  propertyId: string;
+  propertyName: string;
   address: string;
-  propertyType: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  // Tenant Details
+  plotNumber?: string;
   tenantName: string;
-  tenantContact: string;
-  tenantIdCard?: string;
-  // Rental Terms
+  tenantContact?: string;
   rentAmount: number;
   rentFrequency: 'monthly' | 'yearly';
-  startDate: string; // ISO date string
-  notes?: string;
-  // Calculated fields
+  startDate: string;
   paymentStatus: 'Paid' | 'Due';
 }
+
 
 export interface Employee {
   id: string;
@@ -128,4 +166,34 @@ export interface Lead {
   latitude?: number | null;
   longitude?: number | null;
   notes?: string;
+}
+
+// THIS TYPE IS NO LONGER USED, RENTALS ARE DERIVED FROM PROPERTIES/PLOTS
+export interface Rental {
+  id: string;
+  userId: string;
+  name: string; 
+  address: string;
+  propertyType: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  tenantName: string;
+  tenantContact: string;
+  tenantIdCard?: string;
+  rentAmount: number;
+  rentFrequency: 'monthly' | 'yearly';
+  startDate: string; // ISO date string
+  notes?: string;
+  paymentStatus: 'Paid' | 'Due';
+}
+
+// THIS TYPE IS NO LONGER USED, INSTALLMENTS ARE DERIVED FROM PROPERTIES/PLOTS
+export interface InstallmentDetails extends Property {
+    paidAmount: number;
+    remainingAmount: number;
+    nextDueDate?: string; // Calculated next installment due date
+    status: 'Active' | 'Overdue' | 'Fully Paid';
+    paidInstallments: number;
+    totalInstallments: number;
+    installmentAmount: number; // The calculated amount for each installment
 }

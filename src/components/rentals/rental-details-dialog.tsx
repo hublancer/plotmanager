@@ -1,6 +1,7 @@
+
 "use client";
 
-import type { Rental, Transaction } from "@/types";
+import type { RentalItem, Transaction } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ import { Card, CardContent } from "../ui/card";
 interface RentalDetailsDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    rental: Rental | null;
+    rental: RentalItem | null;
     onUpdate: () => void;
 }
 
@@ -53,7 +54,7 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
         if (isOpen && user && rental) {
             const fetchHistory = async () => {
                 setIsLoadingHistory(true);
-                const transactions = await getTransactions(user.uid, rental.id);
+                const transactions = await getTransactions(user.uid, rental.propertyId, rental.plotNumber);
                 setPaymentHistory(transactions.filter(t => t.type === 'income' && t.category === 'rent'));
                 setIsLoadingHistory(false);
             };
@@ -70,22 +71,23 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
         try {
           await addTransaction({
             userId: user.uid,
-            propertyId: rental.id,
+            propertyId: rental.propertyId,
+            plotNumber: rental.plotNumber,
             contactName: rental.tenantName,
             amount: rental.rentAmount,
             date: new Date().toISOString(),
             type: "income",
             category: "rent",
-            notes: `Rent for ${rental.name} - ${format(new Date(), 'MMMM yyyy')}`,
+            notes: `Rent for ${rental.propertyName}${rental.plotNumber ? ` (Plot #${rental.plotNumber})` : ''} - ${format(new Date(), 'MMMM yyyy')}`,
             createdBy: user.uid,
           });
     
           toast({
             title: "Payment Recorded",
-            description: `Rent payment for ${rental.name} has been successfully recorded.`,
+            description: `Rent payment for ${rental.propertyName} has been successfully recorded.`,
           });
-          onUpdate(); // This will refetch rentals and update the status
-          onOpenChange(false); // Close the dialog
+          onUpdate(); 
+          onOpenChange(false);
         } catch (error) {
           console.error("Failed to record payment:", error);
           toast({
@@ -101,14 +103,11 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
 
     if (!rental) return null;
 
-    const hasCoordinates = rental.latitude && rental.longitude;
-    const hasLocationInfo = hasCoordinates || !!rental.address;
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>{rental.name}</DialogTitle>
+                    <DialogTitle>{rental.propertyName}{rental.plotNumber ? ` - Plot #${rental.plotNumber}` : ''}</DialogTitle>
                     <DialogDescription>{rental.address}</DialogDescription>
                 </DialogHeader>
                 <div className="grid md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto px-1">
@@ -117,14 +116,8 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
                         <h3 className="font-semibold text-md text-primary border-b pb-1">Tenant & Rental Info</h3>
                         <DetailRow icon={<User className="h-5 w-5"/>} label="Tenant Name" value={rental.tenantName} />
                         <DetailRow icon={<Phone className="h-5 w-5"/>} label="Tenant Contact" value={rental.tenantContact} />
-                        <DetailRow icon={<BadgeInfo className="h-5 w-5"/>} label="Tenant CNIC" value={rental.tenantIdCard} />
-                        <DetailRow icon={<Building className="h-5 w-5"/>} label="Property Type" value={rental.propertyType} />
                         <DetailRow icon={<DollarSign className="h-5 w-5"/>} label={`Rent Amount (${rental.rentFrequency})`} value={rental.rentAmount} />
                         <DetailRow icon={<Calendar className="h-5 w-5"/>} label="Agreement Start Date" value={format(new Date(rental.startDate), 'PPP')} />
-                        <DetailRow icon={<FileText className="h-5 w-5"/>} label="Notes" value={rental.notes} />
-                        {hasCoordinates && (
-                            <DetailRow icon={<LocateFixed className="h-5 w-5"/>} label="Pinned Location" value={`Lat: ${rental.latitude?.toFixed(4)}, Lng: ${rental.longitude?.toFixed(4)}`} />
-                        )}
                     </div>
                      {/* Right Column - Payment History */}
                     <div className="space-y-4">
@@ -181,19 +174,6 @@ export function RentalDetailsDialog({ isOpen, onOpenChange, rental, onUpdate }: 
                             </Button>
                         </>
                        )}
-                       {hasLocationInfo && (
-                            <Button asChild variant="outline" className="flex-1">
-                                <a 
-                                    href={hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${rental.latitude},${rental.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rental.address)}`} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    aria-label="View on Map"
-                                >
-                                    <MapPin className="h-5 w-5 mr-2" />
-                                    Location
-                                </a>
-                            </Button>
-                        )}
                     </div>
                     <DialogClose asChild>
                         <Button type="button" variant="secondary">Close</Button>

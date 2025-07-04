@@ -1,17 +1,30 @@
 
 "use client";
 
-import type { PlotData } from "@/types";
+import type { PlotData, Property } from "@/types";
 import Image from "next/image";
-import { useState, useRef, MouseEvent, useEffect, useMemo } from "react";
+import { useState, useRef, MouseEvent, useEffect, useMemo, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Edit2, Trash2, MapPin, Scaling, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { PlusCircle, Edit2, Trash2, MapPin, Scaling, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCw, Wallet, CalendarClock, Home, CircleDollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { addTransaction, updateProperty } from "@/lib/mock-db";
+import { useAuth } from "@/context/auth-context";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { format } from "date-fns";
+import { Calendar } from "../ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+
 
 // Define a palette of colors for the pins
 const pinColors = [
@@ -26,13 +39,12 @@ const pinColors = [
 ];
 
 interface PlotPinnerProps {
-  imageUrls: string[];
-  initialPlots?: PlotData[];
+  property: Property; // Pass the whole property object
   onPlotsChange: (plots: PlotData[]) => void;
 }
 
-export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: PlotPinnerProps) {
-  const [plots, setPlots] = useState<PlotData[]>(initialPlots);
+export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
+  const [plots, setPlots] = useState<PlotData[]>(property.plots || []);
   const [selectedPlot, setSelectedPlot] = useState<PlotData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
@@ -40,6 +52,8 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   const { toast } = useToast();
   const [tempPin, setTempPin] = useState<{ x: number; y: number } | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const { user } = useAuth();
+
 
   // New state for zoom, pan, and pinning mode
   const [scale, setScale] = useState(1);
@@ -121,32 +135,42 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
     setIsPinningMode(false);
   };
 
-  const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex' | 'color'>) => {
-    let newPlots;
-    if (isEditing && selectedPlot) {
-      newPlots = plots.map(p => p.id === selectedPlot.id ? { ...selectedPlot, ...formData } : p);
-    } else if (tempPin) {
-      const randomColor = pinColors[plots.length % pinColors.length];
-      const newPlot: PlotData = { 
-        ...formData, 
-        id: Date.now().toString(), 
-        x: tempPin.x, 
-        y: tempPin.y,
-        imageIndex: currentIndex,
-        color: randomColor,
-      };
-      newPlots = [...plots, newPlot];
+  const handleSavePlot = useCallback(async (newPlotData: PlotData) => {
+    let finalPlots;
+    if (isEditing) {
+      finalPlots = plots.map(p => p.id === newPlotData.id ? newPlotData : p);
     } else {
-      return; 
+      finalPlots = [...plots, newPlotData];
     }
-    setPlots(newPlots);
-    onPlotsChange(newPlots);
+    setPlots(finalPlots);
+    onPlotsChange(finalPlots); // Let parent know about the change
+
+    // Handle side-effects like creating transactions
+    if (newPlotData.status === 'sold' && newPlotData.saleDetails && user) {
+        await addTransaction({
+            userId: user.uid,
+            createdBy: user.uid,
+            type: 'income',
+            category: 'sale',
+            amount: newPlotData.saleDetails.price,
+            date: newPlotData.saleDetails.date,
+            contactName: newPlotData.saleDetails.buyerName,
+            propertyId: property.id,
+            propertyName: property.name,
+            plotNumber: newPlotData.plotNumber,
+            notes: `Sale of Plot #${newPlotData.plotNumber} in ${property.name}`
+        });
+        toast({ title: "Transaction Logged", description: `Sale for Plot #${newPlotData.plotNumber} has been recorded.`})
+    }
+    
     setShowDialog(false);
     setSelectedPlot(null);
     setTempPin(null);
     setIsPinningMode(false); // Ensure pin mode is off
-    toast({ title: "Plot Saved", description: `Plot ${formData.plotNumber} has been ${isEditing ? 'updated' : 'added'}.`});
-  };
+    toast({ title: "Plot Saved", description: `Plot ${newPlotData.plotNumber} has been ${isEditing ? 'updated' : 'added'}.`});
+
+  }, [isEditing, plots, onPlotsChange, toast, user, property.id, property.name]);
+
   
   const handleDeletePlot = (plotId: string) => {
     const newPlots = plots.filter(p => p.id !== plotId);
@@ -160,7 +184,6 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   const handleZoomIn = () => setScale(s => Math.min(s * 1.2, 5));
   const handleZoomOut = () => {
     const newScale = Math.max(scale / 1.2, 1);
-    // If zooming out to 1x, reset position too
     if (newScale <= 1.01) {
         handleReset();
     } else {
@@ -182,7 +205,6 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
 
     const containerRect = imageContainerRef.current.getBoundingClientRect();
 
-    // Calculate the 'contain' dimensions of the image within the frame
     const containerRatio = containerRect.width / containerRect.height;
     const imageRatio = imageDimensions.width / imageDimensions.height;
     let containedWidth: number, containedHeight: number;
@@ -194,29 +216,21 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
         containedHeight = containedWidth / imageRatio;
     }
     
-    // The empty space on each side of the image, BEFORE scaling
     const horizontalPadding = (containerRect.width - containedWidth) / 2;
     const verticalPadding = (containerRect.height - containedHeight) / 2;
     
-    // The scaled-up empty space
     const scaledHorizontalPadding = horizontalPadding * scale;
     const scaledVerticalPadding = verticalPadding * scale;
 
     let newX = e.clientX - dragStart.x;
     let newY = e.clientY - dragStart.y;
     
-    // Limits for translation. We want to prevent the scaled *image* from leaving the frame.
-    // The image's visual left edge is `position.x + scaledHorizontalPadding`. This must be <= `horizontalPadding`.
-    // So, `position.x <= horizontalPadding - scaledHorizontalPadding`. This is `maxX`.
     const maxX = horizontalPadding - scaledHorizontalPadding;
-    // The image's visual right edge is `position.x + scaledHorizontalPadding + (containedWidth * scale)`. This must be >= `horizontalPadding + containedWidth`.
-    // So, `position.x >= (horizontalPadding + containedWidth) - (scaledHorizontalPadding + (containedWidth * scale))`. This is `minX`.
     const minX = (horizontalPadding + containedWidth) - (scaledHorizontalPadding + (containedWidth * scale));
     
     const maxY = verticalPadding - scaledVerticalPadding;
     const minY = (verticalPadding + containedHeight) - (scaledVerticalPadding + (containedHeight * scale));
 
-    // Clamp the new position within the calculated boundaries
     const clampedX = Math.max(minX, Math.min(newX, maxX));
     const clampedY = Math.max(minY, Math.min(newY, maxY));
 
@@ -227,8 +241,8 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
     setTimeout(() => setIsDragging(false), 50);
   };
   
-  const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? imageUrls.length - 1 : prev - 1));
-  const goToNext = () => setCurrentIndex(prev => (prev === imageUrls.length - 1 ? 0 : prev + 1));
+  const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? (property.imageUrls?.length ?? 1) - 1 : prev - 1));
+  const goToNext = () => setCurrentIndex(prev => (prev === (property.imageUrls?.length ?? 1) - 1 ? 0 : prev + 1));
   
   const memoizedImageParams = useMemo(() => {
     if (!imageContainerRef.current || !imageDimensions) {
@@ -253,7 +267,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       left: (rect.width - containedWidth) / 2,
       top: (rect.height - containedHeight) / 2
     };
-  }, [imageDimensions, scale]); // Rerun when image or scale changes
+  }, [imageDimensions]);
   
   const currentImagePlots = plots.filter(p => p.imageIndex === currentIndex);
 
@@ -282,22 +296,24 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
             transition: isDragging ? "none" : "transform 0.1s ease-out",
           }}
         >
-          <Image 
-            key={currentIndex}
-            src={imageUrls[currentIndex]} 
-            alt={`Property layout ${currentIndex + 1}`}
-            layout="fill" 
-            objectFit="contain" 
-            data-ai-hint="property aerial map site plan"
-            draggable="false"
-            priority
-            className="pointer-events-none transition-opacity duration-300"
-            onLoad={(e) => {
-                const img = e.target as HTMLImageElement;
-                setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-            }}
-            style={{ opacity: imageDimensions ? 1 : 0 }}
-          />
+          {property.imageUrls?.[currentIndex] && (
+              <Image 
+                key={currentIndex}
+                src={property.imageUrls[currentIndex]} 
+                alt={`Property layout ${currentIndex + 1}`}
+                layout="fill" 
+                objectFit="contain" 
+                data-ai-hint="property aerial map site plan"
+                draggable="false"
+                priority
+                className="pointer-events-none transition-opacity duration-300"
+                onLoad={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+                }}
+                style={{ opacity: imageDimensions ? 1 : 0 }}
+              />
+          )}
           {imageDimensions && currentImagePlots.map(plot => {
             const pinStyle: React.CSSProperties = {
                 left: `${memoizedImageParams.left + (plot.x / 100 * memoizedImageParams.width)}px`,
@@ -313,7 +329,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
                 key={plot.id}
                 className="absolute flex items-center justify-center rounded-full"
                 style={pinStyle}
-                title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
+                title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'}) - ${plot.status}`}
                 >
                 <MapPin style={{ height: `${16 / scale}px`, width: `${16 / scale}px` }} className="text-primary-foreground" />
                 </div>
@@ -355,20 +371,20 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
             </Button>
           </div>
           
-          {imageUrls.length > 1 && (
+          {(property.imageUrls?.length ?? 0) > 1 && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={goToPrevious} aria-label="Previous Image"><ChevronLeft className="h-5 w-5"/></Button>
-              <span className="text-sm font-medium text-muted-foreground tabular-nums">{currentIndex + 1} / {imageUrls.length}</span>
+              <span className="text-sm font-medium text-muted-foreground tabular-nums">{currentIndex + 1} / {property.imageUrls?.length}</span>
               <Button variant="outline" size="icon" onClick={goToNext} aria-label="Next Image"><ChevronRight className="h-5 w-5"/></Button>
             </div>
           )}
         </div>
 
-        {imageUrls.length > 1 && (
+        {(property.imageUrls?.length ?? 0) > 1 && (
           <div className="relative w-full">
             <div className="overflow-x-auto pb-2">
               <div className="flex gap-2">
-                {imageUrls.map((url, index) => (
+                {property.imageUrls?.map((url, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentIndex(index)}
@@ -396,9 +412,13 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
               setTempPin(null);
             }
           }}
-          plotData={isEditing ? selectedPlot : null}
+          plotData={selectedPlot}
           onSave={handleSavePlot}
           onDelete={selectedPlot ? () => handleDeletePlot(selectedPlot.id) : undefined}
+          isEditing={isEditing}
+          tempPin={tempPin}
+          imageIndex={currentIndex}
+          existingPlotsCount={plots.length}
         />
       )}
       
@@ -416,15 +436,12 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
                   <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: plot.color || 'hsl(var(--primary))' }} />
                   <div className="min-w-0">
                     <p className="font-medium text-foreground truncate">Plot #{plot.plotNumber} {plot.size && <span className="text-xs text-muted-foreground">({plot.size})</span>}</p>
-                    <p className="text-xs text-muted-foreground truncate">Buyer: {plot.buyerName || "N/A"} - Price: PKR {plot.price?.toLocaleString() || "N/A"}</p>
+                    <p className="text-xs text-muted-foreground truncate capitalize">{plot.status}</p>
                   </div>
                 </div>
                 <div className="space-x-1 flex-shrink-0">
                   <Button variant="ghost" size="icon" onClick={() => { setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}>
                     <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeletePlot(plot.id)}>
-                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </li>
@@ -436,100 +453,210 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   );
 }
 
+
+// Form Schemas
+const baseSchema = z.object({
+    plotNumber: z.string().min(1, "Plot number is required."),
+    size: z.string().optional(),
+    details: z.string().optional(),
+});
+
+const soldSchema = baseSchema.extend({
+    status: z.literal('sold'),
+    saleDetails: z.object({
+        buyerName: z.string().min(2, "Buyer name is required."),
+        buyerContact: z.string().optional(),
+        price: z.coerce.number().min(1, "Sale price is required."),
+        date: z.date({ required_error: "Sale date is required." }),
+    })
+});
+
+const rentedSchema = baseSchema.extend({
+    status: z.literal('rented'),
+    rentalDetails: z.object({
+        tenantName: z.string().min(2, "Tenant name is required."),
+        tenantContact: z.string().optional(),
+        rentAmount: z.coerce.number().min(1, "Rent amount is required."),
+        rentFrequency: z.enum(['monthly', 'yearly']),
+        startDate: z.date({ required_error: "Start date is required." }),
+    })
+});
+
+const installmentSchema = baseSchema.extend({
+    status: z.literal('installment'),
+    installmentDetails: z.object({
+        buyerName: z.string().min(2, "Buyer name is required."),
+        buyerContact: z.string().optional(),
+        totalPrice: z.coerce.number().min(1, "Total price is required."),
+        downPayment: z.coerce.number().min(0),
+        duration: z.coerce.number().int().min(1, "Duration is required."),
+        frequency: z.enum(['monthly', 'yearly']),
+        purchaseDate: z.date({ required_error: "Purchase date is required." }),
+    })
+});
+
+const availableSchema = baseSchema.extend({
+    status: z.literal('available'),
+});
+
+const formSchema = z.discriminatedUnion("status", [soldSchema, rentedSchema, installmentSchema, availableSchema]);
+type FormValues = z.infer<typeof formSchema>;
+
+
 interface PlotDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   plotData: PlotData | null;
-  onSave: (data: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex' | 'color'>) => void;
+  onSave: (data: PlotData) => void;
   onDelete?: () => void;
+  isEditing: boolean;
+  tempPin: { x: number; y: number } | null;
+  imageIndex: number;
+  existingPlotsCount: number;
 }
 
-function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete }: PlotDialogProps) {
-  const [plotNumber, setPlotNumber] = useState(plotData?.plotNumber || "");
-  const [buyerName, setBuyerName] = useState(plotData?.buyerName || "");
-  const [buyerContact, setBuyerContact] = useState(plotData?.buyerContact || "");
-  const [price, setPrice] = useState<number | string>(plotData?.price || "");
-  const [size, setSize] = useState(plotData?.size || "");
-  const [details, setDetails] = useState(plotData?.details || "");
+function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditing, tempPin, imageIndex, existingPlotsCount }: PlotDialogProps) {
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: plotData ? {
+        ...plotData,
+        saleDetails: plotData.saleDetails ? { ...plotData.saleDetails, date: new Date(plotData.saleDetails.date) } : undefined,
+        rentalDetails: plotData.rentalDetails ? { ...plotData.rentalDetails, startDate: new Date(plotData.rentalDetails.startDate) } : undefined,
+        installmentDetails: plotData.installmentDetails ? { ...plotData.installmentDetails, purchaseDate: new Date(plotData.installmentDetails.purchaseDate) } : undefined,
+    } : {
+        status: 'available',
+        plotNumber: '',
+        size: '',
+        details: '',
+    },
+  });
+
+  const status = form.watch("status");
 
   useEffect(() => {
-    if (isOpen) {
-        if (plotData) {
-            setPlotNumber(plotData.plotNumber);
-            setBuyerName(plotData.buyerName || "");
-            setBuyerContact(plotData.buyerContact || "");
-            setPrice(plotData.price || "");
-            setSize(plotData.size || "");
-            setDetails(plotData.details || "");
-        } else {
-            setPlotNumber("");
-            setBuyerName("");
-            setBuyerContact("");
-            setPrice("");
-            setSize("");
-            setDetails("");
-        }
+    if (plotData) {
+        form.reset({
+            ...plotData,
+            saleDetails: plotData.saleDetails ? { ...plotData.saleDetails, date: new Date(plotData.saleDetails.date) } : undefined,
+            rentalDetails: plotData.rentalDetails ? { ...plotData.rentalDetails, startDate: new Date(plotData.rentalDetails.startDate) } : undefined,
+            installmentDetails: plotData.installmentDetails ? { ...plotData.installmentDetails, purchaseDate: new Date(plotData.installmentDetails.purchaseDate) } : undefined,
+        });
+    } else {
+        form.reset({
+            status: 'available',
+            plotNumber: '',
+            size: '',
+            details: '',
+        });
     }
-  }, [plotData, isOpen]);
+  }, [plotData, form]);
 
-  const handleSubmit = () => {
-    onSave({ 
-      plotNumber, 
-      buyerName, 
-      buyerContact, 
-      price: Number(price) || 0,
-      size,
-      details
-    });
+  const handleSubmit = (values: FormValues) => {
+    const newPlotData: PlotData = {
+        id: plotData?.id || Date.now().toString(),
+        x: plotData?.x ?? tempPin?.x ?? 0,
+        y: plotData?.y ?? tempPin?.y ?? 0,
+        imageIndex: plotData?.imageIndex ?? imageIndex,
+        color: plotData?.color || pinColors[existingPlotsCount % pinColors.length],
+        ...values,
+        saleDetails: values.status === 'sold' ? { ...values.saleDetails, date: values.saleDetails.date.toISOString() } : undefined,
+        rentalDetails: values.status === 'rented' ? { ...values.rentalDetails, startDate: values.rentalDetails.startDate.toISOString() } : undefined,
+        installmentDetails: values.status === 'installment' ? { ...values.installmentDetails, purchaseDate: values.installmentDetails.purchaseDate.toISOString() } : undefined,
+    };
+    onSave(newPlotData);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{plotData ? "Edit Plot Information" : "Add Plot Information"}</DialogTitle>
+          <DialogTitle>{isEditing ? `Edit Plot #${plotData?.plotNumber}` : "Add New Plot"}</DialogTitle>
+          <DialogDescription>
+            Enter general information and set the plot's current status.
+          </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="plotNumber" className="text-right">Plot Number</Label>
-            <Input id="plotNumber" value={plotNumber} onChange={(e) => setPlotNumber(e.target.value)} className="col-span-3" placeholder="e.g. 123-A"/>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="size" className="text-right flex items-center justify-end">
-              <Scaling className="h-3 w-3 mr-1 inline"/> Size
-            </Label>
-            <Input id="size" value={size} onChange={(e) => setSize(e.target.value)} className="col-span-3" placeholder="e.g., 5 Marla, 1 Kanal"/>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="buyerName" className="text-right">Buyer Name</Label>
-            <Input id="buyerName" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="col-span-3" placeholder="Enter buyer's name (optional)"/>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="buyerContact" className="text-right">Buyer Contact</Label>
-            <Input id="buyerContact" value={buyerContact} onChange={(e) => setBuyerContact(e.target.value)} className="col-span-3" placeholder="Buyer's phone/email (optional)"/>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="price" className="text-right">Price (PKR)</Label>
-            <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="col-span-3" placeholder="Enter agreed price (optional)"/>
-          </div>
-           <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="details" className="text-right pt-2">Details</Label>
-            <Textarea id="details" value={details} onChange={(e) => setDetails(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Facing park, corner plot, leased (optional)"/>
-          </div>
-        </div>
-        <DialogFooter className="justify-between sm:justify-between flex-wrap gap-2">
-          <div>
-            {plotData && onDelete && (
-              <Button variant="destructive" onClick={onDelete} size="sm">Delete Plot</Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" size="sm">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleSubmit} size="sm">Save Plot</Button>
-          </div>
-        </DialogFooter>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)}>
+                <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-2">
+                    {/* Base Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="plotNumber" render={({ field }) => (<FormItem><FormLabel>Plot Number</FormLabel><FormControl><Input placeholder="e.g. 123-A" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="size" render={({ field }) => (<FormItem><FormLabel>Size (e.g., 5 Marla)</FormLabel><FormControl><Input placeholder="e.g. 5 Marla, 1 Kanal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                    <FormField control={form.control} name="details" render={({ field }) => (<FormItem><FormLabel>Additional Details</FormLabel><FormControl><Textarea placeholder="e.g., Corner plot, facing park" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    
+                    {/* Status Selector */}
+                    <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3 border-t pt-4">
+                            <FormLabel>Plot Status</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <FormItem><FormControl><RadioGroupItem value="available" id="s-available" className="sr-only peer" /></FormControl><Label htmlFor="s-available" className="flex items-center justify-center gap-2 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"><Wallet className="h-5 w-5"/>Available</Label></FormItem>
+                                    <FormItem><FormControl><RadioGroupItem value="sold" id="s-sold" className="sr-only peer" /></FormControl><Label htmlFor="s-sold" className="flex items-center justify-center gap-2 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"><CircleDollarSign className="h-5 w-5"/>Sold</Label></FormItem>
+                                    <FormItem><FormControl><RadioGroupItem value="rented" id="s-rented" className="sr-only peer" /></FormControl><Label htmlFor="s-rented" className="flex items-center justify-center gap-2 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"><Home className="h-5 w-5"/>Rented</Label></FormItem>
+                                    <FormItem><FormControl><RadioGroupItem value="installment" id="s-installment" className="sr-only peer" /></FormControl><Label htmlFor="s-installment" className="flex items-center justify-center gap-2 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"><CalendarClock className="h-5 w-5"/>Installment</Label></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    
+                    {/* Conditional Forms */}
+                    {status === 'sold' && (
+                        <div className="space-y-4 border-t pt-4">
+                            <h3 className="font-semibold text-foreground">Sale Details</h3>
+                            <FormField control={form.control} name="saleDetails.buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="saleDetails.price" render={({ field }) => (<FormItem><FormLabel>Sale Price (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="saleDetails.date" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Sale Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        </div>
+                    )}
+                    {status === 'rented' && (
+                         <div className="space-y-4 border-t pt-4">
+                            <h3 className="font-semibold text-foreground">Rental Details</h3>
+                            <FormField control={form.control} name="rentalDetails.tenantName" render={({ field }) => (<FormItem><FormLabel>Tenant Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={form.control} name="rentalDetails.rentAmount" render={({ field }) => (<FormItem><FormLabel>Rent Amount (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="rentalDetails.rentFrequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                            </div>
+                            <FormField control={form.control} name="rentalDetails.startDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        </div>
+                    )}
+                    {status === 'installment' && (
+                        <div className="space-y-4 border-t pt-4">
+                            <h3 className="font-semibold text-foreground">Installment Plan Details</h3>
+                             <FormField control={form.control} name="installmentDetails.buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={form.control} name="installmentDetails.totalPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="installmentDetails.downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={form.control} name="installmentDetails.duration" render={({ field }) => (<FormItem><FormLabel>Duration</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="installmentDetails.frequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                            </div>
+                             <FormField control={form.control} name="installmentDetails.purchaseDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Purchase Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        </div>
+                    )}
+
+                </div>
+                <DialogFooter className="justify-between sm:justify-between flex-wrap gap-2 pt-4 border-t">
+                    <div>
+                        {isEditing && onDelete && (
+                        <Button variant="destructive" onClick={onDelete} size="sm" type="button">Delete Plot</Button>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <DialogClose asChild>
+                        <Button variant="outline" size="sm" type="button">Cancel</Button>
+                        </DialogClose>
+                        <Button size="sm" type="submit">Save Plot</Button>
+                    </div>
+                </DialogFooter>
+            </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
