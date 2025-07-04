@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, Send, Loader2, User, Brain, MessageSquareText } from "lucide-react"; // Added MessageSquareText
+import { Mic, Send, Loader2, User, Brain, MessageSquareText, Languages } from "lucide-react";
 import { chatWithAssistant, type ChatAssistantInput, type ChatAssistantOutput } from "@/ai/flows/chat-assistant-flow";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Message {
   id: string;
@@ -24,12 +25,12 @@ export default function AIAssistantPage() {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [language, setLanguage] = useState<'en-US' | 'ur-PK'>('en-US');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // This function is now wrapped in useCallback and accepts the message text as a parameter.
-  // This makes it stable and reusable without causing re-renders in useEffect.
   const handleSendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim()) return;
 
@@ -53,6 +54,12 @@ export default function AIAssistantPage() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMessage]);
+
+      if (result.audioDataUri && audioRef.current) {
+        audioRef.current.src = result.audioDataUri;
+        audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
+      }
+
     } catch (error) {
       console.error("Error calling AI assistant:", error);
       const errorMessage: Message = {
@@ -66,10 +73,9 @@ export default function AIAssistantPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // Dependency on `toast` is stable.
+  }, [toast]);
 
   useEffect(() => {
-    // Scroll to bottom when new messages are added
     if (scrollAreaRef.current) {
       const scrollViewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
       if (scrollViewport) {
@@ -79,18 +85,17 @@ export default function AIAssistantPage() {
   }, [messages]);
 
   useEffect(() => {
-    // Initialize SpeechRecognition
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = 'en-US';
+        recognitionRef.current.lang = language;
 
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[0][0].transcript;
-          handleSendMessage(transcript); // Auto-send the transcript
+          handleSendMessage(transcript);
           setIsListening(false);
         };
 
@@ -107,12 +112,11 @@ export default function AIAssistantPage() {
     } else {
       console.warn("Speech Recognition API not supported in this browser.");
     }
-    // We add handleSendMessage to the dependency array. Since it's memoized, this is safe.
-  }, [toast, handleSendMessage]);
+  }, [toast, handleSendMessage, language]);
 
   const handleTextInputSubmit = () => {
     handleSendMessage(inputText);
-    setInputText(""); // Clear the input after sending
+    setInputText("");
   };
 
   const handleMicClick = () => {
@@ -137,6 +141,7 @@ export default function AIAssistantPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-theme(spacing.28))]">
+       <audio ref={audioRef} hidden />
       <Card className="flex-1 flex flex-col shadow-2xl">
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
@@ -194,11 +199,28 @@ export default function AIAssistantPage() {
               variant="outline" 
               size="icon" 
               onClick={handleMicClick}
+              disabled={isLoading}
               className={cn(isListening && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
               aria-label={isListening ? "Stop listening" : "Start voice input"}
             >
               <Mic className="h-5 w-5" />
             </Button>
+            <Select 
+              value={language} 
+              onValueChange={(value) => setLanguage(value as 'en-US' | 'ur-PK')}
+              disabled={isLoading || isListening}
+            >
+                <SelectTrigger className="w-[130px]" aria-label="Select language">
+                    <div className="flex items-center gap-2">
+                        <Languages className="h-4 w-4" />
+                        <SelectValue placeholder="Language" />
+                    </div>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="en-US">English</SelectItem>
+                    <SelectItem value="ur-PK">Urdu</SelectItem>
+                </SelectContent>
+            </Select>
             <Input
               type="text"
               placeholder={isListening ? "Listening..." : "Type your message..."}
