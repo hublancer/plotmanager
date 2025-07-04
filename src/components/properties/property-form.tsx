@@ -8,12 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Property } from "@/types";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { UploadCloud, LocateFixed, Loader2, Trash2, CalendarIcon, Wallet, User, Home, GanttChartSquare } from "lucide-react";
+import { UploadCloud, LocateFixed, Loader2, Trash2, CalendarIcon, Wallet, Home, GanttChartSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
@@ -21,6 +20,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 const propertyTypes = [
   "Residential Plot",
@@ -143,8 +143,6 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     setIsProcessingFiles(true);
     form.setValue("imageFiles", files);
 
-    const newUrls: string[] = [];
-
     const fileProcessingPromises = Array.from(files).map(file => {
       return new Promise<string[]>((resolve, reject) => {
         if (file.type.startsWith("image/")) {
@@ -229,107 +227,99 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-lg">
-      <CardHeader>
-        <CardTitle>{initialData ? "Edit Property" : "Add New Property"}</CardTitle>
-        <CardDescription>Enter the details for the property below. You can specify if it's available, rented, or sold on installment.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-            {/* General Property Info */}
-            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Property Name</FormLabel><FormControl><Input placeholder="e.g., Executive Block Plot or Green Valley House" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address / Location</FormLabel><FormControl><Textarea placeholder="e.g., Plot #123, Block B, Sector C, Society Name, City" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="propertyType" render={({ field }) => (<FormItem><FormLabel>Property Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger></FormControl><SelectContent>{propertyTypes.map(type => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-            
-            {/* Location Input */}
-            <div>
-                <FormLabel>Location Coordinates (Optional)</FormLabel>
-                <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                    <FormField control={form.control} name="latitude" render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" step="any" placeholder="Latitude" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="longitude" render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" step="any" placeholder="Longitude" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
-                    <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full sm:w-auto"><LocateFixed className="mr-2 h-4 w-4" />Get Current</Button>
-                </div>
-                 <FormDescription className="mt-2">
-                    Enter coordinates manually or use the button to get your current location. This is used to display the property on a map.
-                </FormDescription>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Property Name</FormLabel><FormControl><Input placeholder="e.g., Executive Block Plot or Green Valley House" {...field} /></FormControl><FormMessage /></FormItem>)} />
+        <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address / Location</FormLabel><FormControl><Textarea placeholder="e.g., Plot #123, Block B, Sector C, Society Name, City" {...field} /></FormControl><FormMessage /></FormItem>)} />
+        <FormField control={form.control} name="propertyType" render={({ field }) => (<FormItem><FormLabel>Property Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select property type" /></SelectTrigger></FormControl><SelectContent>{propertyTypes.map(type => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+        
+        <div>
+            <FormLabel>Location Coordinates (Optional)</FormLabel>
+            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                <FormField control={form.control} name="latitude" render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" step="any" placeholder="Latitude" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="longitude" render={({ field }) => (<FormItem className="flex-1"><FormControl><Input type="number" step="any" placeholder="Longitude" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
+                <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full sm:w-auto"><LocateFixed className="mr-2 h-4 w-4" />Get Current</Button>
             </div>
-             
-             {/* Image Uploader */}
-             <FormField control={form.control} name="imageFiles" render={() => ( <FormItem> <FormLabel>Property Images (Layout, Map, Photos)</FormLabel> <FormControl> <div className="flex flex-col items-center space-y-4"> <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors"> <div className="flex flex-col items-center justify-center pt-5 pb-6"> <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" /> <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p> <p className="text-xs text-muted-foreground">PNG, JPG, or PDF files</p> </div> <Input id="imageUpload" type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*,.pdf" disabled={isProcessingFiles} /> </label> </div> </FormControl> <FormDescription>Upload one or more images or PDF files. Each page of a PDF will be converted to an image.</FormDescription> {isProcessingFiles && ( <div className="flex items-center text-sm text-muted-foreground"> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing files, please wait... </div> )} {imagePreviewUrls.length > 0 && ( <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4"> {imagePreviewUrls.map((url, index) => ( <div key={index} className="relative group"> <Image src={url} alt={`Preview ${index + 1}`} width={150} height={112} className="object-cover w-full aspect-[4/3] rounded-md border" data-ai-hint="property image" /> <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)} aria-label={`Remove image ${index + 1}`} > <Trash2 className="h-4 w-4" /> </Button> </div> ))} </div> )} <FormMessage /> </FormItem> )} />
+              <FormDescription className="mt-2">
+                Enter coordinates manually or use the button to get your current location. This is used to display the property on a map.
+            </FormDescription>
+        </div>
+          
+          <FormField control={form.control} name="imageFiles" render={() => ( <FormItem> <FormLabel>Property Images (Layout, Map, Photos)</FormLabel> <FormControl> <div className="flex flex-col items-center space-y-4"> <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors"> <div className="flex flex-col items-center justify-center pt-5 pb-6"> <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" /> <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p> <p className="text-xs text-muted-foreground">PNG, JPG, or PDF files</p> </div> <Input id="imageUpload" type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*,.pdf" disabled={isProcessingFiles} /> </label> </div> </FormControl> <FormDescription>Upload one or more images or PDF files. Each page of a PDF will be converted to an image.</FormDescription> {isProcessingFiles && ( <div className="flex items-center text-sm text-muted-foreground"> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing files, please wait... </div> )} {imagePreviewUrls.length > 0 && ( <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4"> {imagePreviewUrls.map((url, index) => ( <div key={index} className="relative group"> <Image src={url} alt={`Preview ${index + 1}`} width={150} height={112} className="object-cover w-full aspect-[4/3] rounded-md border" data-ai-hint="property image" /> <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)} aria-label={`Remove image ${index + 1}`} > <Trash2 className="h-4 w-4" /> </Button> </div> ))} </div> )} <FormMessage /> </FormItem> )} />
 
-            <Separator />
-            
-            {/* Status Selector */}
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Initial Property Status</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                    >
-                      <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="available" className="sr-only" />
-                        <Wallet className="mb-3 h-6 w-6" /> Available
-                      </Label>
-                      <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="rented" className="sr-only" />
-                        <Home className="mb-3 h-6 w-6" /> Rented
-                      </Label>
-                      <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="installment" className="sr-only" />
-                        <GanttChartSquare className="mb-3 h-6 w-6" /> Installment
-                      </Label>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <Separator />
+        
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem className="space-y-3">
+              <FormLabel>Initial Property Status</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+                >
+                  <div>
+                    <RadioGroupItem value="available" id="status-available" className="peer sr-only" />
+                    <Label htmlFor="status-available" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer">
+                      <Wallet className="mb-3 h-6 w-6" /> Available
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem value="rented" id="status-rented" className="peer sr-only" />
+                    <Label htmlFor="status-rented" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer">
+                      <Home className="mb-3 h-6 w-6" /> Rented
+                    </Label>
+                  </div>
+                  <div>
+                    <RadioGroupItem value="installment" id="status-installment" className="peer sr-only" />
+                    <Label htmlFor="status-installment" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer">
+                      <GanttChartSquare className="mb-3 h-6 w-6" /> Installment
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-            {/* Conditional Rental Form */}
-            {status === "rented" && (
-                <Card className="bg-secondary/50 border-dashed">
-                    <CardHeader><CardTitle>Rental Details</CardTitle><CardDescription>Enter the rental agreement information.</CardDescription></CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField control={form.control} name="tenantName" render={({ field }) => (<FormItem><FormLabel>Tenant Name</FormLabel><FormControl><Input placeholder="e.g., Ahmed Raza" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="rentAmount" render={({ field }) => (<FormItem><FormLabel>Rent Amount (PKR)</FormLabel><FormControl><Input type="number" placeholder="25000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                        <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="rentFrequency" render={({ field }) => (<FormItem><FormLabel>Rent Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="rentStartDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Rent Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal bg-background", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+        {status === "rented" && (
+            <Card className="bg-secondary/50 border-dashed">
+                <CardHeader><CardTitle>Rental Details</CardTitle><CardDescription>Enter the rental agreement information.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                    <FormField control={form.control} name="tenantName" render={({ field }) => (<FormItem><FormLabel>Tenant Name</FormLabel><FormControl><Input placeholder="e.g., Ahmed Raza" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="rentAmount" render={({ field }) => (<FormItem><FormLabel>Rent Amount (PKR)</FormLabel><FormControl><Input type="number" placeholder="25000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                    <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="rentFrequency" render={({ field }) => (<FormItem><FormLabel>Rent Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="rentStartDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Rent Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal bg-background", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                    </div>
+                </CardContent>
+            </Card>
+        )}
 
-             {/* Conditional Installment Form */}
-            {status === "installment" && (
-                <Card className="bg-secondary/50 border-dashed">
-                    <CardHeader><CardTitle>Installment Plan Details</CardTitle><CardDescription>Enter the installment sale information.</CardDescription></CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField control={form.control} name="buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input placeholder="e.g., Ali Khan" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="totalInstallmentPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" placeholder="5000000" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR, Optional)</FormLabel><FormControl><Input type="number" placeholder="1000000" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
-                        <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="installmentFrequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="installmentDuration" render={({ field }) => (<FormItem><FormLabel>Duration</FormLabel><FormControl><Input type="number" placeholder={form.watch('installmentFrequency') === 'monthly' ? 'e.g., 24' : 'e.g., 5'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                        </div>
-                        <FormField control={form.control} name="purchaseDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Purchase Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal bg-background",!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                    </CardContent>
-                </Card>
-            )}
+        {status === "installment" && (
+            <Card className="bg-secondary/50 border-dashed">
+                <CardHeader><CardTitle>Installment Plan Details</CardTitle><CardDescription>Enter the installment sale information.</CardDescription></CardHeader>
+                <CardContent className="space-y-4">
+                    <FormField control={form.control} name="buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input placeholder="e.g., Ali Khan" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="totalInstallmentPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" placeholder="5000000" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR, Optional)</FormLabel><FormControl><Input type="number" placeholder="1000000" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
+                    <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="installmentFrequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="installmentDuration" render={({ field }) => (<FormItem><FormLabel>Duration</FormLabel><FormControl><Input type="number" placeholder={form.watch('installmentFrequency') === 'monthly' ? 'e.g., 24' : 'e.g., 5'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                    <FormField control={form.control} name="purchaseDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Purchase Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal bg-background",!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                </CardContent>
+            </Card>
+        )}
 
-            <Button type="submit" className="w-full" disabled={isSubmitting || isProcessingFiles}>
-              {isSubmitting ? "Submitting..." : (isProcessingFiles ? "Processing Files..." : (initialData ? "Save Changes" : "Add Property"))}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        <Button type="submit" className="w-full" disabled={isSubmitting || isProcessingFiles}>
+          {isSubmitting ? "Submitting..." : (isProcessingFiles ? "Processing Files..." : (initialData ? "Save Changes" : "Add Property"))}
+        </Button>
+      </form>
+    </Form>
   );
 }
