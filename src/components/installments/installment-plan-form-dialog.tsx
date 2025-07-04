@@ -6,12 +6,13 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { updateProperty } from "@/lib/mock-db";
-import type { Property, InstallmentDetails } from "@/types";
+import { useAuth } from "@/context/auth-context";
+import { addProperty } from "@/lib/mock-db";
+import type { Property } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,9 +20,23 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Textarea } from "../ui/textarea";
+
+const propertyTypes = [
+  "Residential Plot",
+  "Commercial Plot",
+  "House",
+  "Apartment",
+  "Shop",
+  "File",
+  "Agricultural Land",
+  "Other",
+];
 
 const planFormSchema = z.object({
-  propertyId: z.string().min(1, "You must select a property."),
+  name: z.string().min(2, "Property name is required."),
+  address: z.string().min(5, "Address is required."),
+  propertyType: z.string().optional(),
   buyerName: z.string().min(2, "Buyer name is required."),
   totalInstallmentPrice: z.coerce.number().min(1, "Total price must be greater than 0."),
   downPayment: z.coerce.number().min(0).optional(),
@@ -36,21 +51,37 @@ interface InstallmentPlanFormDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
-  initialData?: InstallmentDetails | null;
-  properties: Pick<Property, 'id' | 'name'>[];
 }
 
-export function InstallmentPlanFormDialog({ isOpen, onOpenChange, onUpdate, initialData, properties }: InstallmentPlanFormDialogProps) {
+export function InstallmentPlanFormDialog({ isOpen, onOpenChange, onUpdate }: InstallmentPlanFormDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<PlanFormValues>({
     resolver: zodResolver(planFormSchema),
     defaultValues: {
       installmentFrequency: "monthly",
+      purchaseDate: new Date(),
     },
   });
   
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: "",
+        address: "",
+        propertyType: "",
+        buyerName: "",
+        totalInstallmentPrice: undefined,
+        downPayment: undefined,
+        purchaseDate: new Date(),
+        installmentFrequency: "monthly",
+        installmentDuration: undefined,
+      });
+    }
+  }, [form, isOpen]);
+
   const watchedValues = useWatch({ control: form.control });
 
   const calculatedInstallment = () => {
@@ -60,37 +91,21 @@ export function InstallmentPlanFormDialog({ isOpen, onOpenChange, onUpdate, init
     return remaining / installmentDuration;
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      if (initialData) {
-        form.reset({
-          propertyId: initialData.id,
-          buyerName: initialData.buyerName || "",
-          totalInstallmentPrice: initialData.totalInstallmentPrice || 0,
-          downPayment: initialData.downPayment || 0,
-          purchaseDate: initialData.purchaseDate ? new Date(initialData.purchaseDate) : new Date(),
-          installmentFrequency: initialData.installmentFrequency || "monthly",
-          installmentDuration: initialData.installmentDuration || 1,
-        });
-      } else {
-        form.reset({
-          propertyId: "",
-          buyerName: "",
-          totalInstallmentPrice: undefined,
-          downPayment: undefined,
-          purchaseDate: new Date(),
-          installmentFrequency: "monthly",
-          installmentDuration: undefined,
-        });
-      }
-    }
-  }, [initialData, form, isOpen]);
-
   const onSubmit = async (values: PlanFormValues) => {
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
+        return;
+    }
     setIsSubmitting(true);
     try {
-      const propertyUpdates: Partial<Property> = {
+      const newPropertyData: Omit<Property, 'id'> = {
+        userId: user.uid,
+        name: values.name,
+        address: values.address,
+        propertyType: values.propertyType,
+        plots: [],
         isSoldOnInstallment: true,
+        isRented: false,
         buyerName: values.buyerName,
         totalInstallmentPrice: values.totalInstallmentPrice,
         downPayment: values.downPayment,
@@ -99,17 +114,17 @@ export function InstallmentPlanFormDialog({ isOpen, onOpenChange, onUpdate, init
         installmentDuration: values.installmentDuration,
       };
       
-      const result = await updateProperty(values.propertyId, propertyUpdates);
+      const newProperty = await addProperty(newPropertyData);
 
-      if (result) {
+      if (newProperty) {
         toast({
-          title: "Installment Plan Saved",
-          description: `Plan for ${result.name} has been successfully saved.`,
+          title: "Installment Plan Created",
+          description: `Plan for ${newProperty.name} has been successfully created.`,
         });
         onUpdate();
         onOpenChange(false);
       } else {
-        throw new Error("Failed to update property in the database.");
+        throw new Error("Failed to create property in the database.");
       }
     } catch (error) {
       console.error("Failed to save installment plan:", error);
@@ -125,36 +140,21 @@ export function InstallmentPlanFormDialog({ isOpen, onOpenChange, onUpdate, init
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initialData ? "Edit Installment Plan" : "Create New Installment Plan"}</DialogTitle>
+          <DialogTitle>Create New Installment Plan</DialogTitle>
           <DialogDescription>
-            Fill out the details to set up an installment plan for a property.
+            Fill out the details to create a new property with an installment plan.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2 max-h-[70vh] overflow-y-auto px-1">
-            <FormField
-              control={form.control}
-              name="propertyId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Property</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!initialData}>
-                    <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Select an available property" /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {initialData && <SelectItem value={initialData.id}>{initialData.name}</SelectItem>}
-                      {properties.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <h3 className="text-md font-semibold text-primary border-b pb-1">Property Details</h3>
+            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Property Name</FormLabel><FormControl><Input placeholder="e.g., Green Valley Plot" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="address" render={({ field }) => (<FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="e.g., Plot 123, Sector C, Bahria Town" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField control={form.control} name="propertyType" render={({ field }) => (<FormItem><FormLabel>Property Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a property type" /></SelectTrigger></FormControl><SelectContent>{propertyTypes.map(type => (<SelectItem key={type} value={type}>{type}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+            
+            <h3 className="text-md font-semibold text-primary border-b pb-1 pt-4">Buyer &amp; Plan Details</h3>
             <FormField control={form.control} name="buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input placeholder="e.g., Ali Khan" {...field} /></FormControl><FormMessage /></FormItem>)} />
             <FormField control={form.control} name="totalInstallmentPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" placeholder="5000000" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
             <FormField control={form.control} name="downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR)</FormLabel><FormControl><Input type="number" placeholder="1000000" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>)} />
@@ -173,7 +173,7 @@ export function InstallmentPlanFormDialog({ isOpen, onOpenChange, onUpdate, init
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Plan
+                Create Plan
               </Button>
             </DialogFooter>
           </form>

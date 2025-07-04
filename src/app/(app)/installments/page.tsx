@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
-import { getInstallmentProperties, getProperties, updateProperty } from "@/lib/mock-db"; 
-import type { InstallmentDetails, Property } from "@/types";
+import { getInstallmentProperties, updateProperty } from "@/lib/mock-db"; 
+import type { InstallmentDetails } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,6 @@ import { Eye, PlusCircle, Loader2, Trash2, Settings } from "lucide-react";
 
 export default function InstallmentsPage() {
   const [installments, setInstallments] = useState<InstallmentDetails[]>([]);
-  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlanFormOpen, setIsPlanFormOpen] = useState(false);
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
@@ -43,12 +42,8 @@ export default function InstallmentsPage() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const [installmentsData, propertiesData] = await Promise.all([
-        getInstallmentProperties(user.uid),
-        getProperties(user.uid),
-      ]);
+      const installmentsData = await getInstallmentProperties(user.uid);
       setInstallments(installmentsData);
-      setAllProperties(propertiesData);
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({ title: "Error", description: "Could not fetch installment data.", variant: "destructive" });
@@ -92,11 +87,6 @@ export default function InstallmentsPage() {
     if (paid === undefined || total === undefined || total === 0) return 0;
     return (paid / total) * 100;
   };
-  
-  const availableProperties = useMemo(() => {
-    return allProperties.filter(p => !p.isRented && !p.isSoldOnInstallment);
-  }, [allProperties]);
-
 
   return (
     <>
@@ -196,8 +186,6 @@ export default function InstallmentsPage() {
         isOpen={isPlanFormOpen}
         onOpenChange={setIsPlanFormOpen}
         onUpdate={fetchAllData}
-        initialData={null} // This form is only for creation now
-        properties={availableProperties}
       />
 
       {selectedPlan && (
