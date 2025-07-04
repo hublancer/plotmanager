@@ -70,8 +70,8 @@ export default function AddEmployeePage() {
         hireDate: values.hireDate.toISOString(),
       });
       toast({
-        title: "Employee Invited",
-        description: `${values.name} has been invited. They need to register with the email ${values.email} to activate their account.`,
+        title: "Employee Profile Created",
+        description: `${values.name}'s profile has been created. They can now register with the email ${values.email} to activate their account.`,
       });
       router.push("/employees");
     } catch (error) {
@@ -93,9 +93,9 @@ export default function AddEmployeePage() {
 
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
         <CardHeader>
-          <CardTitle>Invite New Employee</CardTitle>
+          <CardTitle>Create New Employee</CardTitle>
           <CardDescription>
-            Fill in the details below to invite a new employee. They will need to sign up using the email you provide to gain access with their assigned role.
+            Fill in the details to create a new employee profile. The employee will need to register using the email you provide here to set their own password and activate their account.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -231,7 +231,7 @@ export default function AddEmployeePage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Sending Invitation..." : "Invite Employee"}
+                {isSubmitting ? "Creating Profile..." : "Create Employee"}
               </Button>
             </form>
           </Form>
