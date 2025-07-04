@@ -586,10 +586,10 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
                 <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-2">
                     {/* Base Details */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="plotNumber" render={({ field }) => (<FormItem><FormLabel>Plot Number</FormLabel><FormControl><Input placeholder="e.g. 123-A" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="size" render={({ field }) => (<FormItem><FormLabel>Size (e.g., 5 Marla)</FormLabel><FormControl><Input placeholder="e.g. 5 Marla, 1 Kanal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="plotNumber" render={({ field }) => (<FormItem><FormLabel>Plot Number</FormLabel><FormControl><Input placeholder="e.g. 123-A" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="size" render={({ field }) => (<FormItem><FormLabel>Size (e.g., 5 Marla)</FormLabel><FormControl><Input placeholder="e.g. 5 Marla, 1 Kanal" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
-                    <FormField control={form.control} name="details" render={({ field }) => (<FormItem><FormLabel>Additional Details</FormLabel><FormControl><Textarea placeholder="e.g., Corner plot, facing park" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="details" render={({ field }) => (<FormItem><FormLabel>Additional Details</FormLabel><FormControl><Textarea placeholder="e.g., Corner plot, facing park" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                     
                     {/* Status Selector */}
                     <FormField
@@ -615,17 +615,25 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
                     {status === 'sold' && (
                         <div className="space-y-4 border-t pt-4">
                             <h3 className="font-semibold text-foreground">Sale Details</h3>
-                            <FormField control={form.control} name="saleDetails.buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="saleDetails.price" render={({ field }) => (<FormItem><FormLabel>Sale Price (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={form.control} name="saleDetails.date" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Sale Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="saleDetails.buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="saleDetails.buyerContact" render={({ field }) => (<FormItem><FormLabel>Buyer Contact</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="saleDetails.price" render={({ field }) => (<FormItem><FormLabel>Sale Price (PKR)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="saleDetails.date" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Sale Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                            </div>
                         </div>
                     )}
                     {status === 'rented' && (
                          <div className="space-y-4 border-t pt-4">
                             <h3 className="font-semibold text-foreground">Rental Details</h3>
-                            <FormField control={form.control} name="rentalDetails.tenantName" render={({ field }) => (<FormItem><FormLabel>Tenant Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="rentalDetails.tenantName" render={({ field }) => (<FormItem><FormLabel>Tenant Name</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="rentalDetails.tenantContact" render={({ field }) => (<FormItem><FormLabel>Tenant Contact</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="rentalDetails.rentAmount" render={({ field }) => (<FormItem><FormLabel>Rent Amount (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="rentalDetails.rentAmount" render={({ field }) => (<FormItem><FormLabel>Rent Amount (PKR)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={form.control} name="rentalDetails.rentFrequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                             </div>
                             <FormField control={form.control} name="rentalDetails.startDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
@@ -634,13 +642,16 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
                     {status === 'installment' && (
                         <div className="space-y-4 border-t pt-4">
                             <h3 className="font-semibold text-foreground">Installment Plan Details</h3>
-                             <FormField control={form.control} name="installmentDetails.buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="installmentDetails.buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="installmentDetails.buyerContact" render={({ field }) => (<FormItem><FormLabel>Buyer Contact</FormLabel><FormControl><Input {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="installmentDetails.totalPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={form.control} name="installmentDetails.downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="installmentDetails.totalPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="installmentDetails.downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="installmentDetails.duration" render={({ field }) => (<FormItem><FormLabel>Duration</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="installmentDetails.duration" render={({ field }) => (<FormItem><FormLabel>Duration</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={form.control} name="installmentDetails.frequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                             </div>
                              <FormField control={form.control} name="installmentDetails.purchaseDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Purchase Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn(!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
@@ -667,4 +678,6 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
     </Dialog>
   );
 }
+    
+
     
