@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { PlotData } from "@/types";
@@ -40,11 +41,13 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   const [tempPin, setTempPin] = useState<{ x: number; y: number } | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // New state for zoom and pan
+  // New state for zoom, pan, and pinning mode
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isPinningMode, setIsPinningMode] = useState(false);
+
 
   // Reset zoom/pan when image changes
   useEffect(() => {
@@ -52,7 +55,8 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   }, [currentIndex]);
   
   const handleImageClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!imageContainerRef.current || isDragging) return;
+    if (isDragging) return; // Don't register click at the end of a drag
+    if (!imageContainerRef.current) return;
 
     const rect = imageContainerRef.current.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
@@ -61,32 +65,39 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
     const unscaledX = (clickX - position.x) / scale;
     const unscaledY = (clickY - position.y) / scale;
 
+    // Check if clicking on an existing plot first, regardless of mode
     for (const plot of plots.filter(p => p.imageIndex === currentIndex)) {
       const plotPixelX = (plot.x / 100) * rect.width;
       const plotPixelY = (plot.y / 100) * rect.height;
       const distance = Math.sqrt(Math.pow(plotPixelX - unscaledX, 2) + Math.pow(plotPixelY - unscaledY, 2));
       
-      const clickableRadius = 12; // 12px radius in unscaled image coordinates
+      const clickableRadius = 12 / scale;
       if (distance < clickableRadius) {
         setSelectedPlot(plot);
         setIsEditing(true);
         setShowDialog(true);
         setTempPin(null);
+        setIsPinningMode(false); // Exit pin mode when editing
         return;
       }
     }
-    
+
+    // If not clicking an existing plot, and not in pinning mode, do nothing.
+    if (!isPinningMode) return;
+
+    // If in pinning mode, add a new temporary pin.
     const xPercent = (unscaledX / rect.width) * 100;
     const yPercent = (unscaledY / rect.height) * 100;
 
     if (xPercent < 0 || xPercent > 100 || yPercent < 0 || yPercent > 100) {
-      return;
+      return; // Click was outside the image bounds
     }
     
     setTempPin({ x: xPercent, y: yPercent });
     setSelectedPlot(null);
     setIsEditing(false);
     setShowDialog(true);
+    setIsPinningMode(false); // Automatically exit pin mode after placing a pin
   };
 
   const handleSavePlot = (formData: Omit<PlotData, 'id' | 'x' | 'y' | 'imageIndex' | 'color'>) => {
@@ -112,6 +123,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
     setShowDialog(false);
     setSelectedPlot(null);
     setTempPin(null);
+    setIsPinningMode(false); // Ensure pin mode is off
     toast({ title: "Plot Saved", description: `Plot ${formData.plotNumber} has been ${isEditing ? 'updated' : 'added'}.`});
   };
   
@@ -125,20 +137,45 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
   };
   
   const handleZoomIn = () => setScale(s => Math.min(s * 1.2, 5));
-  const handleZoomOut = () => setScale(s => Math.max(s / 1.2, 1));
+  const handleZoomOut = () => {
+    const newScale = Math.max(scale / 1.2, 1);
+    if (newScale === 1) {
+        handleReset(); // If zooming out to 1x, reset position too
+    } else {
+        setScale(newScale);
+    }
+  };
   const handleReset = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
 
   const handleMouseDown = (e: MouseEvent) => {
-    if (scale <= 1) return;
+    if (isPinningMode || scale <= 1) return;
     e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || scale <= 1) return;
-    setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    if (!isDragging || isPinningMode || scale <= 1) return;
+    if (!imageContainerRef.current) return;
+
+    const containerRect = imageContainerRef.current.getBoundingClientRect();
+    let newX = e.clientX - dragStart.x;
+    let newY = e.clientY - dragStart.y;
+    
+    const scaledWidth = containerRect.width * scale;
+    const scaledHeight = containerRect.height * scale;
+
+    const minX = containerRect.width - scaledWidth;
+    const minY = containerRect.height - scaledHeight;
+    const maxX = 0;
+    const maxY = 0;
+
+    const clampedX = Math.max(minX, Math.min(newX, maxX));
+    const clampedY = Math.max(minY, Math.min(newY, maxY));
+
+    setPosition({ x: clampedX, y: clampedY });
   };
+
 
   const handleMouseUp = () => {
     setTimeout(() => setIsDragging(false), 50);
@@ -155,8 +192,8 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
         ref={imageContainerRef}
         className={cn(
           "relative w-full aspect-[16/9] border rounded-lg overflow-hidden bg-muted/30 shadow-inner",
-          scale > 1 ? "cursor-grab" : "cursor-crosshair",
-          isDragging && "cursor-grabbing"
+          isPinningMode ? "cursor-crosshair" : (scale > 1 ? "cursor-grab" : "cursor-default"),
+          isDragging && !isPinningMode && "cursor-grabbing"
         )}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -186,36 +223,38 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
             className="pointer-events-none"
           />
           
-          {/* Render pins inside the transformed container */}
           {currentImagePlots.map(plot => (
             <div
               key={plot.id}
-              className="absolute flex h-6 w-6 cursor-pointer items-center justify-center rounded-full hover:z-10"
+              className="absolute flex items-center justify-center rounded-full"
               style={{ 
                 left: `${plot.x}%`, 
                 top: `${plot.y}%`,
-                transform: `translate(-50%, -50%) scale(${1 / scale})`,
+                width: `${24 / scale}px`,
+                height: `${24 / scale}px`,
+                transform: 'translate(-50%, -50%)',
                 backgroundColor: plot.color || 'rgba(59, 130, 246, 0.8)',
                 border: `${2 / scale}px solid hsl(var(--primary-foreground, 0 0% 100%))`
               }}
-              onClick={(e) => { e.stopPropagation(); setSelectedPlot(plot); setIsEditing(true); setShowDialog(true); }}
               title={`Plot ${plot.plotNumber} (${plot.size || 'N/A'})`}
             >
-              <MapPin className="h-4 w-4 text-primary-foreground" />
+              <MapPin style={{ height: `${16 / scale}px`, width: `${16 / scale}px` }} className="text-primary-foreground" />
             </div>
           ))}
 
-          {/* Render temp pin inside transformed container */}
           {tempPin && (
             <div
-              className="pointer-events-none absolute flex h-6 w-6 items-center justify-center rounded-full border-2 border-primary-foreground bg-primary/70"
+              className="pointer-events-none absolute flex items-center justify-center rounded-full border-primary-foreground bg-primary/70"
               style={{ 
                 left: `${tempPin.x}%`, 
                 top: `${tempPin.y}%`,
-                transform: `translate(-50%, -50%) scale(${1/scale})`
+                width: `${24 / scale}px`,
+                height: `${24 / scale}px`,
+                borderWidth: `${2 / scale}px`,
+                transform: `translate(-50%, -50%)`
               }}
             >
-              <PlusCircle className="h-4 w-4 text-primary-foreground"/>
+              <PlusCircle style={{ height: `${16 / scale}px`, width: `${16 / scale}px` }} className="text-primary-foreground"/>
             </div>
           )}
         </div>
@@ -224,9 +263,18 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       <div className="bg-card border rounded-lg p-2 space-y-2">
         <div className="flex justify-between items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" onClick={handleZoomOut} disabled={scale <= 1} aria-label="Zoom Out"><ZoomOut className="h-5 w-5"/></Button>
             <Button variant="outline" size="icon" onClick={handleZoomIn} disabled={scale >= 5} aria-label="Zoom In"><ZoomIn className="h-5 w-5"/></Button>
+            <Button variant="outline" size="icon" onClick={handleZoomOut} disabled={scale <= 1} aria-label="Zoom Out"><ZoomOut className="h-5 w-5"/></Button>
             <Button variant="outline" size="icon" onClick={handleReset} disabled={scale === 1 && position.x === 0 && position.y === 0} aria-label="Reset View"><RefreshCw className="h-5 w-5"/></Button>
+            <Button 
+                variant={isPinningMode ? "secondary" : "outline"} 
+                size="icon" 
+                onClick={() => setIsPinningMode(prev => !prev)} 
+                aria-label={isPinningMode ? "Disable Pinning" : "Enable Pinning"}
+                title={isPinningMode ? "Disable Pinning (Pan Mode)" : "Enable Pinning"}
+            >
+                <MapPin className="h-5 w-5"/>
+            </Button>
           </div>
           
           {imageUrls.length > 1 && (
@@ -279,7 +327,7 @@ export function PlotPinner({ imageUrls, initialPlots = [], onPlotsChange }: Plot
       <div className="mt-4">
         <h3 className="text-lg font-semibold mb-2">Pinned Plots ({currentImagePlots.length} on this image, {plots.length} total)</h3>
         {plots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No plots pinned yet. Click on the image above to add a plot.</p>
+          <p className="text-sm text-muted-foreground">No plots pinned yet. Click the pin icon then click on the image to add a plot.</p>
         ) : currentImagePlots.length === 0 ? (
           <p className="text-sm text-muted-foreground">No plots pinned on this image. Navigate to other images or add a new one.</p>
         ) : (
