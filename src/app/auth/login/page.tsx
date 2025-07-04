@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { getEmployeeByEmail, updateEmployee } from "@/lib/mock-db";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -79,18 +79,35 @@ export default function LoginPage() {
       const additionalInfo = getAdditionalUserInfo(result);
 
       if (additionalInfo?.isNewUser) {
+        // Check if an employee invitation exists for this email
+        const invitedEmployee = await getEmployeeByEmail(user.email!);
+        let finalRole = 'admin'; // Default role for a new, uninvited user
+
+        if (invitedEmployee && invitedEmployee.status === 'pending') {
+          finalRole = invitedEmployee.role;
+          await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
+          toast({
+              title: "Welcome aboard!",
+              description: `Your account has been activated with the ${finalRole} role.`
+          });
+        }
+
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
           createdAt: serverTimestamp(),
           photoURL: user.photoURL || null,
-          activePlan: false,
+          activePlan: finalRole === 'admin' ? false : true, // New admin needs a plan, employee doesn't
+          role: finalRole,
         });
-        toast({
-          title: "Account Created",
-          description: `Welcome, ${user.displayName}!`,
-        });
+
+        if (finalRole === 'admin') {
+            toast({
+              title: "Account Created",
+              description: `Welcome, ${user.displayName}!`,
+            });
+        }
       }
       // Redirect is handled by AuthProvider
     } catch (error: any) {

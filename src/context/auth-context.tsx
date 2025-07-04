@@ -38,6 +38,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user);
       if (user) {
         const profile = await getUserProfileByUID(user.uid);
+        // FIX: If a user profile exists but has no role, default it to 'admin'.
+        // This handles legacy accounts or sign-up glitches.
+        if (profile && typeof profile.role === 'undefined') {
+          profile.role = 'admin';
+        }
         setUserProfile(profile);
       } else {
         setUserProfile(null);
