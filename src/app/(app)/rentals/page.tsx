@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import Link from 'next/link';
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { getDerivedRentals, endRental } from "@/lib/mock-db";
@@ -122,7 +123,7 @@ export default function RentalsPage() {
                   <TableRow><TableCell colSpan={5} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin inline-block" /></TableCell></TableRow>
                 ) : filteredRentals.length > 0 ? (
                   filteredRentals.map((rental) => (
-                    <TableRow key={rental.id} className="cursor-pointer" onClick={() => handleOpenDetails(rental)}>
+                    <TableRow key={rental.id}>
                       <TableCell>
                         <div className="font-medium">{rental.propertyName}</div>
                         <div className="text-xs text-muted-foreground">
@@ -140,12 +141,15 @@ export default function RentalsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="icon" title="View Details" onClick={(e) => { e.stopPropagation(); handleOpenDetails(rental); }}><Eye className="h-4 w-4" /></Button>
-                        <AlertDialog onOpenChange={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" title="View Details" onClick={() => handleOpenDetails(rental)}><Eye className="h-4 w-4" /></Button>
+                        <Link href={`/properties/${rental.propertyId}`} passHref>
+                          <Button variant="ghost" size="icon" title="Edit Property"><Edit className="h-4 w-4" /></Button>
+                        </Link>
+                        <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="End Rental Agreement" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" title="End Rental Agreement" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>End Rental Agreement?</AlertDialogTitle>
                               <AlertDialogDescription>
@@ -171,15 +175,6 @@ export default function RentalsPage() {
           </CardContent>
         </Card>
       </div>
-      {/*
-        This component is no longer used for adding rentals.
-        <RentalFormDialog
-            isOpen={isFormOpen}
-            onOpenChange={setIsFormOpen}
-            onUpdate={fetchRentals}
-            initialData={editingRental}
-        />
-      */}
       <RentalDetailsDialog
         isOpen={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}

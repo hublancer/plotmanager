@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Edit3, Trash2, Eye, Search, Package, Loader2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Eye, Search, Package, Loader2 } from "lucide-react";
 import type { Property } from "@/types";
 import Image from "next/image";
 import { getProperties, deleteProperty } from "@/lib/mock-db";
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PropertyFormDialog } from "@/components/properties/property-form-dialog";
 
-type FilterStatus = "all" | "available" | "installment" | "rented";
+type FilterStatus = "all" | "available" | "installment" | "rented" | "sold";
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -36,6 +36,7 @@ export default function PropertiesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
 
@@ -67,6 +68,11 @@ export default function PropertiesPage() {
       });
     }
   };
+  
+  const handleOpenForm = (property: Property | null = null) => {
+    setEditingProperty(property);
+    setIsDialogOpen(true);
+  };
 
   const filteredProperties = useMemo(() => {
     return properties.filter(property => {
@@ -77,9 +83,10 @@ export default function PropertiesPage() {
 
       const matchesFilterStatus = 
         filterStatus === "all" ||
-        (filterStatus === "available" && !property.isSoldOnInstallment && !property.isRented) ||
+        (filterStatus === "available" && !property.isSoldOnInstallment && !property.isRented && !property.isSold) ||
         (filterStatus === "installment" && property.isSoldOnInstallment) ||
-        (filterStatus === "rented" && property.isRented);
+        (filterStatus === "rented" && property.isRented) ||
+        (filterStatus === "sold" && property.isSold);
       
       return matchesSearchTerm && matchesFilterStatus;
     });
@@ -108,11 +115,12 @@ export default function PropertiesPage() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="installment">Sold (Installment)</SelectItem>
+                <SelectItem value="installment">On Installment</SelectItem>
                 <SelectItem value="rented">Rented</SelectItem>
+                <SelectItem value="sold">Sold</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="w-full sm:w-auto shadow-sm" onClick={() => setIsDialogOpen(true)}>
+            <Button className="w-full sm:w-auto shadow-sm" onClick={() => handleOpenForm()}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Property
             </Button>
           </div>
@@ -173,7 +181,9 @@ export default function PropertiesPage() {
                       </TableCell>
                       <TableCell>{property.plots?.length || 0}</TableCell>
                       <TableCell>
-                        {property.isSoldOnInstallment ? (
+                         {property.isSold ? (
+                           <Badge variant="destructive">Sold</Badge>
+                         ) : property.isSoldOnInstallment ? (
                           <Badge variant="secondary">Installment</Badge>
                         ) : property.isRented ? (
                           <Badge variant="default" className="bg-blue-500 hover:bg-blue-600 text-white">Rented</Badge>
@@ -189,8 +199,8 @@ export default function PropertiesPage() {
                         </Link>
                         {userProfile?.role !== 'agent' && (
                           <>
-                            <Button variant="ghost" size="icon" aria-label="Edit Property" onClick={() => alert(`Edit ${property.name}`)}>
-                              <Edit3 className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" aria-label="Edit Property" onClick={() => handleOpenForm(property)}>
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -231,6 +241,7 @@ export default function PropertiesPage() {
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onUpdate={fetchProperties}
+        initialData={editingProperty}
       />
     </>
   );

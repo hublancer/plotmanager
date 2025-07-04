@@ -68,7 +68,14 @@ export const getProperties = async (userId: string): Promise<Property[]> => {
   return safeDBOperation(async () => {
     const q = query(propertiesCollection!, where("userId", "==", userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(mapDocToProperty);
+    const properties = snapshot.docs.map(mapDocToProperty);
+    // Sort by creation date, newest first
+    return properties.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        return 0;
+    });
   }, []);
 };
 
@@ -91,15 +98,16 @@ export const getPropertyByName = async (name: string, userId: string): Promise<P
     }, undefined);
 };
 
-export const addProperty = async (propertyData: Omit<Property, 'id'>): Promise<Property> => {
+export const addProperty = async (propertyData: Omit<Property, 'id' | 'createdAt'>): Promise<Property> => {
     return safeDBOperation(async () => {
-        const docRef = await addDoc(propertiesCollection!, propertyData);
-        const newProperty = { id: docRef.id, ...propertyData };
+        const dataToSave = { ...propertyData, createdAt: new Date().toISOString() };
+        const docRef = await addDoc(propertiesCollection!, dataToSave);
+        const newProperty = { id: docRef.id, ...dataToSave };
         if (!newProperty.plots) {
           newProperty.plots = [];
         }
         return newProperty;
-    }, propertyData as Property);
+    }, { ...propertyData, createdAt: new Date().toISOString() } as Property);
 };
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property | null> => {
@@ -124,7 +132,13 @@ export const getEmployees = async (userId: string): Promise<Employee[]> => {
     return safeDBOperation(async () => {
         const q = query(employeesCollection!, where("userId", "==", userId));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(mapDocToEmployee);
+        const employees = snapshot.docs.map(mapDocToEmployee);
+        return employees.sort((a,b) => {
+            if (a.createdAt && b.createdAt) {
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }
+            return 0;
+        });
     }, []);
 };
 
@@ -140,12 +154,12 @@ export const getEmployeeByEmail = async (email: string): Promise<Employee | null
 };
 
 
-export const addEmployee = async (employeeData: Omit<Employee, 'id' | 'status'>): Promise<Employee> => {
+export const addEmployee = async (employeeData: Omit<Employee, 'id' | 'status' | 'createdAt'>): Promise<Employee> => {
     return safeDBOperation(async () => {
-        const dataToSave = { ...employeeData, status: 'pending' as const };
+        const dataToSave = { ...employeeData, status: 'pending' as const, createdAt: new Date().toISOString() };
         const docRef = await addDoc(employeesCollection!, dataToSave);
         return { id: docRef.id, ...dataToSave };
-    }, employeeData as Employee);
+    }, { ...employeeData, status: 'pending', createdAt: new Date().toISOString() } as Employee);
 };
 
 export const updateEmployee = async (id: string, updates: Partial<Employee>): Promise<Employee | null> => {

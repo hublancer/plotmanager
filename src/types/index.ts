@@ -52,6 +52,7 @@ export interface UserProfile {
 export interface Property {
   id:string;
   userId: string;
+  createdAt: string; // ISO date string
   name: string;
   address: string;
   imageUrls?: string[];
@@ -139,6 +140,7 @@ export interface Employee {
   id: string;
   userId: string; // The admin who created the employee record
   authUid?: string; // The actual Firebase Auth UID of the employee, once they register
+  createdAt: string; // ISO date string
   name: string;
   position: string;
   email: string;
