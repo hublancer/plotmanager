@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Lead } from "@/types";
@@ -25,6 +26,7 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
     }
 
     const hasCoordinates = lead.latitude && lead.longitude;
+    const hasLocationInfo = hasCoordinates || !!lead.address;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -59,6 +61,15 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                             </div>
                         </div>
                      )}
+                     {lead.address && (
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                            <MapPin className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+                            <div>
+                                <p className="text-sm text-muted-foreground">Address</p>
+                                <p className="font-semibold whitespace-pre-wrap">{lead.address}</p>
+                            </div>
+                        </div>
+                     )}
                      {lead.notes && (
                         <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
                             <Info className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
@@ -89,13 +100,13 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                         </div>
                     )}
                     
-                    {hasCoordinates && (
+                    {hasLocationInfo && (
                          <div className="pt-4 border-t">
                             <div className="flex justify-between items-center">
-                                <h3 className="text-base font-semibold flex items-center gap-2"><MapPin className="h-5 w-5"/> Pinned Location</h3>
+                                <h3 className="text-base font-semibold flex items-center gap-2"><MapPin className="h-5 w-5"/> Location Info</h3>
                                 <Button asChild variant="outline" size="sm">
                                   <a
-                                    href={`https://www.google.com/maps/search/?api=1&query=${lead.latitude},${lead.longitude}`}
+                                    href={hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${lead.latitude},${lead.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.address || '')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                   >
@@ -104,7 +115,9 @@ export function LeadLocationDialog({ isOpen, onOpenChange, lead }: LeadLocationD
                                   </a>
                                 </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">{`Lat: ${lead.latitude}, Lng: ${lead.longitude}`}</p>
+                            {hasCoordinates && (
+                                <p className="text-xs text-muted-foreground mt-1">{`Lat: ${lead.latitude?.toFixed(4)}, Lng: ${lead.longitude?.toFixed(4)}`}</p>
+                            )}
                         </div>
                     )}
 

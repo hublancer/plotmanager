@@ -120,6 +120,7 @@ export interface Lead {
   createdBy?: string; // UID of user (admin or employee) who created the lead
   name: string;
   company?: string;
+  address?: string;
   contact?: string;
   value: number;
   status: 'New' | 'Active' | 'Deal' | 'Done';
