@@ -36,7 +36,7 @@ const PromptInputSalesRecordSchema = z.object({
     address: z.string().optional(),
     buyerName: z.string().optional(),
     price: z.number(),
-    date: z.string(), // ISO Date string
+    date: z.string(), // ISO date string
     saleType: z.string().describe("e.g., 'Installment Sale', 'Outright Sale'"),
     plotNumber: z.string().optional(),
 });
@@ -108,7 +108,7 @@ const prompt = ai.definePrompt({
       {{#each salesRecords}}
       - Property: {{this.propertyName}} ({{this.address}})
         {{#if this.plotNumber}}Plot: {{this.plotNumber}}{{/if}}
-        Buyer: {{defaultIfEmpty this.buyerName "N/A"}}
+        Buyer: {{this.buyerName}}
         Price: PKR {{this.price}}
         Date: {{this.date}}
         Type: {{this.saleType}}
