@@ -261,7 +261,36 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             <Separator />
             
             {/* Status Selector */}
-            <FormField control={form.control} name="status" render={({ field }) => ( <FormItem className="space-y-3"> <FormLabel>Initial Property Status</FormLabel> <FormControl> <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-1 sm:grid-cols-3 gap-4"> <FormItem> <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"> <RadioGroupItem value="available" className="sr-only" /> <Wallet className="mb-3 h-6 w-6" /> Available </Label> </FormItem> <FormItem> <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"> <RadioGroupItem value="rented" className="sr-only" /> <Home className="mb-3 h-6 w-6" /> Rented </Label> </FormItem> <FormItem> <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"> <RadioGroupItem value="installment" className="sr-only" /> <GanttChartSquare className="mb-3 h-6 w-6" /> Installment </Label> </FormItem> </RadioGroup> </FormControl> <FormMessage /> </FormItem> )} />
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Initial Property Status</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+                    >
+                      <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                        <RadioGroupItem value="available" className="sr-only" />
+                        <Wallet className="mb-3 h-6 w-6" /> Available
+                      </Label>
+                      <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                        <RadioGroupItem value="rented" className="sr-only" />
+                        <Home className="mb-3 h-6 w-6" /> Rented
+                      </Label>
+                      <Label className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+                        <RadioGroupItem value="installment" className="sr-only" />
+                        <GanttChartSquare className="mb-3 h-6 w-6" /> Installment
+                      </Label>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Conditional Rental Form */}
             {status === "rented" && (
