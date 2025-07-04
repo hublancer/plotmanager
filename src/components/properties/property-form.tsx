@@ -13,15 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Property } from "@/types";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { UploadCloud, LocateFixed, Loader2, Trash2, CalendarIcon, Wallet, Home, GanttChartSquare } from "lucide-react";
+import { UploadCloud, LocateFixed, Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 const propertyTypes = [
   "Residential Plot",
@@ -38,56 +31,9 @@ const propertyFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   propertyType: z.string().min(1, "Property type is required"),
-  imageFiles: z.any().optional(),
+  imageFiles: z.instanceof(FileList).optional(),
   latitude: z.coerce.number().nullable().optional(),
   longitude: z.coerce.number().nullable().optional(),
-  status: z.enum(["available", "rented", "installment"], {
-    required_error: "You must select a property status.",
-  }),
-  // Rental fields
-  tenantName: z.string().optional(),
-  rentAmount: z.coerce.number().optional(),
-  rentFrequency: z.enum(["monthly", "yearly"]).optional(),
-  rentStartDate: z.date().optional(),
-  // Installment fields
-  buyerName: z.string().optional(),
-  totalInstallmentPrice: z.coerce.number().optional(),
-  downPayment: z.coerce.number().optional(),
-  purchaseDate: z.date().optional(),
-  installmentFrequency: z.enum(["monthly", "yearly"]).optional(),
-  installmentDuration: z.coerce.number().int().optional(),
-}).superRefine((data, ctx) => {
-    if (data.status === 'rented') {
-        if (!data.tenantName || data.tenantName.length < 2) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Tenant name is required.", path: ['tenantName'] });
-        }
-        if (!data.rentAmount || data.rentAmount <= 0) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Rent amount must be greater than 0.", path: ['rentAmount'] });
-        }
-        if (!data.rentStartDate) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Rent start date is required.", path: ['rentStartDate'] });
-        }
-        if (!data.rentFrequency) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Rent frequency is required.", path: ['rentFrequency'] });
-        }
-    }
-    if (data.status === 'installment') {
-        if (!data.buyerName || data.buyerName.length < 2) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Buyer name is required.", path: ['buyerName'] });
-        }
-        if (!data.totalInstallmentPrice || data.totalInstallmentPrice <= 0) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Total price is required.", path: ['totalInstallmentPrice'] });
-        }
-        if (!data.purchaseDate) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Purchase date is required.", path: ['purchaseDate'] });
-        }
-        if (!data.installmentDuration || data.installmentDuration < 1) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Installment duration is required.", path: ['installmentDuration'] });
-        }
-        if (!data.installmentFrequency) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Installment frequency is required.", path: ['installmentFrequency'] });
-        }
-    }
 });
 
 
@@ -113,23 +59,8 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
       imageFiles: undefined,
       latitude: initialData?.latitude || null,
       longitude: initialData?.longitude || null,
-      status: initialData?.isRented ? "rented" : initialData?.isSoldOnInstallment ? "installment" : "available",
-      // Rental fields
-      tenantName: initialData?.tenantName || "",
-      rentAmount: initialData?.rentAmount || undefined,
-      rentFrequency: initialData?.rentFrequency || "monthly",
-      rentStartDate: initialData?.rentStartDate ? new Date(initialData.rentStartDate) : undefined,
-      // Installment fields
-      buyerName: initialData?.buyerName || "",
-      totalInstallmentPrice: initialData?.totalInstallmentPrice || undefined,
-      downPayment: initialData?.downPayment || undefined,
-      purchaseDate: initialData?.purchaseDate ? new Date(initialData.purchaseDate) : undefined,
-      installmentFrequency: initialData?.installmentFrequency || "monthly",
-      installmentDuration: initialData?.installmentDuration || undefined,
     },
   });
-
-  const status = form.watch("status");
 
   useEffect(() => {
     if (initialData?.imageUrls) {
@@ -252,7 +183,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
               <FormLabel>Property Images (Layout, Map, Photos)</FormLabel>
               <FormControl>
                 <div className="flex flex-col items-center space-y-4">
-                  <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                  <Label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
                       <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
@@ -267,13 +198,12 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
                       name={field.name}
                       onBlur={field.onBlur}
                       onChange={(e) => {
-                        field.onChange(e.target.files);
                         handleFileChange(e.target.files);
                       }}
                       accept="image/*,.pdf"
                       disabled={isProcessingFiles}
                     />
-                  </label>
+                  </Label>
                 </div>
               </FormControl>
               <FormDescription>Upload one or more images or PDF files. Each page of a PDF will be converted to an image.</FormDescription>
@@ -306,76 +236,7 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             </FormItem>
           )}
         />
-
-        <Separator />
         
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel>Initial Property Status</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                >
-                  <div>
-                    <RadioGroupItem value="available" id="status-available" className="peer sr-only" />
-                    <Label htmlFor="status-available" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer">
-                      <Wallet className="mb-3 h-6 w-6" /> Available
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="rented" id="status-rented" className="peer sr-only" />
-                    <Label htmlFor="status-rented" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer">
-                      <Home className="mb-3 h-6 w-6" /> Rented
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="installment" id="status-installment" className="peer sr-only" />
-                    <Label htmlFor="status-installment" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer">
-                      <GanttChartSquare className="mb-3 h-6 w-6" /> Installment
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {status === "rented" && (
-            <Card className="bg-secondary/50 border-dashed">
-                <CardHeader><CardTitle>Rental Details</CardTitle><CardDescription>Enter the rental agreement information.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                    <FormField control={form.control} name="tenantName" render={({ field }) => (<FormItem><FormLabel>Tenant Name</FormLabel><FormControl><Input placeholder="e.g., Ahmed Raza" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="rentAmount" render={({ field }) => (<FormItem><FormLabel>Rent Amount (PKR)</FormLabel><FormControl><Input type="number" placeholder="25000" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                    <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="rentFrequency" render={({ field }) => (<FormItem><FormLabel>Rent Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="rentStartDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Rent Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal bg-background", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                    </div>
-                </CardContent>
-            </Card>
-        )}
-
-        {status === "installment" && (
-            <Card className="bg-secondary/50 border-dashed">
-                <CardHeader><CardTitle>Installment Plan Details</CardTitle><CardDescription>Enter the installment sale information.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                    <FormField control={form.control} name="buyerName" render={({ field }) => (<FormItem><FormLabel>Buyer Name</FormLabel><FormControl><Input placeholder="e.g., Ali Khan" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="totalInstallmentPrice" render={({ field }) => (<FormItem><FormLabel>Total Price (PKR)</FormLabel><FormControl><Input type="number" placeholder="5000000" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="downPayment" render={({ field }) => (<FormItem><FormLabel>Down Payment (PKR, Optional)</FormLabel><FormControl><Input type="number" placeholder="1000000" {...field} value={field.value ?? ''}/></FormControl><FormMessage /></FormItem>)} />
-                    <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="installmentFrequency" render={({ field }) => (<FormItem><FormLabel>Frequency</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="installmentDuration" render={({ field }) => (<FormItem><FormLabel>Duration</FormLabel><FormControl><Input type="number" placeholder={form.watch('installmentFrequency') === 'monthly' ? 'e.g., 24' : 'e.g., 5'} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                    </div>
-                    <FormField control={form.control} name="purchaseDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Purchase Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal bg-background",!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                </CardContent>
-            </Card>
-        )}
-
         <Button type="submit" className="w-full" disabled={isSubmitting || isProcessingFiles}>
           {isSubmitting ? "Submitting..." : (isProcessingFiles ? "Processing Files..." : (initialData ? "Save Changes" : "Add Property"))}
         </Button>
@@ -383,5 +244,3 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     </Form>
   );
 }
-
-    

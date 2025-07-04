@@ -26,7 +26,7 @@ export function PropertyFormDialog({ isOpen, onOpenChange, onUpdate }: PropertyF
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls & conditional fields
+  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls
     if (!user) {
         toast({ title: "Authentication Error", description: "You must be logged in to add a property.", variant: "destructive" });
         setIsSubmitting(false);
@@ -47,22 +47,6 @@ export function PropertyFormDialog({ isOpen, onOpenChange, onUpdate }: PropertyF
         isSoldOnInstallment: false,
     };
 
-    if (data.status === 'rented' && data.rentStartDate) {
-        newPropertyData.isRented = true;
-        newPropertyData.tenantName = data.tenantName;
-        newPropertyData.rentAmount = data.rentAmount;
-        newPropertyData.rentFrequency = data.rentFrequency;
-        newPropertyData.rentStartDate = data.rentStartDate.toISOString();
-    } else if (data.status === 'installment' && data.purchaseDate) {
-        newPropertyData.isSoldOnInstallment = true;
-        newPropertyData.buyerName = data.buyerName;
-        newPropertyData.totalInstallmentPrice = data.totalInstallmentPrice;
-        newPropertyData.downPayment = data.downPayment;
-        newPropertyData.purchaseDate = data.purchaseDate.toISOString();
-        newPropertyData.installmentFrequency = data.installmentFrequency;
-        newPropertyData.installmentDuration = data.installmentDuration;
-    }
-
     await addProperty(newPropertyData); 
     
     toast({
@@ -80,7 +64,7 @@ export function PropertyFormDialog({ isOpen, onOpenChange, onUpdate }: PropertyF
         <DialogHeader>
           <DialogTitle>Add New Property</DialogTitle>
           <DialogDescription>
-            Enter the details for the property below. You can specify if it's available, rented, or sold on installment.
+            Enter the details for the property below. All new properties are created with an "Available" status.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[75vh] overflow-y-auto p-1">
