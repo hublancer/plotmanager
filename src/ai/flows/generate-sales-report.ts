@@ -52,7 +52,7 @@ export async function generateSalesReport(input: GenerateSalesReportInput): Prom
   const allTransactions = await getTransactions(input.userId);
   const salesDetails: z.infer<typeof PromptInputSalesRecordSchema>[] = [];
 
-  // Process properties sold on installment
+  // Process properties sold on installment or outright
   allProperties.forEach(prop => {
     if (prop.isSoldOnInstallment && prop.totalInstallmentPrice) {
       salesDetails.push({
@@ -60,22 +60,54 @@ export async function generateSalesReport(input: GenerateSalesReportInput): Prom
         address: prop.address,
         buyerName: prop.buyerName || "N/A",
         price: prop.totalInstallmentPrice,
-        date: prop.purchaseDate || new Date().toISOString(), // Fallback to current date if purchaseDate is missing
+        date: prop.purchaseDate || new Date().toISOString(),
         saleType: "Installment Sale",
       });
+    } else if (prop.isSold && prop.salePrice) {
+      salesDetails.push({
+        propertyName: prop.name,
+        address: prop.address,
+        buyerName: "N/A", // Not stored on property for outright sale
+        price: prop.salePrice,
+        date: prop.saleDate || new Date().toISOString(),
+        saleType: "Outright Sale",
+      });
     }
+
+    // Process individual plots that are sold
+    prop.plots?.forEach(plot => {
+      if (plot.status === 'sold' && plot.saleDetails) {
+         salesDetails.push({
+          propertyName: prop.name,
+          address: prop.address,
+          buyerName: plot.saleDetails.buyerName || "N/A",
+          price: plot.saleDetails.price,
+          date: plot.saleDetails.date,
+          saleType: "Plot Sale",
+          plotNumber: plot.plotNumber,
+        });
+      } else if (plot.status === 'installment' && plot.installmentDetails) {
+         salesDetails.push({
+          propertyName: prop.name,
+          address: prop.address,
+          buyerName: plot.installmentDetails.buyerName || "N/A",
+          price: plot.installmentDetails.totalPrice,
+          date: plot.installmentDetails.purchaseDate,
+          saleType: "Plot Installment Sale",
+          plotNumber: plot.plotNumber,
+        });
+      }
+    });
   });
 
-  // Process outright sales from payment records
+  // Process sales from transaction records, avoiding duplicates
   allTransactions.forEach(transaction => {
     if (transaction.type === 'income' && transaction.category === 'sale') {
-      // Avoid double-counting if this property was also marked isSoldOnInstallment
-      // (though that would be a data inconsistency we want to guard against)
-      const alreadyProcessedAsInstallment = salesDetails.some(
-        s => s.propertyName === transaction.propertyName && s.saleType === "Installment Sale"
+      const alreadyProcessed = salesDetails.some(
+        s => s.plotNumber === transaction.plotNumber && s.propertyName === transaction.propertyName
       );
 
-      if (!alreadyProcessedAsInstallment) {
+      if (!alreadyProcessed) {
         const property = allProperties.find(p => p.id === transaction.propertyId);
         salesDetails.push({
           propertyName: transaction.propertyName || (property?.name || "N/A"),
@@ -83,7 +115,7 @@ export async function generateSalesReport(input: GenerateSalesReportInput): Prom
           buyerName: transaction.contactName,
           price: transaction.amount,
           date: transaction.date,
-          saleType: "Outright Sale",
+          saleType: "Outright Sale (from transactions)",
           plotNumber: transaction.plotNumber,
         });
       }

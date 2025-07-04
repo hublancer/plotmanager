@@ -12,6 +12,7 @@ import { chatWithAssistant, type ChatAssistantInput, type ChatAssistantOutput } 
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/context/auth-context";
 
 interface Message {
   id: string;
@@ -32,6 +33,7 @@ export default function AIAssistantPage() {
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const continuousModeRef = useRef(isContinuousMode);
+  const { user } = useAuth();
 
   useEffect(() => {
     continuousModeRef.current = isContinuousMode;
@@ -39,6 +41,10 @@ export default function AIAssistantPage() {
 
   const handleSendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim()) return;
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in to use the AI assistant.", variant: "destructive" });
+        return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -50,7 +56,7 @@ export default function AIAssistantPage() {
     setIsLoading(true);
 
     try {
-      const input: ChatAssistantInput = { userMessage: userMessage.text };
+      const input: ChatAssistantInput = { userMessage: userMessage.text, userId: user.uid };
       const result: ChatAssistantOutput = await chatWithAssistant(input);
       
       const aiMessage: Message = {
@@ -89,7 +95,7 @@ export default function AIAssistantPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {

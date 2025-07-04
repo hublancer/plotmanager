@@ -36,6 +36,7 @@ const addBusinessTaskTool = ai.defineTool(
 );
 
 const ListPropertiesInputSchema = z.object({
+  userId: z.string().describe("The ID of the user whose properties are being requested."),
   filter: z.string().optional().describe("Optional filter criteria, e.g., 'available', 'sold', 'rented', or by property type like 'house', 'plot'."),
   location: z.string().optional().describe("Optional location filter, e.g., 'DHA Lahore', 'Bahria Town Karachi'."),
 });
@@ -58,7 +59,7 @@ const listPropertiesTool = ai.defineTool(
     outputSchema: ListPropertiesOutputSchema,
   },
   async (input) => {
-    let allProperties = await getProperties();
+    let allProperties = await getProperties(input.userId);
     
     if (input.location) {
         allProperties = allProperties.filter(p => p.address.toLowerCase().includes(input.location!.toLowerCase()));
@@ -67,9 +68,9 @@ const listPropertiesTool = ai.defineTool(
     if (input.filter) {
         const filterLower = input.filter.toLowerCase();
         if (filterLower === 'sold') {
-            allProperties = allProperties.filter(p => p.isSoldOnInstallment); 
+            allProperties = allProperties.filter(p => p.isSoldOnInstallment || p.isSold); 
         } else if (filterLower === 'available') {
-            allProperties = allProperties.filter(p => !p.isSoldOnInstallment && !p.isRented);
+            allProperties = allProperties.filter(p => !p.isSoldOnInstallment && !p.isRented && !p.isSold);
         } else if (filterLower === 'rented') {
             allProperties = allProperties.filter(p => p.isRented);
         } else { 
@@ -82,7 +83,7 @@ const listPropertiesTool = ai.defineTool(
       name: p.name,
       address: p.address,
       propertyType: p.propertyType || "N/A",
-      status: p.isSoldOnInstallment ? "Sold (Installment)" : (p.isRented ? "Rented" : "Available"),
+      status: p.isSold ? "Sold" : (p.isSoldOnInstallment ? "Sold (Installment)" : (p.isRented ? "Rented" : "Available")),
     }));
 
     if (propertyList.length === 0) {
@@ -94,6 +95,7 @@ const listPropertiesTool = ai.defineTool(
 );
 
 const AddPropertyInputSchema = z.object({
+  userId: z.string().describe("The ID of the user adding the property."),
   name: z.string().describe('The name of the new property (e.g., "Shadman House", "DHA Phase 5 Plot").'),
   address: z.string().describe('The full address of the new property, including society, block, city if possible.'),
   propertyType: z.string().optional().describe('Type of property, e.g., "Residential Plot", "Commercial Plot", "House", "File", "Shop", "Apartment".'),
@@ -111,11 +113,15 @@ const addPropertyTool = ai.defineTool(
     outputSchema: AddPropertyOutputSchema,
   },
   async (input) => {
-    const newPropertyData: Omit<Property, 'id' | 'plots' | 'imageType'> = {
+    const newPropertyData: Omit<Property, 'id' | 'plots' | 'imageType' | 'createdAt'> = {
+        userId: input.userId,
         name: input.name,
         address: input.address,
         propertyType: input.propertyType,
         plots: [],
+        isRented: false,
+        isSoldOnInstallment: false,
+        isSold: false
     };
     const createdProperty = await addProperty(newPropertyData);
     return {
@@ -126,6 +132,7 @@ const addPropertyTool = ai.defineTool(
 );
 
 const GetPropertyDetailsInputSchema = z.object({
+    userId: z.string().describe("The ID of the user whose property is being requested."),
     identifier: z.string().describe('The ID or exact name of the property to retrieve details for.'),
     identifierType: z.enum(['id', 'name']).describe("Specify if the identifier is a property ID or name."),
 });
@@ -141,12 +148,12 @@ const getPropertyDetailsTool = ai.defineTool(
         inputSchema: GetPropertyDetailsInputSchema,
         outputSchema: GetPropertyDetailsOutputSchema,
     },
-    async ({ identifier, identifierType }) => {
+    async ({ identifier, identifierType, userId }) => {
         let property: Property | undefined | null = null;
         if (identifierType === 'id') {
             property = await getPropertyById(identifier);
         } else {
-            property = await getPropertyByName(identifier);
+            property = await getPropertyByName(identifier, userId);
         }
 
         if (property) {
@@ -159,11 +166,7 @@ const getPropertyDetailsTool = ai.defineTool(
 
 const UpdatePropertyDetailsInputSchema = z.object({
     propertyId: z.string().describe("The ID of the property to update. This is mandatory."),
-    name: z.string().optional().describe("The new name for the property."),
-    address: z.string().optional().describe("The new address for the property."),
-    propertyType: z.string().optional().describe("The new type for the property (e.g., 'House', 'Plot')."),
-    isRented: z.boolean().optional().describe("Set to true if the property is now rented, false if it's not."),
-    isSoldOnInstallment: z.boolean().optional().describe("Set to true if the property is sold on installment, false otherwise."),
+    updates: z.record(z.any()).describe("An object containing the fields to update, e.g., { name: 'New Name', isRented: true }"),
 });
 const UpdatePropertyDetailsOutputSchema = z.object({
     updatedProperty: z.custom<Property | null>().describe('The updated property details, or null if update failed.'),
@@ -178,13 +181,13 @@ const updatePropertyDetailsTool = ai.defineTool(
         outputSchema: UpdatePropertyDetailsOutputSchema,
     },
     async (input) => {
-        const { propertyId, ...updates } = input;
+        const { propertyId, updates } = input;
         if (Object.keys(updates).length === 0) {
             return { updatedProperty: null, message: "No updates provided. Please specify what you want to change." };
         }
         const updatedProperty = await updateProperty(propertyId, updates as Partial<Property>);
         if (updatedProperty) {
-            return { updatedProperty, message: `Successfully updated property ID ${propertyId}. Name: ${updatedProperty.name}, Address: ${updatedProperty.address}, Type: ${updatedProperty.propertyType}.` };
+            return { updatedProperty, message: `Successfully updated property ID ${propertyId}.` };
         } else {
             return { updatedProperty: null, message: `Failed to update property ID ${propertyId}. Please ensure the ID is correct.` };
         }
@@ -194,6 +197,7 @@ const updatePropertyDetailsTool = ai.defineTool(
 
 const ChatAssistantInputSchema = z.object({
   userMessage: z.string().describe('The message sent by the user to the AI assistant.'),
+  userId: z.string().describe('The unique ID of the user who is interacting with the assistant.'),
 });
 export type ChatAssistantInput = z.infer<typeof ChatAssistantInputSchema>;
 
@@ -212,23 +216,22 @@ const assistantPrompt = ai.definePrompt({
   input: {schema: ChatAssistantInputSchema},
   output: {schema: z.object({assistantResponse: z.string()})},
   tools: [addBusinessTaskTool, listPropertiesTool, addPropertyTool, getPropertyDetailsTool, updatePropertyDetailsTool], 
-  prompt: `You are PlotPilot AI, a friendly and highly intelligent assistant specializing in the Pakistani real estate market.
-Your goal is to help users grow their business, manage properties efficiently, and streamline operations within the context of Pakistan.
+  prompt: `You are PlotPilot AI, a friendly and highly intelligent business growth assistant specializing in the Pakistani real estate market.
+Your goal is to help users grow their business, manage properties efficiently, and streamline operations by using the data in their account.
+The user's ID is {{{userId}}}. You MUST pass this ID to any tool that requires it.
 Understand common Pakistani real estate terms like 'Marla', 'Kanal', 'File', 'Society', 'Bayana' (token money), 'Possession', etc. Currency is in PKR.
 If the user speaks in Urdu, you must respond in Urdu.
 
 Capabilities:
-- Provide business growth ideas and strategies relevant to the Pakistani market.
-- Offer insights on property management best practices in Pakistan.
-- Help draft communications (e.g., tenant notices, marketing copy for local audiences).
-- Summarize information if provided.
+- Provide business growth ideas and marketing strategies relevant to the Pakistani market, using the user's property and sales data to inform your advice.
+- Help draft communications (e.g., tenant notices, marketing copy for local audiences, offer messages for clients based on their details).
 - If the user asks you to create a task, reminder, or to-do item, use the 'addBusinessTask' tool.
-- If the user asks to list properties, view properties, or search for properties, use the 'listProperties' tool. You can ask for filters like 'available', 'sold', 'rented', or by property type (e.g., 'house', 'plot', 'file') or location (e.g., 'DHA Lahore', 'Bahria Town Karachi').
-- If the user asks to add a new property, create a property, or register a property, use the 'addProperty' tool. You'll need the property name and address. Property type is optional but helpful.
-- If the user asks for details of a specific property, use the 'getPropertyDetails' tool. You can ask for the property ID or name.
-- If the user asks to update an existing property's details (like name, address, type, or its rented/sold status), use the 'updatePropertyDetails' tool. You MUST have the property ID. Ask for it if not provided.
-- Do not confirm if you will use a tool, just use it if appropriate for the user's request.
-- After using a tool, provide a concise confirmation of the action taken and include key details from the tool's output. For example, if a property is added, mention its name, type and ID. If properties are listed, summarize what was found. If details are fetched, provide a summary. If updated, confirm the changes.
+- Use the 'listProperties' tool to search for or list properties.
+- Use the 'addProperty' tool to create a new property.
+- Use the 'getPropertyDetails' tool to fetch information about a specific property.
+- Use the 'updatePropertyDetails' tool to modify an existing property.
+- Do not confirm if you will use a tool, just use it if it's the best way to answer the user's request.
+- After using a tool, provide a concise confirmation of the action taken and include key details from the tool's output. For example, if a property is added, mention its name and ID.
 
 User Message: {{{userMessage}}}
 
