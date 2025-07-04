@@ -136,12 +136,10 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
     }
   }, [initialData]);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const handleFileChange = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     setIsProcessingFiles(true);
-    form.setValue("imageFiles", files);
 
     const fileProcessingPromises = Array.from(files).map(file => {
       return new Promise<string[]>((resolve, reject) => {
@@ -245,7 +243,67 @@ export function PropertyForm({ initialData, onSubmit, isSubmitting }: PropertyFo
             </FormDescription>
         </div>
           
-          <FormField control={form.control} name="imageFiles" render={() => ( <FormItem> <FormLabel>Property Images (Layout, Map, Photos)</FormLabel> <FormControl> <div className="flex flex-col items-center space-y-4"> <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors"> <div className="flex flex-col items-center justify-center pt-5 pb-6"> <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" /> <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p> <p className="text-xs text-muted-foreground">PNG, JPG, or PDF files</p> </div> <Input id="imageUpload" type="file" multiple className="hidden" onChange={handleFileChange} accept="image/*,.pdf" disabled={isProcessingFiles} /> </label> </div> </FormControl> <FormDescription>Upload one or more images or PDF files. Each page of a PDF will be converted to an image.</FormDescription> {isProcessingFiles && ( <div className="flex items-center text-sm text-muted-foreground"> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing files, please wait... </div> )} {imagePreviewUrls.length > 0 && ( <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4"> {imagePreviewUrls.map((url, index) => ( <div key={index} className="relative group"> <Image src={url} alt={`Preview ${index + 1}`} width={150} height={112} className="object-cover w-full aspect-[4/3] rounded-md border" data-ai-hint="property image" /> <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)} aria-label={`Remove image ${index + 1}`} > <Trash2 className="h-4 w-4" /> </Button> </div> ))} </div> )} <FormMessage /> </FormItem> )} />
+        <FormField
+          control={form.control}
+          name="imageFiles"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Property Images (Layout, Map, Photos)</FormLabel>
+              <FormControl>
+                <div className="flex flex-col items-center space-y-4">
+                  <label htmlFor="imageUpload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-border hover:border-primary/50 bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
+                      <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG, or PDF files</p>
+                    </div>
+                    <Input
+                      id="imageUpload"
+                      type="file"
+                      multiple
+                      className="hidden"
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      onChange={(e) => {
+                        field.onChange(e.target.files);
+                        handleFileChange(e.target.files);
+                      }}
+                      accept="image/*,.pdf"
+                      disabled={isProcessingFiles}
+                    />
+                  </label>
+                </div>
+              </FormControl>
+              <FormDescription>Upload one or more images or PDF files. Each page of a PDF will be converted to an image.</FormDescription>
+              {isProcessingFiles && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing files, please wait...
+                </div>
+              )}
+              {imagePreviewUrls.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                  {imagePreviewUrls.map((url, index) => (
+                    <div key={index} className="relative group">
+                      <Image src={url} alt={`Preview ${index + 1}`} width={150} height={112} className="object-cover w-full aspect-[4/3] rounded-md border" data-ai-hint="property image" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeImage(index)}
+                        aria-label={`Remove image ${index + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <Separator />
         
