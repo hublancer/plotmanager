@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -28,58 +28,18 @@ export default function AIAssistantPage() {
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  useEffect(() => {
-    // Scroll to bottom when new messages are added
-    if (scrollAreaRef.current) {
-      const scrollViewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (scrollViewport) {
-        scrollViewport.scrollTop = scrollViewport.scrollHeight;
-      }
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    // Initialize SpeechRecognition
-    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = 'en-US';
-
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = event.results[0][0].transcript;
-          setInputText(transcript);
-          setIsListening(false);
-        };
-
-        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-          console.error("Speech recognition error", event.error);
-          toast({ title: "Voice Error", description: `Could not recognize voice: ${event.error}`, variant: "destructive" });
-          setIsListening(false);
-        };
-        
-        recognitionRef.current.onend = () => {
-            setIsListening(false);
-        };
-      }
-    } else {
-      console.warn("Speech Recognition API not supported in this browser.");
-    }
-  }, [toast]);
-
-  const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+  // This function is now wrapped in useCallback and accepts the message text as a parameter.
+  // This makes it stable and reusable without causing re-renders in useEffect.
+  const handleSendMessage = useCallback(async (messageText: string) => {
+    if (!messageText.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: "user",
-      text: inputText,
+      text: messageText,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
-    setInputText("");
     setIsLoading(true);
 
     try {
@@ -106,6 +66,53 @@ export default function AIAssistantPage() {
     } finally {
       setIsLoading(false);
     }
+  }, [toast]); // Dependency on `toast` is stable.
+
+  useEffect(() => {
+    // Scroll to bottom when new messages are added
+    if (scrollAreaRef.current) {
+      const scrollViewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+      if (scrollViewport) {
+        scrollViewport.scrollTop = scrollViewport.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    // Initialize SpeechRecognition
+    if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          const transcript = event.results[0][0].transcript;
+          handleSendMessage(transcript); // Auto-send the transcript
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+          console.error("Speech recognition error", event.error);
+          toast({ title: "Voice Error", description: `Could not recognize voice: ${event.error}`, variant: "destructive" });
+          setIsListening(false);
+        };
+        
+        recognitionRef.current.onend = () => {
+            setIsListening(false);
+        };
+      }
+    } else {
+      console.warn("Speech Recognition API not supported in this browser.");
+    }
+    // We add handleSendMessage to the dependency array. Since it's memoized, this is safe.
+  }, [toast, handleSendMessage]);
+
+  const handleTextInputSubmit = () => {
+    handleSendMessage(inputText);
+    setInputText(""); // Clear the input after sending
   };
 
   const handleMicClick = () => {
@@ -197,11 +204,11 @@ export default function AIAssistantPage() {
               placeholder={isListening ? "Listening..." : "Type your message..."}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
+              onKeyPress={(e) => e.key === "Enter" && !isLoading && handleTextInputSubmit()}
               disabled={isLoading || isListening}
               className="flex-1"
             />
-            <Button onClick={handleSendMessage} disabled={isLoading || !inputText.trim() || isListening} size="icon" aria-label="Send message">
+            <Button onClick={handleTextInputSubmit} disabled={isLoading || !inputText.trim() || isListening} size="icon" aria-label="Send message">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </div>
