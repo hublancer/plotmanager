@@ -25,11 +25,17 @@ export default function AIAssistantPage() {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [language, setLanguage] = useState<'en-US' | 'ur-PK'>('en-US');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const continuousModeRef = useRef(isContinuousMode);
+
+  useEffect(() => {
+    continuousModeRef.current = isContinuousMode;
+  }, [isContinuousMode]);
 
   const handleSendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim()) return;
@@ -57,7 +63,17 @@ export default function AIAssistantPage() {
 
       if (result.audioDataUri && audioRef.current) {
         audioRef.current.src = result.audioDataUri;
-        audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
+        audioRef.current.play().catch(e => {
+          console.error("Audio playback failed:", e);
+          if (continuousModeRef.current && recognitionRef.current) {
+            recognitionRef.current.start();
+          }
+        });
+      } else {
+        // No audio from AI, but if in continuous mode, listen again.
+        if (continuousModeRef.current && recognitionRef.current) {
+          recognitionRef.current.start();
+        }
       }
 
     } catch (error) {
@@ -85,6 +101,28 @@ export default function AIAssistantPage() {
   }, [messages]);
 
   useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+
+    const handleAudioEnd = () => {
+      if (continuousModeRef.current && recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (e) {
+          console.error("Could not restart recognition", e);
+          setIsContinuousMode(false);
+        }
+      }
+    };
+
+    audioElement.addEventListener('ended', handleAudioEnd);
+
+    return () => {
+      audioElement.removeEventListener('ended', handleAudioEnd);
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -93,21 +131,25 @@ export default function AIAssistantPage() {
         recognitionRef.current.interimResults = false;
         recognitionRef.current.lang = language;
 
+        recognitionRef.current.onstart = () => {
+          setIsListening(true);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+
         recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[0][0].transcript;
           handleSendMessage(transcript);
-          setIsListening(false);
         };
 
         recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error("Speech recognition error", event.error);
           toast({ title: "Voice Error", description: `Could not recognize voice: ${event.error}`, variant: "destructive" });
-          setIsListening(false);
+          setIsContinuousMode(false);
         };
         
-        recognitionRef.current.onend = () => {
-            setIsListening(false);
-        };
       }
     } else {
       console.warn("Speech Recognition API not supported in this browser.");
@@ -124,17 +166,18 @@ export default function AIAssistantPage() {
       toast({ title: "Voice Input Not Supported", description: "Your browser does not support voice input, or permission was denied.", variant: "destructive"});
       return;
     }
-    if (isListening) {
+    if (isContinuousMode) {
       recognitionRef.current.stop();
-      setIsListening(false);
+      if(audioRef.current) audioRef.current.pause();
+      setIsContinuousMode(false);
     } else {
       try {
+        setIsContinuousMode(true);
         recognitionRef.current.start();
-        setIsListening(true);
       } catch (err) {
         console.error("Error starting speech recognition:", err);
         toast({ title: "Mic Error", description: "Could not start microphone. Check permissions.", variant: "destructive" });
-        setIsListening(false);
+        setIsContinuousMode(false);
       }
     }
   };
@@ -199,16 +242,16 @@ export default function AIAssistantPage() {
               variant="outline" 
               size="icon" 
               onClick={handleMicClick}
-              disabled={isLoading}
-              className={cn(isListening && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
-              aria-label={isListening ? "Stop listening" : "Start voice input"}
+              disabled={isLoading && !isContinuousMode}
+              className={cn((isListening || isContinuousMode) && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+              aria-label={isContinuousMode ? "Stop conversation" : "Start voice conversation"}
             >
               <Mic className="h-5 w-5" />
             </Button>
             <Select 
               value={language} 
               onValueChange={(value) => setLanguage(value as 'en-US' | 'ur-PK')}
-              disabled={isLoading || isListening}
+              disabled={isLoading || isListening || isContinuousMode}
             >
                 <SelectTrigger className="w-[130px]" aria-label="Select language">
                     <div className="flex items-center gap-2">
@@ -223,14 +266,14 @@ export default function AIAssistantPage() {
             </Select>
             <Input
               type="text"
-              placeholder={isListening ? "Listening..." : "Type your message..."}
+              placeholder={isListening ? "Listening..." : (isContinuousMode ? "Continuous mode active..." : "Type your message...")}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && !isLoading && handleTextInputSubmit()}
-              disabled={isLoading || isListening}
+              disabled={isLoading || isListening || isContinuousMode}
               className="flex-1"
             />
-            <Button onClick={handleTextInputSubmit} disabled={isLoading || !inputText.trim() || isListening} size="icon" aria-label="Send message">
+            <Button onClick={handleTextInputSubmit} disabled={isLoading || !inputText.trim() || isListening || isContinuousMode} size="icon" aria-label="Send message">
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </div>
