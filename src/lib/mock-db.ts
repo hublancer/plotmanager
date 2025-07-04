@@ -13,7 +13,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead } from "@/types";
+import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead, UserProfile } from "@/types";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 
 if (!db) {
@@ -46,11 +46,11 @@ const mapDocToTransaction = (doc: any): Transaction => ({ id: doc.id, ...doc.dat
 const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
 
 // ===== Users =====
-export const getUserProfileByUID = async (uid: string): Promise<any | null> => {
+export const getUserProfileByUID = async (uid: string): Promise<UserProfile | null> => {
   return safeDBOperation(async () => {
     const docRef = doc(db!, 'users', uid);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
   }, null);
 };
 
@@ -71,10 +71,9 @@ export const getProperties = async (userId: string): Promise<Property[]> => {
     const properties = snapshot.docs.map(mapDocToProperty);
     // Sort by creation date, newest first
     return properties.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        }
-        return 0;
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
     });
   }, []);
 };
@@ -106,14 +105,21 @@ export const addProperty = async (propertyData: Omit<Property, 'id' | 'createdAt
         if (!newProperty.plots) {
           newProperty.plots = [];
         }
-        return newProperty;
+        return newProperty as Property;
     }, { ...propertyData, createdAt: new Date().toISOString() } as Property);
 };
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property | null> => {
+    const cleanUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+
     return safeDBOperation(async () => {
         const docRef = doc(db!, 'properties', id);
-        await updateDoc(docRef, updates);
+        await updateDoc(docRef, cleanUpdates);
         const updatedDoc = await getDoc(docRef);
         return updatedDoc.exists() ? mapDocToProperty(updatedDoc) : null;
     }, null);
@@ -134,10 +140,9 @@ export const getEmployees = async (userId: string): Promise<Employee[]> => {
         const snapshot = await getDocs(q);
         const employees = snapshot.docs.map(mapDocToEmployee);
         return employees.sort((a,b) => {
-            if (a.createdAt && b.createdAt) {
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            }
-            return 0;
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
         });
     }, []);
 };
@@ -206,11 +211,18 @@ export const getRecentTransactions = async (userId: string, count: number): Prom
   }, []);
 };
 
-export const addTransaction = async (transactionData: Omit<Transaction, 'id'>): Promise<Transaction> => {
+export const addTransaction = async (transactionData: Omit<Transaction, 'id' | 'propertyName'>): Promise<Transaction> => {
     return safeDBOperation(async () => {
-        const docRef = await addDoc(transactionsCollection!, transactionData);
-        return { id: docRef.id, ...transactionData };
-    }, transactionData as Transaction);
+        let propertyName = "N/A";
+        if(transactionData.propertyId) {
+            const prop = await getPropertyById(transactionData.propertyId);
+            if(prop) propertyName = prop.name;
+        }
+
+        const dataToSave = { ...transactionData, propertyName };
+        const docRef = await addDoc(transactionsCollection!, dataToSave);
+        return { id: docRef.id, ...dataToSave };
+    }, { ...transactionData, propertyName: "N/A" } as Transaction);
 };
 
 
@@ -242,8 +254,8 @@ export const getLeads = async (userId: string): Promise<Lead[]> => {
 export const addLead = async (leadData: Omit<Lead, 'id'>): Promise<Lead> => {
     return safeDBOperation(async () => {
         const docRef = await addDoc(leadsCollection!, { ...leadData, lastUpdate: new Date().toISOString() });
-        return { id: docRef.id, ...leadData, lastUpdate: new Date().toISOString() };
-    }, leadData as Lead);
+        return { id: docRef.id, ...leadData, lastUpdate: new Date().toISOString() } as Lead;
+    }, { ...leadData, id: '' } as Lead);
 };
 
 export const updateLead = async (id: string, updates: Partial<Lead>): Promise<Lead | null> => {
@@ -332,7 +344,7 @@ export const endRental = async (propertyId: string, plotId?: string): Promise<bo
             const newPlots = prop.plots.map(p => {
                 if (p.id === plotId) {
                     const { rentalDetails, ...rest } = p;
-                    return { ...rest, status: 'available' as const };
+                    return { ...rest, status: 'available' as const, rentalDetails: undefined };
                 }
                 return p;
             });
@@ -394,7 +406,7 @@ export const endInstallmentPlan = async (propertyId: string, plotId?: string): P
             const newPlots = prop.plots.map(p => {
                 if (p.id === plotId) {
                     const { installmentDetails, ...rest } = p;
-                    return { ...rest, status: 'available' as const };
+                    return { ...rest, status: 'available' as const, installmentDetails: undefined };
                 }
                 return p;
             });

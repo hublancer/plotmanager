@@ -33,10 +33,15 @@ export default function DashboardPage() {
     if (!user) return;
     const fetchData = async () => {
       setIsLoading(true);
+      const ownerId = userProfile?.role === 'admin' ? user.uid : userProfile?.adminId;
+      if (!ownerId) {
+        setIsLoading(false);
+        return;
+      }
       const [props, trans, recentTrans] = await Promise.all([
-        getProperties(user.uid),
-        getTransactions(user.uid),
-        getRecentTransactions(user.uid, 5)
+        getProperties(ownerId),
+        getTransactions(ownerId),
+        getRecentTransactions(ownerId, 5)
       ]);
       setProperties(props);
       setTransactions(trans);
@@ -44,7 +49,7 @@ export default function DashboardPage() {
       setIsLoading(false);
     };
     fetchData();
-  }, [user]);
+  }, [user, userProfile]);
 
   const monthlyStats = useMemo(() => {
     const now = new Date();

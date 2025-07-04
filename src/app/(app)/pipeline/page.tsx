@@ -39,10 +39,15 @@ export default function PipelinePage() {
   const fetchLeads = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    const leadsData = await getLeads(user.uid);
+    const ownerId = userProfile?.role === 'admin' ? user.uid : userProfile?.adminId;
+    if (!ownerId) {
+      setIsLoading(false);
+      return;
+    }
+    const leadsData = await getLeads(ownerId);
     setLeads(leadsData);
     setIsLoading(false);
-  }, [user]);
+  }, [user, userProfile]);
 
   useEffect(() => {
     fetchLeads();

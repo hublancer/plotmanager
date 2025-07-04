@@ -171,33 +171,3 @@ export interface Lead {
   longitude?: number | null;
   notes?: string;
 }
-
-// THIS TYPE IS NO LONGER USED, RENTALS ARE DERIVED FROM PROPERTIES/PLOTS
-export interface Rental {
-  id: string;
-  userId: string;
-  name: string; 
-  address: string;
-  propertyType: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  tenantName: string;
-  tenantContact: string;
-  tenantIdCard?: string;
-  rentAmount: number;
-  rentFrequency: 'monthly' | 'yearly';
-  startDate: string; // ISO date string
-  notes?: string;
-  paymentStatus: 'Paid' | 'Due';
-}
-
-// THIS TYPE IS NO LONGER USED, INSTALLMENTS ARE DERIVED FROM PROPERTIES/PLOTS
-export interface InstallmentDetails extends Property {
-    paidAmount: number;
-    remainingAmount: number;
-    nextDueDate?: string; // Calculated next installment due date
-    status: 'Active' | 'Overdue' | 'Fully Paid';
-    paidInstallments: number;
-    totalInstallments: number;
-    installmentAmount: number; // The calculated amount for each installment
-}

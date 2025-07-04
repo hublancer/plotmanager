@@ -43,10 +43,15 @@ export default function PropertiesPage() {
   const fetchProperties = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    const data = await getProperties(user.uid);
+    const ownerId = userProfile?.role === 'admin' ? user.uid : userProfile?.adminId;
+    if (!ownerId) {
+      setIsLoading(false);
+      return;
+    }
+    const data = await getProperties(ownerId);
     setProperties(data);
     setIsLoading(false);
-  }, [user]);
+  }, [user, userProfile]);
 
   useEffect(() => {
     fetchProperties();
