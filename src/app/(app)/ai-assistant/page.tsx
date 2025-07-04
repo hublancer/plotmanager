@@ -151,6 +151,21 @@ export default function AIAssistantPage() {
         };
 
         recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+          // The 'no-speech' error is common and not critical. We'll ignore it and restart if in continuous mode.
+          if (event.error === 'no-speech') {
+            console.warn("Speech recognition: No speech detected.");
+            if (continuousModeRef.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                console.error("Failed to restart recognition on no-speech", e);
+                setIsContinuousMode(false);
+              }
+            }
+            return; // Exit without showing a toast.
+          }
+          
+          // For any other error, show a toast and stop the conversation.
           console.error("Speech recognition error", event.error);
           toast({ title: "Voice Error", description: `Could not recognize voice: ${event.error}`, variant: "destructive" });
           setIsContinuousMode(false);
