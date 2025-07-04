@@ -209,61 +209,41 @@ const prompt = ai.definePrompt({
       Analyze the provided data and generate a clear, professional report of the specified type.
       The currency is PKR. Format numbers with commas. Start with a brief, insightful summary.
 
-      {{#if (eq reportType "sales_summary")}}
-      Generate a high-level summary of sales. Cover total sales value, number of sales, average sale price, and identify any key insights or trends from the data.
-      Data:
-      {{#if salesRecords.length}}
-      {{#each salesRecords}}
-      - Property: {{this.propertyName}}, Price: {{this.price}}, Date: {{this.date}}, Type: {{this.saleType}}
-      {{/each}}
-      {{else}}
-      No sales records available.
-      {{/if}}
-      {{/if}}
-
-      {{#if (eq reportType "sales_detailed")}}
-      Generate a detailed sales report. List each transaction with property details, buyer information, price, date, and sale type. Provide a total summary at the end.
-      Data:
-      {{#if salesRecords.length}}
-      {{#each salesRecords}}
-      - Property: {{this.propertyName}} {{#if this.address}}({{this.address}}){{/if}}
-        {{#if this.plotNumber}}Plot: {{this.plotNumber}}{{/if}}
-        Buyer: {{this.buyerName}}
-        Price: PKR {{this.price}}
-        Date: {{this.date}}
-        Type: {{this.saleType}}
+      {{#if salesRecords}}
+      Generate a "{{reportType}}" report.
+      - For a "sales_summary", provide a high-level overview: total sales value, number of sales, average sale price, and key trends.
+      - For a "sales_detailed" report, list each transaction with all details and provide a final summary.
       
+      Sales Data:
+      {{#if salesRecords.length}}
+      {{#each salesRecords}}
+      - Property: {{this.propertyName}} {{#if this.address}}({{this.address}}){{/if}}, {{#if this.plotNumber}}Plot: {{this.plotNumber}}, {{/if}}Buyer: {{this.buyerName}}, Price: PKR {{this.price}}, Date: {{this.date}}, Type: {{this.saleType}}
       {{/each}}
       {{else}}
-      No sales records available.
+      No sales records available for this period.
       {{/if}}
       {{/if}}
 
-      {{#if (eq reportType "rentals")}}
+      {{#if rentalRecords}}
       Generate a rentals report. Summarize the rental portfolio, including total potential rent, occupancy rate (number of rented units), and a list of properties with their current payment status.
-      Data:
+      
+      Rental Data:
       {{#if rentalRecords.length}}
       {{#each rentalRecords}}
-      - Property: {{this.propertyName}} {{#if this.plotNumber}}(Plot {{this.plotNumber}}){{/if}}
-        Tenant: {{this.tenantName}}
-        Rent: PKR {{this.rentAmount}}/{{this.rentFrequency}}
-        Status: {{this.paymentStatus}}
+      - Property: {{this.propertyName}} {{#if this.plotNumber}}(Plot {{this.plotNumber}}){{/if}}, Tenant: {{this.tenantName}}, Rent: PKR {{this.rentAmount}}/{{this.rentFrequency}}, Status: {{this.paymentStatus}}
       {{/each}}
       {{else}}
       No rental records available.
       {{/if}}
       {{/if}}
 
-      {{#if (eq reportType "installments")}}
+      {{#if installmentRecords}}
       Generate an installment plans report. Summarize the active plans, including total value of properties on installment, total amount paid vs. remaining, and highlight any overdue accounts.
-      Data:
+      
+      Installment Data:
       {{#if installmentRecords.length}}
       {{#each installmentRecords}}
-      - Property: {{this.propertyName}} {{#if this.plotNumber}}(Plot {{this.plotNumber}}){{/if}}
-        Buyer: {{this.buyerName}}
-        Total Price: PKR {{this.totalPrice}}
-        Paid: PKR {{this.paidAmount}} (Remaining: PKR {{this.remainingAmount}})
-        Status: {{this.status}}
+      - Property: {{this.propertyName}} {{#if this.plotNumber}}(Plot {{this.plotNumber}}){{/if}}, Buyer: {{this.buyerName}}, Total Price: PKR {{this.totalPrice}}, Paid: PKR {{this.paidAmount}} (Remaining: PKR {{this.remainingAmount}}), Status: {{this.status}}
       {{/each}}
       {{else}}
       No installment records available.
