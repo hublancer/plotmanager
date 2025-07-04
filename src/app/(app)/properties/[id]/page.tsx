@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -141,8 +142,7 @@ export default function PropertyDetailsPage() {
             <h3 className="text-xl font-semibold mb-2 mt-6">Plot Details & Layout</h3>
             {property.imageUrls && property.imageUrls.length > 0 ? (
               <PlotPinner 
-                imageUrls={property.imageUrls}
-                initialPlots={property.plots}
+                property={property}
                 onPlotsChange={handlePlotsChange}
               />
             ) : (
@@ -157,3 +157,4 @@ export default function PropertyDetailsPage() {
     </div>
   );
 }
+    

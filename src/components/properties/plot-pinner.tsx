@@ -44,6 +44,12 @@ interface PlotPinnerProps {
 }
 
 export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
+  // Add a guard clause to prevent rendering if the property is not yet available.
+  // This robustly handles race conditions during data fetching.
+  if (!property) {
+    return null;
+  }
+
   const [plots, setPlots] = useState<PlotData[]>(property.plots || []);
   const [selectedPlot, setSelectedPlot] = useState<PlotData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -661,3 +667,4 @@ function PlotDialog({ isOpen, onOpenChange, plotData, onSave, onDelete, isEditin
     </Dialog>
   );
 }
+    
