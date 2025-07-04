@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PlusCircle, Edit, Trash2, Loader2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, Hourglass, CheckCircle } from "lucide-react";
 import type { Employee } from "@/types";
 import { getEmployees, deleteEmployee } from "@/lib/mock-db";
 import {
@@ -96,7 +96,7 @@ export default function EmployeesPage() {
                   <TableHead>Position</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Hire Date</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -121,7 +121,17 @@ export default function EmployeesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{employee.email}</TableCell>
-                    <TableCell>{new Date(employee.hireDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {employee.status === 'active' ? (
+                        <Badge variant="secondary" className="text-green-600 border-green-500">
+                           <CheckCircle className="mr-1 h-3 w-3" /> Active
+                        </Badge>
+                      ) : (
+                         <Badge variant="outline">
+                           <Hourglass className="mr-1 h-3 w-3" /> Pending
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" aria-label="Edit Employee" onClick={() => alert(`Editing is not yet implemented.`)}>
                         <Edit className="h-4 w-4" />
@@ -159,7 +169,7 @@ export default function EmployeesPage() {
         </Card>
       )}
        <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
-        This section allows you to manage your company's employees. You can add new employees, view their details, and perform other HR-related tasks.
+        This section allows you to manage your company's employees. You can invite new employees, view their status, and manage their records. An employee becomes 'Active' after they sign up using the email you invited them with.
       </CardDescription>
     </div>
   );

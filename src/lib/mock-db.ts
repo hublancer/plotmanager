@@ -129,11 +129,33 @@ export const getEmployees = async (userId: string): Promise<Employee[]> => {
     }, []);
 };
 
-export const addEmployee = async (employeeData: Omit<Employee, 'id'>): Promise<Employee> => {
+export const getEmployeeByEmail = async (email: string): Promise<Employee | null> => {
     return safeDBOperation(async () => {
-        const docRef = await addDoc(employeesCollection!, employeeData);
-        return { id: docRef.id, ...employeeData };
+        const q = query(employeesCollection!, where("email", "==", email), limit(1));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            return mapDocToEmployee(snapshot.docs[0]);
+        }
+        return null;
+    }, null);
+};
+
+
+export const addEmployee = async (employeeData: Omit<Employee, 'id' | 'status'>): Promise<Employee> => {
+    return safeDBOperation(async () => {
+        const dataToSave = { ...employeeData, status: 'pending' as const };
+        const docRef = await addDoc(employeesCollection!, dataToSave);
+        return { id: docRef.id, ...dataToSave };
     }, employeeData as Employee);
+};
+
+export const updateEmployee = async (id: string, updates: Partial<Employee>): Promise<Employee | null> => {
+    return safeDBOperation(async () => {
+        const docRef = doc(db!, 'employees', id);
+        await updateDoc(docRef, updates);
+        const updatedDoc = await getDoc(docRef);
+        return updatedDoc.exists() ? mapDocToEmployee(updatedDoc) : null;
+    }, null);
 };
 
 export const deleteEmployee = async (id: string): Promise<boolean> => {

@@ -81,7 +81,8 @@ export interface RentedPropertyDetails extends Property {
 
 export interface Employee {
   id: string;
-  userId: string;
+  userId: string; // The admin who created the employee record
+  authUid?: string; // The actual Firebase Auth UID of the employee, once they register
   name: string;
   position: string;
   email: string;
@@ -90,6 +91,7 @@ export interface Employee {
   avatarUrl?: string;
   department?: string;
   role: 'manager' | 'agent';
+  status?: 'pending' | 'active';
 }
 
 export interface Lead {

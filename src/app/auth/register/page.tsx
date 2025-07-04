@@ -21,11 +21,13 @@ import {
   updateProfile,
   signInWithPopup,
   GoogleAuthProvider,
-  getAdditionalUserInfo
+  getAdditionalUserInfo,
+  type User
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getEmployeeByEmail, updateEmployee } from '@/lib/mock-db';
 
 
 export default function RegisterPage() {
@@ -35,6 +37,36 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { toast } = useToast();
+
+  // Common function to handle user profile creation in Firestore
+  const createUserProfile = async (user: User, displayName: string | null) => {
+    if (!db) return;
+
+    // Check if an employee invitation exists for this email
+    const invitedEmployee = await getEmployeeByEmail(user.email!);
+    let finalRole = 'admin'; // Default role for a new, uninvited user
+
+    if (invitedEmployee && invitedEmployee.status === 'pending') {
+      finalRole = invitedEmployee.role;
+      // Link the auth account to the employee record and mark as active
+      await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
+      toast({
+          title: "Welcome aboard!",
+          description: `Your account has been activated with the ${finalRole} role.`
+      });
+    }
+
+    // Create the user document in Firestore with the determined role
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      displayName: displayName || user.displayName,
+      email: user.email,
+      createdAt: serverTimestamp(),
+      photoURL: user.photoURL || null,
+      activePlan: finalRole === 'admin' ? false : true, // Employees don't need a plan
+      role: finalRole,
+    });
+  };
 
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,20 +90,9 @@ export default function RegisterPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      if (user) {
-        await updateProfile(user, { displayName: name });
-        
-        // Create a user document in Firestore
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          displayName: name,
-          email: email,
-          createdAt: serverTimestamp(),
-          photoURL: user.photoURL || null,
-          activePlan: false,
-          role: 'admin', // New users are admins by default
-        });
-      }
+      
+      await updateProfile(user, { displayName: name });
+      await createUserProfile(user, name);
 
       toast({
         title: 'Account Created',
@@ -106,15 +127,7 @@ export default function RegisterPage() {
       const additionalInfo = getAdditionalUserInfo(result);
 
       if (additionalInfo?.isNewUser) {
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          createdAt: serverTimestamp(),
-          photoURL: user.photoURL || null,
-          activePlan: false,
-          role: 'admin', // New users are admins by default
-        });
+        await createUserProfile(user, user.displayName);
         toast({
           title: "Account Created",
           description: `Welcome, ${user.displayName}!`,

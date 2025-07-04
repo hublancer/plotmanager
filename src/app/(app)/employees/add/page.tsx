@@ -66,12 +66,12 @@ export default function AddEmployeePage() {
     try {
       await addEmployee({
         ...values,
-        userId: user.uid,
+        userId: user.uid, // This is the ID of the admin creating the employee
         hireDate: values.hireDate.toISOString(),
       });
       toast({
-        title: "Employee Added",
-        description: `${values.name} has been successfully added to your team.`,
+        title: "Employee Invited",
+        description: `${values.name} has been invited. They need to register with the email ${values.email} to activate their account.`,
       });
       router.push("/employees");
     } catch (error) {
@@ -93,9 +93,9 @@ export default function AddEmployeePage() {
 
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
         <CardHeader>
-          <CardTitle>Add New Employee</CardTitle>
+          <CardTitle>Invite New Employee</CardTitle>
           <CardDescription>
-            Fill in the details below to add a new employee to the system.
+            Fill in the details below to invite a new employee. They will need to sign up using the email you provide to gain access with their assigned role.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -132,7 +132,7 @@ export default function AddEmployeePage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Employee's Login Email</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="name@example.com" {...field} />
                     </FormControl>
@@ -213,7 +213,7 @@ export default function AddEmployeePage() {
                   name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Role</FormLabel>
+                      <FormLabel>Assign Role</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -221,7 +221,7 @@ export default function AddEmployeePage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="agent">Agent</SelectItem>
+                          <SelectItem value="agent">Agent (Salesman)</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                         </SelectContent>
                       </Select>
@@ -231,7 +231,7 @@ export default function AddEmployeePage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Adding Employee..." : "Add Employee"}
+                {isSubmitting ? "Sending Invitation..." : "Invite Employee"}
               </Button>
             </form>
           </Form>
