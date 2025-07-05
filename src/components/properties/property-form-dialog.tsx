@@ -25,15 +25,22 @@ interface PropertyFormDialogProps {
 export function PropertyFormDialog({ isOpen, onOpenChange, onUpdate, initialData }: PropertyFormDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const handleSubmit = async (data: PropertyFormValues & { imageUrls?: string[] }) => {
-    if (!user) {
+    if (!user || !userProfile) {
         toast({ title: "Authentication Error", description: "You must be logged in to manage properties.", variant: "destructive" });
         setIsSubmitting(false);
         return;
     }
     setIsSubmitting(true);
+    
+    const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+    if (!ownerId) {
+        toast({ title: "Error", description: "Could not determine agency owner.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
     
     try {
       if (initialData) {
@@ -52,7 +59,7 @@ export function PropertyFormDialog({ isOpen, onOpenChange, onUpdate, initialData
       } else {
         // Add new property
         const newPropertyData: Omit<Property, 'id' | 'createdAt'> = {
-            userId: user.uid,
+            userId: ownerId,
             name: data.name,
             address: data.address,
             propertyType: data.propertyType,

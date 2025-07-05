@@ -56,7 +56,7 @@ interface EventFormDialogProps {
 
 export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, dateInfo, viewingEvent }: EventFormDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -99,14 +99,23 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
 
 
   const onSubmit = async (values: FormValues) => {
-    if (!user) {
+    if (!user || !userProfile) {
         toast({ title: "Authentication Error", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
+    
+    const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+    if (!ownerId) {
+        toast({ title: "Error", description: "Could not determine agency owner.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+    }
+
     try {
         const dataToSave = {
-            userId: user.uid,
+            userId: ownerId,
+            createdBy: user.uid,
             title: values.title,
             type: values.type,
             allDay: values.allDay,

@@ -21,18 +21,20 @@ export default function PropertyDetailsPage() {
   const { toast } = useToast();
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const propertyId = typeof id === 'string' ? id : '';
 
   useEffect(() => {
-    if (propertyId && user) {
+    if (propertyId && user && userProfile) {
       const fetchProperty = async () => {
         setIsLoading(true);
         const data = await getPropertyById(propertyId); 
         
-        // Security Check: Make sure the fetched property belongs to the logged-in user
-        if (data && data.userId === user.uid) {
+        // Security Check: Make sure the fetched property belongs to the logged-in user or their admin
+        const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+
+        if (data && data.userId === ownerId) {
             setProperty(data);
         } else {
             setProperty(null); // Set to null if not found or not owned
@@ -41,6 +43,7 @@ export default function PropertyDetailsPage() {
                 description: "You do not have permission to view this property or it does not exist.",
                 variant: "destructive"
             });
+            router.push('/properties');
         }
         setIsLoading(false);
       };
@@ -49,7 +52,7 @@ export default function PropertyDetailsPage() {
         // Handle case where user is not logged in yet
         setIsLoading(true);
     }
-  }, [propertyId, user, toast]);
+  }, [propertyId, user, userProfile, toast, router]);
 
   const handlePlotsChange = async (updatedPlots: PlotData[]) => {
     if (property) {
@@ -127,10 +130,12 @@ export default function PropertyDetailsPage() {
                 )}
             </div>
           </div>
-          <Button variant="outline" size="icon" onClick={() => alert('Edit property details modal/page should open here.')} className="flex-shrink-0">
-            <Edit className="h-5 w-5" />
-            <span className="sr-only">Edit Property Details</span>
-          </Button>
+          {userProfile?.role !== 'agent' && (
+            <Button variant="outline" size="icon" onClick={() => alert('Edit property details modal/page should open here.')} className="flex-shrink-0">
+              <Edit className="h-5 w-5" />
+              <span className="sr-only">Edit Property Details</span>
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           

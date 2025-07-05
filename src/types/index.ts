@@ -181,6 +181,7 @@ export interface Lead {
 export interface CalendarEvent {
   id: string;
   userId: string;
+  createdBy?: string; // UID of user who created the event
   createdAt: string; // ISO
   title: string;
   start: string; // ISO
