@@ -34,14 +34,48 @@ const formSchema = z.object({
   allDay: z.boolean(),
   start: z.date({ required_error: "Start date is required." }),
   end: z.date().optional(),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format").optional(),
+  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format").optional(),
   details: z.string().optional(),
-}).refine(data => {
-    // If not allDay and end date is present, end date must be after start date
-    return data.allDay || !data.end || data.end >= data.start;
-}, {
-    message: "End date must be after start date.",
-    path: ["end"],
+}).superRefine((data, ctx) => {
+    if (!data.allDay) {
+        if (!data.startTime) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["startTime"],
+                message: "Start time is required.",
+            });
+        }
+        if (data.end && !data.endTime) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["endTime"],
+                message: "End time is required.",
+            });
+        }
+    }
+
+    if (data.start && data.end && data.startTime && data.endTime && !data.allDay) {
+        const combine = (date: Date, time: string) => {
+            const newDate = new Date(date);
+            const [hours, minutes] = time.split(':').map(Number);
+            newDate.setHours(hours, minutes, 0, 0);
+            return newDate;
+        }
+
+        const startDateTime = combine(data.start, data.startTime);
+        const endDateTime = combine(data.end, data.endTime);
+
+        if (startDateTime >= endDateTime) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["endTime"],
+                message: "End time must be after start time.",
+            });
+        }
+    }
 });
+
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -74,12 +108,16 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
   useEffect(() => {
     if (isOpen) {
         if (initialEvent) { // Editing an existing custom event
+            const startDate = parseISO(initialEvent.start);
+            const endDate = initialEvent.end ? parseISO(initialEvent.end) : undefined;
             form.reset({
                 title: initialEvent.title,
                 type: initialEvent.type,
                 allDay: initialEvent.allDay,
-                start: parseISO(initialEvent.start),
-                end: initialEvent.end ? parseISO(initialEvent.end) : undefined,
+                start: startDate,
+                end: endDate,
+                startTime: !initialEvent.allDay ? format(startDate, 'HH:mm') : undefined,
+                endTime: !initialEvent.allDay && endDate ? format(endDate, 'HH:mm') : undefined,
                 details: initialEvent.details || "",
             });
         } else if (dateInfo) { // Creating a new event from date click
@@ -89,6 +127,8 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
                 allDay: dateInfo.allDay,
                 start: dateInfo.start,
                 end: dateInfo.allDay ? undefined : dateInfo.end,
+                startTime: !dateInfo.allDay ? format(dateInfo.start, 'HH:mm') : undefined,
+                endTime: !dateInfo.allDay ? format(dateInfo.end, 'HH:mm') : undefined,
                 details: "",
             });
         } else if (viewingEvent) { // Viewing a derived event
@@ -113,14 +153,29 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
     }
 
     try {
+        const combineDateTime = (date: Date, time?: string): Date => {
+            if (!time) return date;
+            const newDate = new Date(date);
+            const [hours, minutes] = time.split(':').map(Number);
+            newDate.setHours(hours, minutes, 0, 0);
+            return newDate;
+        };
+
+        const finalStartDate = values.allDay ? values.start : combineDateTime(values.start, values.startTime);
+        
+        let finalEndDate: Date | undefined;
+        if (values.end) {
+            finalEndDate = values.allDay ? values.end : combineDateTime(values.end, values.endTime);
+        }
+
         const dataToSave = {
             userId: ownerId,
             createdBy: user.uid,
             title: values.title,
             type: values.type,
             allDay: values.allDay,
-            start: values.start.toISOString(),
-            ...(values.end && { end: values.end.toISOString() }),
+            start: finalStartDate.toISOString(),
+            ...(finalEndDate && { end: finalEndDate.toISOString() }),
             ...(values.details && { details: values.details }),
         };
 
@@ -155,6 +210,8 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
         setIsSubmitting(false);
     }
   };
+  
+  const allDay = form.watch("allDay");
 
   const renderReadOnlyView = () => {
     if (!viewingEvent) return null;
@@ -227,12 +284,64 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
             <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Title</FormLabel><FormControl><Input placeholder="e.g., Meeting with client" {...field} /></FormControl><FormMessage /></FormItem>)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="event">Event</SelectItem><SelectItem value="meeting">Meeting</SelectItem><SelectItem value="holiday">Holiday</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="allDay" render={({ field }) => (<FormItem className="flex flex-col pt-2"><FormLabel>All-day event</FormLabel><FormControl><div className="flex items-center space-x-2 h-10"><Switch checked={field.value} onCheckedChange={field.onChange} /><Label>{field.value ? 'Yes' : 'No'}</Label></div></FormControl></FormItem>)} />
+                <FormField control={form.control} name="allDay" render={({ field }) => (<FormItem className="flex flex-col pt-2"><FormLabel>All-day event</FormLabel><FormControl><div className="flex items-center space-x-2 h-10"><Switch checked={field.value} onCheckedChange={field.onChange} /><Label htmlFor={field.name}>{field.value ? 'Yes' : 'No'}</Label></div></FormControl></FormItem>)} />
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField control={form.control} name="start" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Start Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="end" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>End Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : <span>Pick a date</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                <div className="space-y-2">
+                    <FormField control={form.control} name="start" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Start Date</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    {!allDay && <FormField control={form.control} name="startTime" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Start Time</FormLabel>
+                            <FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />}
+                </div>
+                <div className="space-y-2">
+                    <FormField control={form.control} name="end" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>End Date</FormLabel>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                     {!allDay && <FormField control={form.control} name="endTime" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>End Time</FormLabel>
+                            <FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />}
+                </div>
             </div>
+
             <FormField control={form.control} name="details" render={({ field }) => (<FormItem><FormLabel>Details (optional)</FormLabel><FormControl><Textarea placeholder="Add notes, location, etc." {...field} /></FormControl><FormMessage /></FormItem>)} />
             
             <DialogFooter className="pt-4 border-t">
