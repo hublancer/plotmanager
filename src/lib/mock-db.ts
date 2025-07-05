@@ -56,7 +56,21 @@ const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead)
 const mapDocToCalendarEvent = (doc: any): CalendarEvent => ({ id: doc.id, ...doc.data() } as CalendarEvent);
 const mapDocToPlan = (doc: any): Plan => ({ id: doc.id, ...doc.data() } as Plan);
 const mapDocToPayment = (doc: any): Payment => ({ id: doc.id, ...doc.data() } as Payment);
-const mapDocToUser = (doc: any): UserProfile => ({ uid: doc.id, ...doc.data() } as UserProfile);
+
+const mapDocToUser = (doc: any): UserProfile => {
+  const data = doc.data();
+  // Safely handle Firestore Timestamps by converting them to ISO strings
+  if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+    data.createdAt = data.createdAt.toDate().toISOString();
+  }
+  if (data.subscription?.startDate && typeof data.subscription.startDate.toDate === 'function') {
+    data.subscription.startDate = data.subscription.startDate.toDate().toISOString();
+  }
+  if (data.subscription?.endDate && typeof data.subscription.endDate.toDate === 'function') {
+    data.subscription.endDate = data.subscription.endDate.toDate().toISOString();
+  }
+  return { uid: doc.id, ...data } as UserProfile;
+};
 
 
 // ===== Users =====
