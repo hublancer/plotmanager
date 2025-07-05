@@ -146,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     id: `rental-${r.id}`,
                     icon: <DollarSign className="h-4 w-4 text-green-500" />,
                     title: `Rent Due: ${r.tenantName}`,
-                    description: `PKR ${r.rentAmount.toLocaleString()} for ${r.propertyName}`,
+                    description: `Due on ${format(dueDate, 'PPP')}: PKR ${r.rentAmount.toLocaleString()} for ${r.propertyName}`,
                     date: dueDate,
                     href: '/rentals',
                 });
@@ -162,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     id: `installment-${i.id}`,
                     icon: <DollarSign className="h-4 w-4 text-blue-500" />,
                     title: `Installment Due: ${i.buyerName}`,
-                    description: `PKR ${i.installmentAmount.toLocaleString()} for ${i.propertyName}`,
+                    description: `Due on ${format(dueDate, 'PPP')}: PKR ${i.installmentAmount.toLocaleString()} for ${i.propertyName}`,
                     date: dueDate,
                     href: '/installments',
                 });
@@ -362,9 +362,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                           <div className="flex-1">
                             <p className="font-semibold text-sm">{n.title}</p>
                             <p className="text-xs text-muted-foreground">{n.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(n.date, { addSuffix: true })}
-                            </p>
                           </div>
                         </DropdownMenuItem>
                       </Link>
@@ -404,9 +401,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                           <div className="flex-1">
                             <p className="font-semibold text-sm">{n.title}</p>
                             <p className="text-xs text-muted-foreground">{n.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(n.date, { addSuffix: true })}
-                            </p>
                           </div>
                         </DropdownMenuItem>
                       </Link>
