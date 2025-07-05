@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
                     <TableCell>{user.displayName}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{user.role}</Badge></TableCell>
-                    <TableCell>{format(new Date(user.createdAt), 'PPP')}</TableCell>
+                    <TableCell>{user.createdAt ? format(new Date(user.createdAt), 'PPP') : 'N/A'}</TableCell>
                     <TableCell>{getSubscriptionStatus(user)}</TableCell>
                   </TableRow>
                 ))
