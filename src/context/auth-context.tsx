@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
@@ -13,12 +13,14 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  refetchUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userProfile: null,
   loading: true,
+  refetchUserProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -29,6 +31,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const pageLoader = useContext(LoadingContext);
 
+  const fetchUserProfile = useCallback(async (userToFetch: User | null) => {
+    if (userToFetch) {
+      const profile = await getUserProfileByUID(userToFetch.uid);
+      if (profile && typeof profile.role === 'undefined') {
+        profile.role = 'admin';
+      }
+      setUserProfile(profile);
+    } else {
+      setUserProfile(null);
+    }
+  }, []);
+
   useEffect(() => {
     if (!auth) {
       setAuthLoading(false);
@@ -36,21 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
-      if (user) {
-        const profile = await getUserProfileByUID(user.uid);
-        // FIX: If a user profile exists but has no role, default it to 'admin'.
-        // This handles legacy accounts or sign-up glitches.
-        if (profile && typeof profile.role === 'undefined') {
-          profile.role = 'admin';
-        }
-        setUserProfile(profile);
-      } else {
-        setUserProfile(null);
-      }
+      await fetchUserProfile(user);
       setAuthLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [fetchUserProfile]);
+
+  const refetchUserProfile = useCallback(async () => {
+    if (user) {
+      await fetchUserProfile(user);
+    }
+  }, [user, fetchUserProfile]);
 
   useEffect(() => {
     const isAuthPage = pathname.startsWith('/auth');
@@ -66,17 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (authLoading) return;
 
-    // Not logged in: redirect to login unless on an auth page
     if (!user && !isAuthPage) {
       router.push('/auth/login');
       return;
     }
     
-    // Logged in:
     if (user) {
-      // If on an auth page, redirect away
       if (isAuthPage) {
-        // If they have a plan, go to dashboard. If not, go to plans.
         if (userProfile?.activePlan) {
           router.push('/dashboard');
         } else {
@@ -85,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // If NO active plan, force user to the plans page
       if (userProfile && !userProfile.activePlan && !isPlansPage) {
         router.push('/plans');
         return;
@@ -93,17 +98,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, userProfile, authLoading, pathname, router, pageLoader]);
 
-  // Prevent flashing content
   const isAuthPage = pathname.startsWith('/auth');
   const isPlansPage = pathname.startsWith('/plans');
 
   if (authLoading || (!user && !isAuthPage) || (user && userProfile && !userProfile.activePlan && !isPlansPage && !isAuthPage)) {
-    return null; // PageLoader is handled by its context provider
+    return null;
   }
 
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading: authLoading }}>
+    <AuthContext.Provider value={{ user, userProfile, loading: authLoading, refetchUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

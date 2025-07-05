@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { UserProfile } from '@/types';
 
 export default function ProfilePage() {
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, loading, refetchUserProfile } = useAuth();
   const { toast } = useToast();
 
   const handleRoleChange = async (newRole: UserProfile['role']) => {
@@ -25,11 +25,10 @@ export default function ProfilePage() {
       await updateUser(user.uid, { role: newRole });
       toast({
         title: "Role Updated",
-        description: "Your role has been changed. The UI will now update. For a full refresh, please reload the page.",
+        description: "Your role has been changed. The UI will now update.",
       });
-      // The auth context will automatically refetch the user profile,
-      // but a hard reload might be needed for some things to fully update.
-      // We can rely on the context for now.
+      // Call the refetch function to update the context state immediately
+      await refetchUserProfile();
     } catch (error) {
       toast({
         title: "Error",
