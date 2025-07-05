@@ -14,13 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlotPilotLogo } from "@/components/icons/logo";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
   getAdditionalUserInfo,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult,
 } from "firebase/auth";
 import {
   setDoc,
@@ -30,13 +33,40 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { getEmployeeByEmail, updateEmployee } from "@/lib/mock-db";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+declare global {
+  interface Window {
+    recaptchaVerifier: RecaptchaVerifier;
+  }
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isPhoneLoading, setIsPhoneLoading] = useState(false);
   const { toast } = useToast();
+  
+  const setupRecaptcha = () => {
+    if (!auth) return;
+    // Cleanup previous verifier if it exists
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+    }
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      'size': 'invisible',
+      'callback': (response: any) => {
+        // reCAPTCHA solved, allow signInWithPhoneNumber.
+        // This callback is required for invisible reCAPTCHA.
+      }
+    });
+  }
 
   const handleEmailLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,6 +92,57 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+  
+  const handleSendOtp = async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!auth || !db) return;
+      setIsPhoneLoading(true);
+      try {
+        setupRecaptcha();
+        const appVerifier = window.recaptchaVerifier;
+        const result = await signInWithPhoneNumber(auth, phone, appVerifier);
+        setConfirmationResult(result);
+        setOtpSent(true);
+        toast({ title: "OTP Sent", description: "Check your phone for the verification code." });
+      } catch (error: any) {
+        console.error("Phone Sign-In Error:", error);
+        toast({ title: "Failed to Send OTP", description: `Please check the phone number format (e.g., +1234567890). Error: ${error.code}`, variant: "destructive" });
+      } finally {
+        setIsPhoneLoading(false);
+      }
+  }
+
+  const handleVerifyOtp = async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!confirmationResult) return;
+      setIsPhoneLoading(true);
+      try {
+          const result = await confirmationResult.confirm(otp);
+          const user = result.user;
+          const additionalInfo = getAdditionalUserInfo(result);
+
+          if (additionalInfo?.isNewUser) {
+              await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                displayName: user.displayName || user.phoneNumber,
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                createdAt: serverTimestamp(),
+                photoURL: user.photoURL || null,
+                activePlan: false,
+                role: 'admin',
+                adminId: null,
+              });
+              toast({ title: "Account Created", description: `Welcome!` });
+          }
+          // Redirect is handled by AuthProvider
+      } catch (error: any) {
+          console.error("OTP Verification Error:", error);
+          toast({ title: "OTP Verification Failed", description: "The code is invalid or has expired.", variant: "destructive" });
+      } finally {
+          setIsPhoneLoading(false);
+      }
+  }
 
   const handleGoogleLogin = async () => {
     if (!auth || !db) {
@@ -142,7 +223,7 @@ export default function LoginPage() {
           variant="outline"
           className="w-full"
           onClick={handleGoogleLogin}
-          disabled={isLoading || isGoogleLoading}
+          disabled={isLoading || isGoogleLoading || isPhoneLoading}
         >
           {isGoogleLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -161,35 +242,55 @@ export default function LoginPage() {
             </span>
           </div>
         </div>
-        <form onSubmit={handleEmailLogin} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              required
-              disabled={isLoading || isGoogleLoading}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              disabled={isLoading || isGoogleLoading}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Log In with Email
-          </Button>
-        </form>
+        
+        <Tabs defaultValue="email" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="email">Email</TabsTrigger>
+                <TabsTrigger value="phone">Phone</TabsTrigger>
+            </TabsList>
+            <TabsContent value="email">
+                <form onSubmit={handleEmailLogin} className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" placeholder="name@example.com" required disabled={isLoading || isGoogleLoading || isPhoneLoading} value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" type="password" required disabled={isLoading || isGoogleLoading || isPhoneLoading} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isPhoneLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Log In with Email
+                  </Button>
+                </form>
+            </TabsContent>
+            <TabsContent value="phone">
+              <div id="recaptcha-container"></div>
+              {!otpSent ? (
+                 <form onSubmit={handleSendOtp} className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input id="phone" type="tel" placeholder="+1 123 456 7890" required disabled={isLoading || isGoogleLoading || isPhoneLoading} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isPhoneLoading}>
+                        {isPhoneLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Send OTP
+                    </Button>
+                 </form>
+              ) : (
+                <form onSubmit={handleVerifyOtp} className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="otp">Verification Code</Label>
+                        <Input id="otp" type="text" placeholder="Enter 6-digit OTP" required disabled={isPhoneLoading} value={otp} onChange={(e) => setOtp(e.target.value)} />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isPhoneLoading}>
+                         {isPhoneLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                         Verify & Login
+                    </Button>
+                </form>
+              )}
+            </TabsContent>
+        </Tabs>
       </CardContent>
       <CardFooter className="flex flex-col space-y-2 text-sm">
         <p className="text-muted-foreground">
