@@ -1,5 +1,6 @@
 
 
+
 export interface PlotData {
   id: string;
   plotNumber: string;
@@ -44,9 +45,13 @@ export interface PlotData {
 
 export interface UserProfile {
   uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+  createdAt: string; // ISO String
   activePlan?: boolean;
   role?: 'admin' | 'manager' | 'agent';
-  adminId?: string; // For employees, the UID of their admin
+  adminId?: string | null; // For employees, the UID of their admin
 }
 
 export interface Property {

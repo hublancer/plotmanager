@@ -22,14 +22,9 @@ import {
   GoogleAuthProvider,
   getAdditionalUserInfo,
 } from "firebase/auth";
-import {
-  setDoc,
-  doc,
-  serverTimestamp
-} from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { getEmployeeByEmail, updateEmployee } from "@/lib/mock-db";
+import { initializeUser } from "@/lib/mock-db";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -64,7 +59,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!auth || !db) {
+    if (!auth) {
       toast({
         title: "Login Unavailable",
         description: "Firebase is not configured. See developer console for details.",
@@ -79,37 +74,19 @@ export default function LoginPage() {
       const user = result.user;
       const additionalInfo = getAdditionalUserInfo(result);
 
-      if (additionalInfo?.isNewUser) {
-        // Check if an employee invitation exists for this email
-        const invitedEmployee = await getEmployeeByEmail(user.email!);
-        let finalRole = 'admin'; // Default role for a new, uninvited user
-        let adminId: string | undefined = undefined;
-
-        if (invitedEmployee && invitedEmployee.status === 'pending') {
-          finalRole = invitedEmployee.role;
-          adminId = invitedEmployee.userId;
-          await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
-          toast({
-              title: "Welcome aboard!",
-              description: `Your account has been activated with the ${finalRole} role.`
-          });
-        }
-
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          createdAt: serverTimestamp(),
-          photoURL: user.photoURL || null,
-          activePlan: !!adminId,
-          role: finalRole,
-          adminId: adminId || null,
-        });
-
-        if (finalRole === 'admin') {
-            toast({
+      if (additionalInfo?.isNewUser && user.email) {
+        // This handles cases where a user might log in for the first time via Google
+        // without going through the register page. It ensures their profile is created.
+        const profile = await initializeUser(user);
+        if (profile.role === 'admin') {
+           toast({
               title: "Account Created",
               description: `Welcome, ${user.displayName}!`,
+            });
+        } else {
+             toast({
+              title: "Welcome Aboard!",
+              description: `Your account is now active with the ${profile.role} role.`,
             });
         }
       }

@@ -10,11 +10,14 @@ import {
   query,
   where,
   orderBy,
-  limit
+  limit,
+  setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead, UserProfile, CalendarEvent } from "@/types";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, addMonths, addYears, isBefore } from 'date-fns';
+import type { User } from 'firebase/auth';
+
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -56,6 +59,43 @@ export const getUserProfileByUID = async (uid: string): Promise<UserProfile | nu
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
   }, null);
 };
+
+export const initializeUser = async (user: User, displayName?: string | null): Promise<UserProfile> => {
+    const existingProfileSnap = await getDoc(doc(db!, "users", user.uid));
+    if (existingProfileSnap.exists()) {
+        return { uid: existingProfileSnap.id, ...existingProfileSnap.data() } as UserProfile;
+    }
+
+    // New user logic
+    let finalRole: UserProfile['role'] = 'admin';
+    let adminId: string | undefined = undefined;
+    let activePlan = false;
+    
+    if (user.email) {
+        const invitedEmployee = await getEmployeeByEmail(user.email);
+        if (invitedEmployee && invitedEmployee.status === 'pending') {
+            finalRole = invitedEmployee.role;
+            adminId = invitedEmployee.userId;
+            activePlan = true; // Employees of an agency have an active plan
+            await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
+        }
+    }
+    
+    const userProfileData = {
+        uid: user.uid,
+        displayName: displayName || user.displayName || user.email?.split('@')[0] || 'New User',
+        email: user.email,
+        createdAt: new Date().toISOString(),
+        photoURL: user.photoURL || null,
+        activePlan: activePlan,
+        role: finalRole,
+        adminId: adminId || null,
+    };
+
+    await setDoc(doc(db!, "users", user.uid), userProfileData);
+    return userProfileData as UserProfile;
+};
+
 
 export const updateUser = async (uid: string, updates: any): Promise<boolean> => {
     return safeDBOperation(async () => {
