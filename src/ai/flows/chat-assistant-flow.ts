@@ -151,7 +151,11 @@ const getPropertyDetailsTool = ai.defineTool(
     async ({ identifier, identifierType, userId }) => {
         let property: Property | undefined | null = null;
         if (identifierType === 'id') {
-            property = await getPropertyById(identifier);
+            const fetchedProperty = await getPropertyById(identifier);
+            // Security check: ensure the fetched property belongs to the requesting user.
+            if (fetchedProperty && fetchedProperty.userId === userId) {
+                property = fetchedProperty;
+            }
         } else {
             property = await getPropertyByName(identifier, userId);
         }
@@ -165,6 +169,7 @@ const getPropertyDetailsTool = ai.defineTool(
 );
 
 const UpdatePropertyDetailsInputSchema = z.object({
+    userId: z.string().describe("The ID of the user whose property is being updated."),
     propertyId: z.string().describe("The ID of the property to update. This is mandatory."),
     updates: z.record(z.any()).describe("An object containing the fields to update, e.g., { name: 'New Name', isRented: true }"),
 });
@@ -181,10 +186,17 @@ const updatePropertyDetailsTool = ai.defineTool(
         outputSchema: UpdatePropertyDetailsOutputSchema,
     },
     async (input) => {
-        const { propertyId, updates } = input;
+        const { propertyId, updates, userId } = input;
         if (Object.keys(updates).length === 0) {
             return { updatedProperty: null, message: "No updates provided. Please specify what you want to change." };
         }
+
+        // Security check before updating
+        const propertyToUpdate = await getPropertyById(propertyId);
+        if (!propertyToUpdate || propertyToUpdate.userId !== userId) {
+            return { updatedProperty: null, message: `Failed to update property. Permission denied or property not found.` };
+        }
+
         const updatedProperty = await updateProperty(propertyId, updates as Partial<Property>);
         if (updatedProperty) {
             return { updatedProperty, message: `Successfully updated property ID ${propertyId}.` };

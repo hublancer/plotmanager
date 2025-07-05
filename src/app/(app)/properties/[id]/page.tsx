@@ -12,6 +12,7 @@ import { ArrowLeft, Edit, Package, MapPin, Loader2, ExternalLink } from "lucide-
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getPropertyById, updateProperty } from "@/lib/mock-db"; 
+import { useAuth } from "@/context/auth-context";
 
 
 export default function PropertyDetailsPage() {
@@ -20,20 +21,35 @@ export default function PropertyDetailsPage() {
   const { toast } = useToast();
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   const propertyId = typeof id === 'string' ? id : '';
 
   useEffect(() => {
-    if (propertyId) {
+    if (propertyId && user) {
       const fetchProperty = async () => {
         setIsLoading(true);
         const data = await getPropertyById(propertyId); 
-        setProperty(data || null);
+        
+        // Security Check: Make sure the fetched property belongs to the logged-in user
+        if (data && data.userId === user.uid) {
+            setProperty(data);
+        } else {
+            setProperty(null); // Set to null if not found or not owned
+            toast({
+                title: "Access Denied",
+                description: "You do not have permission to view this property or it does not exist.",
+                variant: "destructive"
+            });
+        }
         setIsLoading(false);
       };
       fetchProperty();
+    } else if (!user && !isLoading) {
+        // Handle case where user is not logged in yet
+        setIsLoading(true);
     }
-  }, [propertyId]);
+  }, [propertyId, user, toast]);
 
   const handlePlotsChange = async (updatedPlots: PlotData[]) => {
     if (property) {
@@ -69,7 +85,17 @@ export default function PropertyDetailsPage() {
   }
 
   if (!property) {
-    return <div className="text-center py-10">Property not found.</div>;
+    return (
+        <div className="text-center py-10">
+            <h2 className="text-xl font-semibold">Property Not Found</h2>
+            <p className="text-muted-foreground mt-2">
+                This property may have been deleted or you may not have access to view it.
+            </p>
+             <Button variant="outline" onClick={() => router.push('/properties')} className="mt-4">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Go to Properties
+            </Button>
+        </div>
+    );
   }
   
   const hasAddress = !!property.address;
