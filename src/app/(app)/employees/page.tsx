@@ -69,7 +69,7 @@ export default function EmployeesPage() {
       setEmployees(prev => prev.filter(e => e.id !== id));
       toast({
         title: "Employee Deleted",
-        description: "The employee record has been successfully removed.",
+        description: "The employee record has been removed and their access to your agency has been revoked.",
       });
     } else {
       toast({
@@ -178,7 +178,7 @@ export default function EmployeesPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the record for {employee.name}.
+                                  This action cannot be undone. This will permanently delete the record for {employee.name} and revoke their access to your agency.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>

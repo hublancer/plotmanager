@@ -219,9 +219,35 @@ export const updateEmployee = async (id: string, updates: Partial<Employee>): Pr
     }, null);
 };
 
-export const deleteEmployee = async (id: string): Promise<boolean> => {
+export const deleteEmployee = async (employeeId: string): Promise<boolean> => {
     return safeDBOperation(async () => {
-        await deleteDoc(doc(db!, 'employees', id));
+        const employeeDocRef = doc(db!, 'employees', employeeId);
+        const employeeSnap = await getDoc(employeeDocRef);
+
+        if (!employeeSnap.exists()) {
+            console.warn(`Employee with ID ${employeeId} not found for deletion.`);
+            return false; // Return false if employee doesn't exist
+        }
+
+        const employeeData = employeeSnap.data() as Employee;
+
+        // If the employee has an associated auth account (i.e., they have registered and are 'active')
+        if (employeeData.authUid) {
+            const userProfileRef = doc(db!, 'users', employeeData.authUid);
+            const userProfileSnap = await getDoc(userProfileRef);
+
+            if (userProfileSnap.exists()) {
+                 // Revert the user to be an admin of their own account, severing ties.
+                await updateDoc(userProfileRef, {
+                    role: 'admin',
+                    adminId: null,
+                    activePlan: false // They'll need their own plan now.
+                });
+            }
+        }
+
+        // Finally, delete the employee record from the agency's list of employees.
+        await deleteDoc(employeeDocRef);
         return true;
     }, false);
 };
