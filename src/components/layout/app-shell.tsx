@@ -93,7 +93,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [financialNotifications, setFinancialNotifications] = useState<AppNotification[]>([]);
+  const [calendarNotifications, setCalendarNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(true);
 
   // State for global dialogs
@@ -134,7 +135,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         installmentsPromise,
     ]);
     
-    const upcomingNotifications: AppNotification[] = [];
+    const upcomingFinancial: AppNotification[] = [];
+    const upcomingCalendar: AppNotification[] = [];
     const today = new Date();
     const notificationEndDate = addDays(today, 7);
 
@@ -142,7 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (r.nextDueDate) {
             const dueDate = parseISO(r.nextDueDate);
             if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
-                upcomingNotifications.push({
+                upcomingFinancial.push({
                     id: `rental-${r.id}`,
                     icon: <DollarSign className="h-4 w-4 text-green-500" />,
                     title: `Rent Due: ${r.tenantName}`,
@@ -158,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
          if (i.nextDueDate && i.status === 'Active') {
             const dueDate = parseISO(i.nextDueDate);
             if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
-                upcomingNotifications.push({
+                upcomingFinancial.push({
                     id: `installment-${i.id}`,
                     icon: <DollarSign className="h-4 w-4 text-blue-500" />,
                     title: `Installment Due: ${i.buyerName}`,
@@ -174,7 +176,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         const startDate = parseISO(e.start);
         if (isToday(startDate) || isWithinInterval(startDate, { start: today, end: notificationEndDate })) {
              const description = e.allDay ? 'All day event' : `Starts at ${format(startDate, 'p')}`;
-             upcomingNotifications.push({
+             upcomingCalendar.push({
                 id: `event-${e.id}`,
                 icon: <Calendar className="h-4 w-4 text-purple-500" />,
                 title: `${e.type.charAt(0).toUpperCase() + e.type.slice(1)}: ${e.title}`,
@@ -185,8 +187,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         }
     });
 
-    upcomingNotifications.sort((a, b) => a.date.getTime() - b.date.getTime());
-    setNotifications(upcomingNotifications);
+    upcomingFinancial.sort((a, b) => a.date.getTime() - b.date.getTime());
+    upcomingCalendar.sort((a, b) => a.date.getTime() - b.date.getTime());
+    
+    setFinancialNotifications(upcomingFinancial);
+    setCalendarNotifications(upcomingCalendar);
     setIsNotificationsLoading(false);
   }, [user, userProfile]);
 
@@ -334,23 +339,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5" />
-                  {notifications.length > 0 && (
-                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full p-0 text-xs">{notifications.length}</Badge>
+                  <Calendar className="h-5 w-5" />
+                  {calendarNotifications.length > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full p-0 text-xs">{calendarNotifications.length}</Badge>
                   )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80 md:w-96">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuLabel>Upcoming Events</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {isNotificationsLoading ? (
                   <DropdownMenuItem disabled className="justify-center">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Loading...
                   </DropdownMenuItem>
-                ) : notifications.length > 0 ? (
+                ) : calendarNotifications.length > 0 ? (
                   <ScrollArea className="h-auto max-h-[400px]">
-                    {notifications.map(n => (
+                    {calendarNotifications.map(n => (
                       <Link href={n.href} key={n.id} passHref>
                         <DropdownMenuItem className="flex items-start gap-3 whitespace-normal cursor-pointer p-3" onClick={() => handleNavigation(n.href)}>
                           <div className="mt-1">{n.icon}</div>
@@ -367,7 +372,49 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </ScrollArea>
                 ) : (
                   <div className="text-sm text-center text-muted-foreground p-4">
-                    You're all caught up!
+                    No upcoming events.
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {financialNotifications.length > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full p-0 text-xs">{financialNotifications.length}</Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 md:w-96">
+                <DropdownMenuLabel>Financial Alerts</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isNotificationsLoading ? (
+                  <DropdownMenuItem disabled className="justify-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </DropdownMenuItem>
+                ) : financialNotifications.length > 0 ? (
+                  <ScrollArea className="h-auto max-h-[400px]">
+                    {financialNotifications.map(n => (
+                      <Link href={n.href} key={n.id} passHref>
+                        <DropdownMenuItem className="flex items-start gap-3 whitespace-normal cursor-pointer p-3" onClick={() => handleNavigation(n.href)}>
+                          <div className="mt-1">{n.icon}</div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">{n.title}</p>
+                            <p className="text-xs text-muted-foreground">{n.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(n.date, { addSuffix: true })}
+                            </p>
+                          </div>
+                        </DropdownMenuItem>
+                      </Link>
+                    ))}
+                  </ScrollArea>
+                ) : (
+                  <div className="text-sm text-center text-muted-foreground p-4">
+                    No upcoming financial alerts.
                   </div>
                 )}
               </DropdownMenuContent>
