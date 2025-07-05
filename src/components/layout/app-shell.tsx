@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useContext, useEffect, useMemo } from "react";
+import { type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -18,6 +18,9 @@ import {
   LogOut,
   Filter,
   Calendar,
+  Bell,
+  DollarSign,
+  Loader2
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -41,7 +44,12 @@ import { useAuth } from "@/context/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile } from "@/types";
+import type { UserProfile, RentalItem, InstallmentItem, CalendarEvent } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { getDerivedRentals, getDerivedInstallmentItems, getCalendarEvents } from "@/lib/mock-db";
+import { addDays, isWithinInterval, formatDistanceToNow, parseISO, isToday, format } from "date-fns";
+
 
 interface NavItem {
   href: string;
@@ -64,16 +72,112 @@ const navItems: NavItem[] = [
   { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant", roles: ['admin', 'manager', 'agent'] },
 ];
 
+interface AppNotification {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  date: Date;
+  href: string;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { start, complete } = useContext(LoadingContext);
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotificationsLoading, setIsNotificationsLoading] = useState(true);
 
   const visibleNavItems = useMemo(() => {
     const userRole = userProfile?.role || 'agent'; // Default to least privileged
     return navItems.filter(item => item.roles.includes(userRole));
   }, [userProfile]);
+
+  useEffect(() => {
+    if (!user || !userProfile) return;
+
+    const generateNotifications = async () => {
+        setIsNotificationsLoading(true);
+        const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+        const userRole = userProfile.role || 'agent';
+
+        if (!ownerId) {
+            setIsNotificationsLoading(false);
+            return;
+        }
+
+        const [calendarEventsPromise, rentalsPromise, installmentsPromise] = [
+            getCalendarEvents(ownerId),
+            userRole !== 'agent' ? getDerivedRentals(ownerId) : Promise.resolve([] as RentalItem[]),
+            userRole !== 'agent' ? getDerivedInstallmentItems(ownerId) : Promise.resolve([] as InstallmentItem[]),
+        ];
+
+        const [calendarEvents, rentals, installments] = await Promise.all([
+            calendarEventsPromise,
+            rentalsPromise,
+            installmentsPromise,
+        ]);
+        
+        const upcomingNotifications: AppNotification[] = [];
+        const today = new Date();
+        const notificationEndDate = addDays(today, 7);
+
+        rentals.forEach(r => {
+            if (r.nextDueDate) {
+                const dueDate = parseISO(r.nextDueDate);
+                if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
+                    upcomingNotifications.push({
+                        id: `rental-${r.id}`,
+                        icon: <DollarSign className="h-4 w-4 text-green-500" />,
+                        title: `Rent Due: ${r.tenantName}`,
+                        description: `PKR ${r.rentAmount.toLocaleString()} for ${r.propertyName}`,
+                        date: dueDate,
+                        href: '/rentals',
+                    });
+                }
+            }
+        });
+
+        installments.forEach(i => {
+             if (i.nextDueDate && i.status === 'Active') {
+                const dueDate = parseISO(i.nextDueDate);
+                if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
+                    upcomingNotifications.push({
+                        id: `installment-${i.id}`,
+                        icon: <DollarSign className="h-4 w-4 text-blue-500" />,
+                        title: `Installment Due: ${i.buyerName}`,
+                        description: `PKR ${i.installmentAmount.toLocaleString()} for ${i.propertyName}`,
+                        date: dueDate,
+                        href: '/installments',
+                    });
+                }
+            }
+        });
+
+        calendarEvents.forEach(e => {
+            const startDate = parseISO(e.start);
+            if (isToday(startDate) || isWithinInterval(startDate, { start: today, end: notificationEndDate })) {
+                 const description = e.allDay ? 'All day event' : `Starts at ${format(startDate, 'p')}`;
+                 upcomingNotifications.push({
+                    id: `event-${e.id}`,
+                    icon: <Calendar className="h-4 w-4 text-purple-500" />,
+                    title: `${e.type.charAt(0).toUpperCase() + e.type.slice(1)}: ${e.title}`,
+                    description,
+                    date: startDate,
+                    href: '/schedule',
+                });
+            }
+        });
+
+        upcomingNotifications.sort((a, b) => a.date.getTime() - b.date.getTime());
+        setNotifications(upcomingNotifications);
+        setIsNotificationsLoading(false);
+    };
+
+    generateNotifications();
+  }, [user, userProfile]);
 
   useEffect(() => {
     complete();
@@ -171,13 +275,59 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
-          <div className="md:hidden">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
+          <div className="flex items-center gap-4">
+            <div className="md:hidden">
+              <SidebarTrigger />
+            </div>
+            <h1 className="text-lg font-semibold md:text-xl">
+              {visibleNavItems.find(item => pathname.startsWith(item.href))?.label || "PlotPilot"}
+            </h1>
           </div>
-          <h1 className="text-lg font-semibold md:text-xl">
-            {navItems.find(item => pathname.startsWith(item.href))?.label || "PlotPilot"}
-          </h1>
+
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {notifications.length > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full p-0 text-xs">{notifications.length}</Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 md:w-96">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isNotificationsLoading ? (
+                  <DropdownMenuItem disabled className="justify-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </DropdownMenuItem>
+                ) : notifications.length > 0 ? (
+                  <ScrollArea className="h-auto max-h-[400px]">
+                    {notifications.map(n => (
+                      <Link href={n.href} key={n.id} passHref>
+                        <DropdownMenuItem className="flex items-start gap-3 whitespace-normal cursor-pointer p-3" onClick={() => handleNavigation(n.href)}>
+                          <div className="mt-1">{n.icon}</div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">{n.title}</p>
+                            <p className="text-xs text-muted-foreground">{n.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(n.date, { addSuffix: true })}
+                            </p>
+                          </div>
+                        </DropdownMenuItem>
+                      </Link>
+                    ))}
+                  </ScrollArea>
+                ) : (
+                  <div className="text-sm text-center text-muted-foreground p-4">
+                    You're all caught up!
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">
           {children}
