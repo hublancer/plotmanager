@@ -49,7 +49,7 @@ import type { UserProfile, RentalItem, InstallmentItem, CalendarEvent, Property 
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getDerivedRentals, getDerivedInstallmentItems, getCalendarEvents, getAllMockProperties } from "@/lib/mock-db";
-import { addDays, isWithinInterval, formatDistanceToNow, parseISO, isToday, format } from "date-fns";
+import { addDays, isWithinInterval, format, parseISO, isToday } from "date-fns";
 import { LiveClock } from "@/components/layout/live-clock";
 import { PropertyFormDialog } from "@/components/properties/property-form-dialog";
 import { LeadFormDialog } from "@/components/pipeline/lead-form-dialog";
@@ -89,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { start, complete } = useContext(LoadingContext);
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isSuperAdmin } = useAuth();
   const { toast } = useToast();
   
   const [financialNotifications, setFinancialNotifications] = useState<AppNotification[]>([]);
@@ -109,9 +109,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     const userRole = userProfile?.role || 'agent'; // Default to least privileged
     return navItems.filter(item => item.roles.includes(userRole));
   }, [userProfile]);
-
+  
   const generateNotifications = useCallback(async () => {
-    if (!user || !userProfile) return;
+    if (!user || !userProfile || isSuperAdmin) return;
     
     setIsNotificationsLoading(true);
     const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
@@ -193,7 +193,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setFinancialNotifications(upcomingFinancial);
     setCalendarNotifications(upcomingCalendar);
     setIsNotificationsLoading(false);
-  }, [user, userProfile]);
+  }, [user, userProfile, isSuperAdmin]);
 
 
   useEffect(() => {
@@ -211,7 +211,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [pathname, complete]);
   
   const handleDialogUpdate = () => {
-    router.refresh();
+    // This is a simplified way to refetch data for multiple pages.
+    // In a larger app, you might use a more granular state management solution.
+    if (pathname.includes('/properties')) router.refresh();
+    if (pathname.includes('/pipeline')) router.refresh();
+    if (pathname.includes('/payments')) router.refresh();
+    if (pathname.includes('/schedule')) router.refresh();
     generateNotifications(); // Re-fetch notifications after an update
   };
 

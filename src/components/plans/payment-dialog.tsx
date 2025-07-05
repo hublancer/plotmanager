@@ -7,21 +7,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { updateUser } from "@/lib/mock-db";
+import { submitPayment } from "@/lib/mock-db";
 import { useAuth } from "@/context/auth-context";
 import { Loader2 } from "lucide-react";
+import type { Plan } from "@/types";
 
 interface PaymentDialogProps {
-  planName: string;
+  plan: Plan;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function PaymentDialog({ planName, isOpen, onOpenChange }: PaymentDialogProps) {
+export function PaymentDialog({ plan, isOpen, onOpenChange }: PaymentDialogProps) {
   const [trxId, setTrxId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth(); // We need the user's UID
+  const { user, refetchUserProfile } = useAuth(); // We need the user's UID and email
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -29,26 +30,27 @@ export function PaymentDialog({ planName, isOpen, onOpenChange }: PaymentDialogP
       toast({ title: "Error", description: "Please enter a valid Transaction ID.", variant: "destructive" });
       return;
     }
-    if (!user) {
-      toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
+    if (!user || !user.email) {
+      toast({ title: "Error", description: "You must be logged in with a valid email.", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await updateUser(user.uid, {
-        activePlan: true, // For now, we activate it immediately
-        planName: planName,
+      await submitPayment({
+        userId: user.uid,
+        userEmail: user.email,
+        plan: plan,
         trxId: trxId.trim(),
       });
       toast({
         title: "Submission Received!",
-        description: "Your plan is now active. Redirecting you to the dashboard.",
+        description: "Your payment is being verified. Your account will be activated upon approval.",
       });
-      // A simple reload will trigger the AuthProvider to re-check the plan status and grant access.
-      window.location.href = '/dashboard';
+      await refetchUserProfile(); // Refresh the user profile to show pending status
+      onOpenChange(false);
     } catch (error) {
-      console.error("Failed to update plan:", error);
+      console.error("Failed to submit payment:", error);
       toast({
         title: "Submission Failed",
         description: "Could not save your transaction ID. Please try again.",
@@ -63,7 +65,7 @@ export function PaymentDialog({ planName, isOpen, onOpenChange }: PaymentDialogP
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Complete Your Purchase - {planName} Plan</DialogTitle>
+          <DialogTitle>Complete Your Purchase - {plan.name} Plan</DialogTitle>
           <DialogDescription>
             To activate your plan, please complete the payment using the details below.
           </DialogDescription>
@@ -72,7 +74,7 @@ export function PaymentDialog({ planName, isOpen, onOpenChange }: PaymentDialogP
           <div className="p-4 bg-muted rounded-lg border">
             <h3 className="font-semibold text-foreground">Payment Details</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Please transfer the plan amount to the following account:
+              Please transfer <span className="font-bold text-foreground">PKR {plan.price.toLocaleString()}</span> to the following account:
             </p>
             <ul className="mt-2 space-y-1 text-sm list-disc list-inside">
               <li><strong>Service:</strong> SadaPay</li>
@@ -93,7 +95,7 @@ export function PaymentDialog({ planName, isOpen, onOpenChange }: PaymentDialogP
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isSubmitting ? "Submitting..." : "Submit and Activate Plan"}
+              {isSubmitting ? "Submitting..." : "Submit for Approval"}
             </Button>
           </form>
         </div>

@@ -11,13 +11,15 @@ import {
   where,
   orderBy,
   limit,
-  setDoc
+  setDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead, UserProfile, CalendarEvent } from "@/types";
-import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, addMonths, addYears, isBefore } from 'date-fns';
+import type { Property, Employee, Transaction, InstallmentItem, RentalItem, PlotData, Lead, UserProfile, CalendarEvent, Plan, Payment } from "@/types";
+import { startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, addMonths, addYears, isBefore, addDays } from 'date-fns';
 import type { User } from 'firebase/auth';
 
+export const SUPER_ADMIN_EMAIL = "info@hublancer.pk";
 
 if (!db) {
   console.error("Firebase is not initialized. Database features will be disabled.");
@@ -29,6 +31,8 @@ const transactionsCollection = db ? collection(db, 'transactions') : null;
 const usersCollection = db ? collection(db, 'users') : null;
 const leadsCollection = db ? collection(db, 'leads') : null;
 const eventsCollection = db ? collection(db, 'events') : null;
+const plansCollection = db ? collection(db, 'plans') : null;
+const paymentsCollection = db ? collection(db, 'payments') : null;
 
 
 // Helper to safely execute DB operations
@@ -50,13 +54,24 @@ const mapDocToEmployee = (doc: any): Employee => ({ id: doc.id, ...doc.data() } 
 const mapDocToTransaction = (doc: any): Transaction => ({ id: doc.id, ...doc.data() } as Transaction);
 const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
 const mapDocToCalendarEvent = (doc: any): CalendarEvent => ({ id: doc.id, ...doc.data() } as CalendarEvent);
+const mapDocToPlan = (doc: any): Plan => ({ id: doc.id, ...doc.data() } as Plan);
+const mapDocToPayment = (doc: any): Payment => ({ id: doc.id, ...doc.data() } as Payment);
+const mapDocToUser = (doc: any): UserProfile => ({ uid: doc.id, ...doc.data() } as UserProfile);
+
 
 // ===== Users =====
+export const getUsers = async (): Promise<UserProfile[]> => {
+    return safeDBOperation(async () => {
+        const snapshot = await getDocs(usersCollection!);
+        return snapshot.docs.map(mapDocToUser);
+    }, []);
+};
+
 export const getUserProfileByUID = async (uid: string): Promise<UserProfile | null> => {
   return safeDBOperation(async () => {
     const docRef = doc(db!, 'users', uid);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
+    return docSnap.exists() ? mapDocToUser(docSnap) : null;
   }, null);
 };
 
@@ -69,31 +84,38 @@ export const initializeUser = async (user: User, displayName?: string | null): P
     // New user logic
     let finalRole: UserProfile['role'] = 'admin';
     let adminId: string | undefined = undefined;
-    let activePlan = false;
     
-    if (user.email) {
+    // Check if user is the Super Admin
+    if (user.email === SUPER_ADMIN_EMAIL) {
+        finalRole = 'super_admin';
+    } else if (user.email) {
+        // Check if user was invited as an employee
         const invitedEmployee = await getEmployeeByEmail(user.email);
         if (invitedEmployee && invitedEmployee.status === 'pending') {
             finalRole = invitedEmployee.role;
             adminId = invitedEmployee.userId;
-            activePlan = true; // Employees of an agency have an active plan
             await updateEmployee(invitedEmployee.id, { status: 'active', authUid: user.uid });
         }
     }
     
-    const userProfileData = {
-        uid: user.uid,
+    const userProfileData: Omit<UserProfile, 'uid'> & { createdAt: string } = {
         displayName: displayName || user.displayName || user.email?.split('@')[0] || 'New User',
         email: user.email,
         createdAt: new Date().toISOString(),
         photoURL: user.photoURL || null,
-        activePlan: activePlan,
         role: finalRole,
         adminId: adminId || null,
+        subscription: {
+            status: 'pending_payment',
+            planId: '',
+            planName: '',
+            startDate: '',
+            endDate: ''
+        }
     };
 
     await setDoc(doc(db!, "users", user.uid), userProfileData);
-    return userProfileData as UserProfile;
+    return { uid: user.uid, ...userProfileData } as UserProfile;
 };
 
 
@@ -104,6 +126,118 @@ export const updateUser = async (uid: string, updates: any): Promise<boolean> =>
         return true;
     }, false);
 };
+
+// ===== Plans =====
+export const getPlans = async (): Promise<Plan[]> => {
+    return safeDBOperation(async () => {
+        const snapshot = await getDocs(query(plansCollection!, orderBy("price")));
+        return snapshot.docs.map(mapDocToPlan);
+    }, []);
+};
+
+export const addPlan = async (planData: Omit<Plan, 'id' | 'createdAt'>): Promise<Plan> => {
+    return safeDBOperation(async () => {
+        const dataToSave = { ...planData, createdAt: new Date().toISOString() };
+        const docRef = await addDoc(plansCollection!, dataToSave);
+        return { id: docRef.id, ...dataToSave } as Plan;
+    }, { ...planData, id: '', createdAt: new Date().toISOString() } as Plan);
+};
+
+export const updatePlan = async (id: string, updates: Partial<Plan>): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        await updateDoc(doc(db!, 'plans', id), updates);
+        return true;
+    }, false);
+};
+
+
+// ===== Payments =====
+export const getPayments = async (status?: Payment['status']): Promise<Payment[]> => {
+    return safeDBOperation(async () => {
+        const conditions = status ? [where("status", "==", status)] : [];
+        const q = query(paymentsCollection!, ...conditions, orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(mapDocToPayment);
+    }, []);
+};
+
+export const submitPayment = async (data: { userId: string, userEmail: string, plan: Plan, trxId: string }): Promise<Payment> => {
+    return safeDBOperation(async () => {
+        const paymentData: Omit<Payment, 'id'> = {
+            userId: data.userId,
+            userEmail: data.userEmail,
+            planId: data.plan.id,
+            planName: data.plan.name,
+            amount: data.plan.price,
+            trxId: data.trxId,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+        };
+        const docRef = await addDoc(paymentsCollection!, paymentData);
+        
+        // Also update the user's subscription status to pending
+        await updateUser(data.userId, { 
+            subscription: {
+                status: 'pending_payment',
+                planId: data.plan.id,
+                planName: data.plan.name,
+            }
+        });
+        
+        return { id: docRef.id, ...paymentData };
+    }, {} as Payment);
+};
+
+export const approvePayment = async (paymentId: string): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        const paymentRef = doc(db!, 'payments', paymentId);
+        const paymentSnap = await getDoc(paymentRef);
+
+        if (!paymentSnap.exists()) {
+            throw new Error("Payment not found");
+        }
+        
+        const payment = mapDocToPayment(paymentSnap);
+        const plan = await getDoc(doc(db!, 'plans', payment.planId)).then(d => d.exists() ? mapDocToPlan(d) : null);
+
+        if (!plan) {
+            throw new Error("Plan associated with payment not found");
+        }
+
+        const startDate = new Date();
+        const endDate = addDays(startDate, plan.durationInDays);
+        
+        const batch = writeBatch(db!);
+        
+        // Update user's subscription
+        const userRef = doc(db!, 'users', payment.userId);
+        batch.update(userRef, {
+            'subscription.planId': plan.id,
+            'subscription.planName': plan.name,
+            'subscription.startDate': startDate.toISOString(),
+            'subscription.endDate': endDate.toISOString(),
+            'subscription.status': 'active',
+        });
+        
+        // Update payment status
+        batch.update(paymentRef, {
+            status: 'approved',
+            approvedAt: new Date().toISOString(),
+        });
+
+        await batch.commit();
+        return true;
+    }, false);
+};
+
+export const rejectPayment = async (paymentId: string): Promise<boolean> => {
+    return safeDBOperation(async () => {
+        const paymentRef = doc(db!, 'payments', paymentId);
+        await updateDoc(paymentRef, { status: 'rejected' });
+        return true;
+    }, false);
+};
+
 
 // ===== Properties =====
 
@@ -241,7 +375,7 @@ export const deleteEmployee = async (employeeId: string): Promise<boolean> => {
                 await updateDoc(userProfileRef, {
                     role: 'admin',
                     adminId: null,
-                    activePlan: false // They'll need their own plan now.
+                    'subscription.status': 'pending_payment',
                 });
             }
         }

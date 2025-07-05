@@ -1,4 +1,25 @@
 
+export interface Plan {
+  id: string;
+  name: string; // e.g., "Monthly", "Yearly", "Lifetime"
+  price: number;
+  durationInDays: number; // 30 for monthly, 365 for yearly, 3650 for lifetime (10 years)
+  isActive: boolean;
+  createdAt: string; // ISO
+}
+
+export interface Payment {
+  id: string;
+  userId: string;
+  userEmail: string;
+  planId: string;
+  planName: string;
+  amount: number;
+  trxId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string; // ISO
+  approvedAt?: string; // ISO
+}
 
 
 export interface PlotData {
@@ -49,9 +70,17 @@ export interface UserProfile {
   email: string | null;
   photoURL: string | null;
   createdAt: string; // ISO String
-  activePlan?: boolean;
-  role?: 'admin' | 'manager' | 'agent';
+  role?: 'admin' | 'manager' | 'agent' | 'super_admin';
   adminId?: string | null; // For employees, the UID of their admin
+  
+  // New subscription details
+  subscription?: {
+    planId: string;
+    planName: string;
+    startDate: string; // ISO
+    endDate: string; // ISO
+    status: 'active' | 'expired' | 'pending_payment';
+  }
 }
 
 export interface Property {
