@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -49,14 +48,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isSuperAdmin) {
-      router.push('/auth/login');
+      router.push('/admin/login');
     }
   }, [isSuperAdmin, router]);
 
   const handleLogout = async () => {
     await signOut(auth);
     toast({ title: "Logged Out" });
-    router.push('/auth/login');
+    router.push('/admin/login');
   };
 
   return (

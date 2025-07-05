@@ -72,9 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const isAuthPage = pathname.startsWith('/auth');
     const isAdminLoginPage = pathname === '/admin/login';
-    const isAdminPage = pathname.startsWith('/admin');
+    const isAdminPage = pathname.startsWith('/admin') && !isAdminLoginPage;
     const isPlansPage = pathname.startsWith('/plans');
     
+    // Show loader on page transitions
     if (authLoading) {
       if (!isAuthPage && !isAdminLoginPage) {
         pageLoader.start();
@@ -85,30 +86,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (authLoading) return;
     
-    // Not logged in
+    // Handle non-logged-in users
     if (!user) {
-      if (!isAuthPage && !isAdminLoginPage) {
-        router.push('/auth/login');
+      if (isAdminPage) {
+        router.push('/admin/login'); // Trying to access admin area while logged out
+      } else if (!isAuthPage && !isAdminLoginPage) {
+        router.push('/auth/login'); // Trying to access regular app while logged out
       }
       return;
     }
 
-    // Logged in
+    // Handle logged-in users
     if (isSuperAdmin) {
-      if (!isAdminPage) {
+      if (!isAdminPage && !isAdminLoginPage) { // If super admin is not in admin area
         router.push('/admin/dashboard');
       }
     } else { // Regular user/agency
-      if (isAdminPage) {
-        router.push('/dashboard'); // Kick out non-super-admins from admin area
+      if (isAdminPage || isAdminLoginPage) { // If regular user tries to access any admin page
+        router.push('/dashboard'); 
         return;
       }
 
-      if (isAuthPage) {
+      if (isAuthPage) { // If logged-in user is on an auth page
         router.push('/dashboard');
         return;
       }
-
+      
       const sub = userProfile?.subscription;
       const isSubscribed = sub?.status === 'active' && sub.endDate && new Date(sub.endDate) > new Date();
       
@@ -121,19 +124,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // This logic determines what to render. It acts as a gatekeeper.
   const renderChildren = () => {
-    if (authLoading) return null; // Don't render anything while auth state is resolving
+    if (authLoading) return null;
 
-    const isAuthPath = pathname.startsWith('/auth') || pathname.startsWith('/admin/login');
-    const isPlansPath = pathname.startsWith('/plans');
+    const isAuthPage = pathname.startsWith('/auth');
+    const isAdminLoginPage = pathname === '/admin/login';
+    const isPlansPage = pathname.startsWith('/plans');
+    const isAdminPage = pathname.startsWith('/admin') && !isAdminLoginPage;
 
     if (!user) {
-        // If not logged in, only allow auth pages.
-        return isAuthPath ? children : null;
+        // If not logged in, only allow auth pages and admin login page.
+        return isAuthPage || isAdminLoginPage ? children : null;
     }
     
     if (isSuperAdmin) {
-        // Super admin can only access admin routes
-        return pathname.startsWith('/admin') ? children : null;
+        // Super admin can access admin routes and its login page
+        return isAdminPage || isAdminLoginPage ? children : null;
     }
     
     // Regular user logic
@@ -141,10 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isSubscribed = sub?.status === 'active' && sub.endDate && new Date(sub.endDate) > new Date();
     
     if (isSubscribed) {
-        return children;
+        // A subscribed user should not see admin pages or auth pages.
+        return !isAdminPage && !isAdminLoginPage && !isAuthPage ? children : null;
     } else {
         // Not subscribed, only allow plans page or auth pages (which would redirect anyway)
-        return isPlansPath || isAuthPath ? children : null;
+        return isPlansPage || isAuthPage ? children : null;
     }
   }
 
