@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
@@ -20,7 +20,8 @@ import {
   Calendar,
   Bell,
   DollarSign,
-  Loader2
+  Loader2,
+  PlusCircle,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -44,12 +45,16 @@ import { useAuth } from "@/context/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile, RentalItem, InstallmentItem, CalendarEvent } from "@/types";
+import type { UserProfile, RentalItem, InstallmentItem, CalendarEvent, Property } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getDerivedRentals, getDerivedInstallmentItems, getCalendarEvents } from "@/lib/mock-db";
+import { getDerivedRentals, getDerivedInstallmentItems, getCalendarEvents, getAllMockProperties } from "@/lib/mock-db";
 import { addDays, isWithinInterval, formatDistanceToNow, parseISO, isToday, format } from "date-fns";
-
+import { LiveClock } from "@/components/layout/live-clock";
+import { PropertyFormDialog } from "@/components/properties/property-form-dialog";
+import { LeadFormDialog } from "@/components/pipeline/lead-form-dialog";
+import { TransactionFormDialog } from "@/components/transactions/transaction-form-dialog";
+import { EventFormDialog } from "@/components/schedule/event-form-dialog";
 
 interface NavItem {
   href: string;
@@ -83,6 +88,7 @@ interface AppNotification {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { start, complete } = useContext(LoadingContext);
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
@@ -90,98 +96,119 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(true);
 
+  // State for global dialogs
+  const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
+  const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
+  const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+
+  // State for properties list needed by transaction dialog
+  const [properties, setProperties] = useState<Pick<Property, 'id' | 'name'>[]>([]);
+
   const visibleNavItems = useMemo(() => {
     const userRole = userProfile?.role || 'agent'; // Default to least privileged
     return navItems.filter(item => item.roles.includes(userRole));
   }, [userProfile]);
 
-  useEffect(() => {
+  const generateNotifications = useCallback(async () => {
     if (!user || !userProfile) return;
+    
+    setIsNotificationsLoading(true);
+    const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+    const userRole = userProfile.role || 'agent';
 
-    const generateNotifications = async () => {
-        setIsNotificationsLoading(true);
-        const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
-        const userRole = userProfile.role || 'agent';
+    if (!ownerId) {
+        setIsNotificationsLoading(false);
+        return;
+    }
 
-        if (!ownerId) {
-            setIsNotificationsLoading(false);
-            return;
-        }
+    const [calendarEventsPromise, rentalsPromise, installmentsPromise] = [
+        getCalendarEvents(ownerId),
+        userRole !== 'agent' ? getDerivedRentals(ownerId) : Promise.resolve([] as RentalItem[]),
+        userRole !== 'agent' ? getDerivedInstallmentItems(ownerId) : Promise.resolve([] as InstallmentItem[]),
+    ];
 
-        const [calendarEventsPromise, rentalsPromise, installmentsPromise] = [
-            getCalendarEvents(ownerId),
-            userRole !== 'agent' ? getDerivedRentals(ownerId) : Promise.resolve([] as RentalItem[]),
-            userRole !== 'agent' ? getDerivedInstallmentItems(ownerId) : Promise.resolve([] as InstallmentItem[]),
-        ];
+    const [calendarEvents, rentals, installments] = await Promise.all([
+        calendarEventsPromise,
+        rentalsPromise,
+        installmentsPromise,
+    ]);
+    
+    const upcomingNotifications: AppNotification[] = [];
+    const today = new Date();
+    const notificationEndDate = addDays(today, 7);
 
-        const [calendarEvents, rentals, installments] = await Promise.all([
-            calendarEventsPromise,
-            rentalsPromise,
-            installmentsPromise,
-        ]);
-        
-        const upcomingNotifications: AppNotification[] = [];
-        const today = new Date();
-        const notificationEndDate = addDays(today, 7);
-
-        rentals.forEach(r => {
-            if (r.nextDueDate) {
-                const dueDate = parseISO(r.nextDueDate);
-                if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
-                    upcomingNotifications.push({
-                        id: `rental-${r.id}`,
-                        icon: <DollarSign className="h-4 w-4 text-green-500" />,
-                        title: `Rent Due: ${r.tenantName}`,
-                        description: `PKR ${r.rentAmount.toLocaleString()} for ${r.propertyName}`,
-                        date: dueDate,
-                        href: '/rentals',
-                    });
-                }
-            }
-        });
-
-        installments.forEach(i => {
-             if (i.nextDueDate && i.status === 'Active') {
-                const dueDate = parseISO(i.nextDueDate);
-                if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
-                    upcomingNotifications.push({
-                        id: `installment-${i.id}`,
-                        icon: <DollarSign className="h-4 w-4 text-blue-500" />,
-                        title: `Installment Due: ${i.buyerName}`,
-                        description: `PKR ${i.installmentAmount.toLocaleString()} for ${i.propertyName}`,
-                        date: dueDate,
-                        href: '/installments',
-                    });
-                }
-            }
-        });
-
-        calendarEvents.forEach(e => {
-            const startDate = parseISO(e.start);
-            if (isToday(startDate) || isWithinInterval(startDate, { start: today, end: notificationEndDate })) {
-                 const description = e.allDay ? 'All day event' : `Starts at ${format(startDate, 'p')}`;
-                 upcomingNotifications.push({
-                    id: `event-${e.id}`,
-                    icon: <Calendar className="h-4 w-4 text-purple-500" />,
-                    title: `${e.type.charAt(0).toUpperCase() + e.type.slice(1)}: ${e.title}`,
-                    description,
-                    date: startDate,
-                    href: '/schedule',
+    rentals.forEach(r => {
+        if (r.nextDueDate) {
+            const dueDate = parseISO(r.nextDueDate);
+            if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
+                upcomingNotifications.push({
+                    id: `rental-${r.id}`,
+                    icon: <DollarSign className="h-4 w-4 text-green-500" />,
+                    title: `Rent Due: ${r.tenantName}`,
+                    description: `PKR ${r.rentAmount.toLocaleString()} for ${r.propertyName}`,
+                    date: dueDate,
+                    href: '/rentals',
                 });
             }
-        });
+        }
+    });
 
-        upcomingNotifications.sort((a, b) => a.date.getTime() - b.date.getTime());
-        setNotifications(upcomingNotifications);
-        setIsNotificationsLoading(false);
-    };
+    installments.forEach(i => {
+         if (i.nextDueDate && i.status === 'Active') {
+            const dueDate = parseISO(i.nextDueDate);
+            if (isWithinInterval(dueDate, { start: today, end: notificationEndDate })) {
+                upcomingNotifications.push({
+                    id: `installment-${i.id}`,
+                    icon: <DollarSign className="h-4 w-4 text-blue-500" />,
+                    title: `Installment Due: ${i.buyerName}`,
+                    description: `PKR ${i.installmentAmount.toLocaleString()} for ${i.propertyName}`,
+                    date: dueDate,
+                    href: '/installments',
+                });
+            }
+        }
+    });
 
-    generateNotifications();
+    calendarEvents.forEach(e => {
+        const startDate = parseISO(e.start);
+        if (isToday(startDate) || isWithinInterval(startDate, { start: today, end: notificationEndDate })) {
+             const description = e.allDay ? 'All day event' : `Starts at ${format(startDate, 'p')}`;
+             upcomingNotifications.push({
+                id: `event-${e.id}`,
+                icon: <Calendar className="h-4 w-4 text-purple-500" />,
+                title: `${e.type.charAt(0).toUpperCase() + e.type.slice(1)}: ${e.title}`,
+                description,
+                date: startDate,
+                href: '/schedule',
+            });
+        }
+    });
+
+    upcomingNotifications.sort((a, b) => a.date.getTime() - b.date.getTime());
+    setNotifications(upcomingNotifications);
+    setIsNotificationsLoading(false);
   }, [user, userProfile]);
+
+
+  useEffect(() => {
+    if (user && userProfile) {
+        generateNotifications();
+        const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+        if (ownerId) {
+            getAllMockProperties(ownerId).then(setProperties);
+        }
+    }
+  }, [user, userProfile, generateNotifications]);
 
   useEffect(() => {
     complete();
   }, [pathname, complete]);
+  
+  const handleDialogUpdate = () => {
+    router.refresh();
+    generateNotifications(); // Re-fetch notifications after an update
+  };
 
   const handleNavigation = (href: string) => {
     if (!pathname.startsWith(href)) {
@@ -286,6 +313,24 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <LiveClock />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <PlusCircle className="h-5 w-5" />
+                  <span className="sr-only">Quick Actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setIsPropertyDialogOpen(true)}>Add Property</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setIsTransactionDialogOpen(true)}>Add Transaction</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setIsLeadDialogOpen(true)}>Add Lead</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setIsEventDialogOpen(true)}>Add Event</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -332,6 +377,33 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="flex-1 p-4 sm:p-6">
           {children}
         </main>
+
+        <PropertyFormDialog
+          isOpen={isPropertyDialogOpen}
+          onOpenChange={setIsPropertyDialogOpen}
+          onUpdate={handleDialogUpdate}
+          initialData={null}
+        />
+        <LeadFormDialog
+          isOpen={isLeadDialogOpen}
+          onOpenChange={setIsLeadDialogOpen}
+          onUpdate={handleDialogUpdate}
+          initialData={null}
+        />
+        <TransactionFormDialog
+          isOpen={isTransactionDialogOpen}
+          onOpenChange={setIsTransactionDialogOpen}
+          onUpdate={handleDialogUpdate}
+          initialData={null}
+          properties={properties}
+        />
+        <EventFormDialog
+          isOpen={isEventDialogOpen}
+          onOpenChange={setIsEventDialogOpen}
+          onUpdate={handleDialogUpdate}
+          initialEvent={null}
+          dateInfo={{ start: new Date(), end: new Date(), allDay: true, startStr:'', endStr:'' }}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
