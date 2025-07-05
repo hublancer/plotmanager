@@ -37,7 +37,7 @@ export default function RentalsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [viewingRental, setViewingRental] = useState<RentalItem | null>(null);
 
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const fetchRentals = useCallback(async () => {
@@ -145,28 +145,32 @@ export default function RentalsPage() {
                            <Eye className="h-4 w-4 mr-2" />
                            View Details
                         </Button>
-                        <Link href={`/properties/${rental.propertyId}`} passHref>
-                          <Button variant="ghost" size="icon" title="Edit Property"><Edit className="h-4 w-4" /></Button>
-                        </Link>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="End Rental Agreement" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>End Rental Agreement?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will mark the property/plot as available and clear tenant data. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleEndRental(rental)} className="bg-destructive hover:bg-destructive/90">
-                                Yes, End Agreement
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {userProfile?.role !== 'agent' && (
+                          <Link href={`/properties/${rental.propertyId}`} passHref>
+                            <Button variant="ghost" size="icon" title="Edit Property"><Edit className="h-4 w-4" /></Button>
+                          </Link>
+                        )}
+                        {userProfile?.role === 'admin' && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" title="End Rental Agreement" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>End Rental Agreement?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will mark the property/plot as available and clear tenant data. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleEndRental(rental)} className="bg-destructive hover:bg-destructive/90">
+                                  Yes, End Agreement
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

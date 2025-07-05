@@ -70,7 +70,7 @@ export function LeadCard({ lead, onEdit, onDelete, onStatusChange, onViewDetails
                         </DropdownMenuSubContent>
                     </DropdownMenuPortal>
                     </DropdownMenuSub>
-                    {role !== 'agent' && (
+                    {role === 'admin' && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={(e) => handleDropdownAction(e, onDelete)} className="text-destructive">

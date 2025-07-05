@@ -116,12 +116,16 @@ export default function TransactionsPage() {
                           PKR {transaction.amount.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(transaction)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTransaction(transaction.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {userProfile?.role !== 'agent' && (
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(transaction)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {userProfile?.role === 'admin' && (
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTransaction(transaction.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

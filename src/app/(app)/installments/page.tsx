@@ -33,7 +33,7 @@ export default function InstallmentsPage() {
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<InstallmentItem | null>(null);
 
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const fetchAllData = useCallback(async () => {
@@ -131,25 +131,27 @@ export default function InstallmentsPage() {
                          <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(item)}>
                            <Eye className="h-4 w-4 mr-2" /> View / Manage
                          </Button>
-                         <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>End Installment Plan?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove the installment plan from "{item.propertyName} {item.plotNumber ? `(Plot #${item.plotNumber})` : ''}". This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleEndInstallmentPlan(item)} className="bg-destructive hover:bg-destructive/90">
-                                Yes, End Plan
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                         {userProfile?.role === 'admin' && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>End Installment Plan?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will remove the installment plan from "{item.propertyName} {item.plotNumber ? `(Plot #${item.plotNumber})` : ''}". This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleEndInstallmentPlan(item)} className="bg-destructive hover:bg-destructive/90">
+                                  Yes, End Plan
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                         )}
                       </TableCell>
                     </TableRow>
                   ))
