@@ -11,7 +11,7 @@ import type { Employee } from '@/types';
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -107,7 +107,7 @@ export function EmployeeFormDialog({ isOpen, onOpenChange, onUpdate, initialData
           hireDate: values.hireDate.toISOString(),
         });
         toast({
-          title: "Employee Account Created",
+          title: "Employee Invitation Ready",
           description: `${values.name}'s profile is ready. They can now register with the email ${values.email} to activate their account.`,
         });
       }
@@ -129,9 +129,9 @@ export function EmployeeFormDialog({ isOpen, onOpenChange, onUpdate, initialData
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{initialData ? "Edit Employee" : "Create Employee Account"}</DialogTitle>
+          <DialogTitle>{initialData ? "Edit Employee" : "Create Employee Invitation"}</DialogTitle>
           <DialogDescription>
-            {initialData ? "Update the employee's details below." : "Fill in the details to create an account. The employee will then need to register using this email to set their own password and activate their account."}
+            {initialData ? "Update the employee's details below." : "Fill in the details to create an account invitation. The employee will then need to register using this email to set their own password and activate their account."}
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[70vh] overflow-y-auto p-1">
@@ -139,12 +139,34 @@ export function EmployeeFormDialog({ isOpen, onOpenChange, onUpdate, initialData
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="e.g., Jane Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="position" render={({ field }) => (<FormItem><FormLabel>Position</FormLabel><FormControl><Input placeholder="e.g., Sales Manager" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Employee's Login Email</FormLabel><FormControl><Input type="email" placeholder="name@example.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField 
+                control={form.control} 
+                name="email" 
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Employee's Login Email</FormLabel>
+                        <FormControl>
+                            <Input 
+                                type="email" 
+                                placeholder="name@example.com" 
+                                {...field} 
+                                disabled={initialData?.status === 'active'}
+                            />
+                        </FormControl>
+                        {initialData?.status === 'active' && (
+                            <FormDescription>
+                                The email cannot be changed for an active employee.
+                            </FormDescription>
+                        )}
+                        <FormMessage />
+                    </FormItem>
+                )} 
+              />
               <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone (Optional)</FormLabel><FormControl><Input placeholder="e.g., +92 300 1234567" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="department" render={({ field }) => (<FormItem><FormLabel>Department (Optional)</FormLabel><FormControl><Input placeholder="e.g., Sales, HR" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="hireDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Hire Date</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}>{field.value ? (format(field.value, "PPP")) : (<span>Pick a date</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="role" render={({ field }) => (<FormItem><FormLabel>Assign Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl><SelectContent><SelectItem value="agent">Agent (Salesman)</SelectItem><SelectItem value="manager">Manager</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="role" render={({ field }) => (<FormItem><FormLabel>Assign Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl><SelectContent><SelectItem value="agent">Agent (Salesperson)</SelectItem><SelectItem value="manager">Manager</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
               </div>
               <DialogFooter>
                 <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>

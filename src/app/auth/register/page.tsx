@@ -132,10 +132,12 @@ export default function RegisterPage() {
 
       if (additionalInfo?.isNewUser) {
         await createUserProfile(user, user.displayName);
-        toast({
-          title: "Account Created",
-          description: `Welcome, ${user.displayName}!`,
-        });
+        if (!additionalInfo.profile?.adminId) {
+            toast({
+                title: "Account Created",
+                description: `Welcome, ${user.displayName}!`,
+            });
+        }
       }
       // Redirect is handled by AuthProvider
     } catch (error: any) {
