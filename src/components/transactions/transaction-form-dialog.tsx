@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { addTransaction, updateTransaction } from "@/lib/mock-db"; 
 import { useAuth } from "@/context/auth-context";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
 
 const transactionFormSchema = z.object({
   type: z.enum(["income", "expense"], { required_error: "Transaction type is required."}),
