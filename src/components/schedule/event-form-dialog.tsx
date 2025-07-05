@@ -120,8 +120,8 @@ export function EventFormDialog({ isOpen, onOpenChange, onUpdate, initialEvent, 
             type: values.type,
             allDay: values.allDay,
             start: values.start.toISOString(),
-            end: values.end?.toISOString(),
-            details: values.details,
+            ...(values.end && { end: values.end.toISOString() }),
+            ...(values.details && { details: values.details }),
         };
 
         if (initialEvent) {
