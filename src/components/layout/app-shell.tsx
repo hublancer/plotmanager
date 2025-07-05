@@ -173,7 +173,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     calendarEvents.forEach(e => {
         const startDate = parseISO(e.start);
         if (isToday(startDate) || isWithinInterval(startDate, { start: today, end: notificationEndDate })) {
-             const description = e.allDay ? 'All day event' : `Starts at ${format(startDate, 'p')}`;
+             const description = e.allDay 
+                ? `On ${format(startDate, 'PPP')}` 
+                : `At ${format(startDate, 'p')} on ${format(startDate, 'PPP')}`;
              upcomingCalendar.push({
                 id: `event-${e.id}`,
                 icon: <Calendar className="h-4 w-4 text-purple-500" />,

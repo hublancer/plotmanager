@@ -12,14 +12,14 @@ import type { EventInput, EventClickArg, DateSelectArg, EventDropArg } from '@fu
 import './calendar.css';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { getCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, getDerivedRentals, getDerivedInstallmentItems } from '@/lib/mock-db';
+import { getCalendarEvents, updateCalendarEvent } from '@/lib/mock-db';
 import type { CalendarEvent } from '@/types';
 import { EventFormDialog } from '@/components/schedule/event-form-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
 export default function SchedulePage() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const { toast } = useToast();
     const [events, setEvents] = useState<EventInput[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -29,14 +29,17 @@ export default function SchedulePage() {
     const [viewingEvent, setViewingEvent] = useState<EventInput | null>(null);
 
     const fetchData = useCallback(async () => {
-        if (!user) return;
+        if (!user || !userProfile) return;
         setIsLoading(true);
 
-        const [userEvents, rentals, installments] = await Promise.all([
-            getCalendarEvents(user.uid),
-            getDerivedRentals(user.uid),
-            getDerivedInstallmentItems(user.uid),
-        ]);
+        const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
+        if (!ownerId) {
+            setIsLoading(false);
+            toast({ title: "Error", description: "Could not determine the agency account.", variant: "destructive"});
+            return;
+        }
+
+        const userEvents = await getCalendarEvents(ownerId);
 
         const formattedUserEvents: EventInput[] = userEvents.map(e => ({
             id: e.id,
@@ -48,33 +51,9 @@ export default function SchedulePage() {
             extendedProps: { ...e, isCustom: true },
         }));
 
-        const rentalEvents: EventInput[] = rentals
-            .filter(r => r.nextDueDate)
-            .map(r => ({
-                id: `rental-${r.id}`,
-                title: `Rent Due: ${r.tenantName}`,
-                start: r.nextDueDate,
-                allDay: true,
-                className: 'event-rental-due',
-                extendedProps: { type: 'rental-due', ...r },
-                editable: false,
-            }));
-
-        const installmentEvents: EventInput[] = installments
-            .filter(i => i.nextDueDate && i.status !== 'Fully Paid')
-            .map(i => ({
-                id: `installment-${i.id}`,
-                title: `Installment Due: ${i.buyerName}`,
-                start: i.nextDueDate,
-                allDay: true,
-                className: 'event-installment-due',
-                extendedProps: { type: 'installment-due', ...i },
-                editable: false,
-            }));
-
-        setEvents([...formattedUserEvents, ...rentalEvents, ...installmentEvents]);
+        setEvents(formattedUserEvents);
         setIsLoading(false);
-    }, [user]);
+    }, [user, userProfile, toast]);
 
     useEffect(() => {
         fetchData();
