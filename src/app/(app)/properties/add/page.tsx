@@ -1,7 +1,7 @@
 
 "use client";
 
-import { PropertyForm } from "@/components/properties/property-form";
+import { PropertyForm, type PropertyFormValues } from "@/components/properties/property-form";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,7 +15,7 @@ export default function AddPropertyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const handleSubmit = async (data: any) => { // data includes PropertyFormValues & imageUrls & conditional fields
+  const handleSubmit = async (data: PropertyFormValues & { imageUrls?: string[] }) => {
     if (!user) {
         toast({ title: "Authentication Error", description: "You must be logged in to add a property.", variant: "destructive" });
         setIsSubmitting(false);
@@ -23,7 +23,7 @@ export default function AddPropertyPage() {
     }
     setIsSubmitting(true);
     
-    const newPropertyData: Omit<Property, 'id'> = {
+    const newPropertyData: Omit<Property, 'id' | 'createdAt'> = {
         userId: user.uid,
         name: data.name,
         address: data.address,
@@ -34,23 +34,8 @@ export default function AddPropertyPage() {
         plots: [],
         isRented: false,
         isSoldOnInstallment: false,
+        isSold: false
     };
-
-    if (data.status === 'rented' && data.rentStartDate) {
-        newPropertyData.isRented = true;
-        newPropertyData.tenantName = data.tenantName;
-        newPropertyData.rentAmount = data.rentAmount;
-        newPropertyData.rentFrequency = data.rentFrequency;
-        newPropertyData.rentStartDate = data.rentStartDate.toISOString();
-    } else if (data.status === 'installment' && data.purchaseDate) {
-        newPropertyData.isSoldOnInstallment = true;
-        newPropertyData.buyerName = data.buyerName;
-        newPropertyData.totalInstallmentPrice = data.totalInstallmentPrice;
-        newPropertyData.downPayment = data.downPayment;
-        newPropertyData.purchaseDate = data.purchaseDate.toISOString();
-        newPropertyData.installmentFrequency = data.installmentFrequency;
-        newPropertyData.installmentDuration = data.installmentDuration;
-    }
 
     await addProperty(newPropertyData); 
     

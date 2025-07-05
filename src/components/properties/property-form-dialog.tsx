@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { addProperty, updateProperty } from "@/lib/mock-db";
 import type { Property } from "@/types";
 import { useAuth } from "@/context/auth-context";
-import { PropertyForm } from "@/components/properties/property-form";
+import { PropertyForm, type PropertyFormValues } from "@/components/properties/property-form";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ export function PropertyFormDialog({ isOpen, onOpenChange, onUpdate, initialData
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: PropertyFormValues & { imageUrls?: string[] }) => {
     if (!user) {
         toast({ title: "Authentication Error", description: "You must be logged in to manage properties.", variant: "destructive" });
         setIsSubmitting(false);

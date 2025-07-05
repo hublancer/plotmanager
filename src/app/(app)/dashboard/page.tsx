@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const userRole = userProfile?.role || 'agent';
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !userProfile) return;
     const fetchData = async () => {
       setIsLoading(true);
       const ownerId = userProfile?.role === 'admin' ? user.uid : userProfile?.adminId;
@@ -38,11 +38,18 @@ export default function DashboardPage() {
         setIsLoading(false);
         return;
       }
+      
+      const propsPromise = getProperties(ownerId);
+      // Agents don't need to see financial data, so we don't fetch it for them.
+      const transPromise = userProfile.role !== 'agent' ? getTransactions(ownerId) : Promise.resolve([]);
+      const recentTransPromise = userProfile.role !== 'agent' ? getRecentTransactions(ownerId, 5) : Promise.resolve([]);
+
       const [props, trans, recentTrans] = await Promise.all([
-        getProperties(ownerId),
-        getTransactions(ownerId),
-        getRecentTransactions(ownerId, 5)
+        propsPromise,
+        transPromise,
+        recentTransPromise,
       ]);
+
       setProperties(props);
       setTransactions(trans);
       setRecentTransactions(recentTrans);

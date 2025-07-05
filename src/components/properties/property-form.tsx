@@ -27,7 +27,7 @@ const propertyTypes = [
   "Other",
 ];
 
-const propertyFormSchema = z.object({
+export const propertyFormSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   propertyType: z.string().min(1, "Property type is required"),
@@ -37,7 +37,7 @@ const propertyFormSchema = z.object({
 });
 
 
-type PropertyFormValues = z.infer<typeof propertyFormSchema>;
+export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
 interface PropertyFormProps {
   initialData?: Property | null;

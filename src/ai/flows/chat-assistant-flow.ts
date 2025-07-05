@@ -113,7 +113,7 @@ const addPropertyTool = ai.defineTool(
     outputSchema: AddPropertyOutputSchema,
   },
   async (input) => {
-    const newPropertyData: Omit<Property, 'id' | 'plots' | 'imageType' | 'createdAt'> = {
+    const newPropertyData: Omit<Property, 'id' | 'createdAt'> = {
         userId: input.userId,
         name: input.name,
         address: input.address,

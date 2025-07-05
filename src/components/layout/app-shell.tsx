@@ -70,10 +70,9 @@ const navItems: NavItem[] = [
   { href: "/rentals", icon: <Home />, label: "Rentals", tooltip: "Rental Management", roles: ['admin', 'manager'] },
   { href: "/payments", icon: <CreditCard />, label: "Transactions", tooltip: "Financial Transactions", roles: ['admin', 'manager'] },
   { href: "/installments", icon: <CalendarClock />, label: "Installments", tooltip: "Installments", roles: ['admin', 'manager'] },
-  { href: "/schedule", icon: <Calendar />, label: "Schedule", tooltip: "Company Schedule", roles: ['admin', 'manager'] },
+  { href: "/schedule", icon: <Calendar />, label: "Schedule", tooltip: "Company Schedule", roles: ['admin', 'manager', 'agent'] },
   { href: "/pipeline", icon: <Filter />, label: "Lead Survey", tooltip: "Lead Survey", roles: ['admin', 'manager', 'agent'] },
   { href: "/employees", icon: <Briefcase />, label: "Employees", tooltip: "Employees", roles: ['admin', 'manager'] }, 
-  { href: "/reports", icon: <FileText />, label: "Reports", tooltip: "Reports", roles: ['admin', 'manager'] },
   { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant", roles: ['admin', 'manager', 'agent'] },
 ];
 
@@ -123,11 +122,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         return;
     }
 
-    const [calendarEventsPromise, rentalsPromise, installmentsPromise] = [
-        getCalendarEvents(ownerId),
-        userRole !== 'agent' ? getDerivedRentals(ownerId) : Promise.resolve([] as RentalItem[]),
-        userRole !== 'agent' ? getDerivedInstallmentItems(ownerId) : Promise.resolve([] as InstallmentItem[]),
-    ];
+    const calendarEventsPromise = getCalendarEvents(ownerId);
+    // Agents don't need financial notifications, so we don't fetch them.
+    const rentalsPromise = userRole !== 'agent' ? getDerivedRentals(ownerId) : Promise.resolve([] as RentalItem[]);
+    const installmentsPromise = userRole !== 'agent' ? getDerivedInstallmentItems(ownerId) : Promise.resolve([] as InstallmentItem[]);
 
     const [calendarEvents, rentals, installments] = await Promise.all([
         calendarEventsPromise,
@@ -450,6 +448,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           onUpdate={handleDialogUpdate}
           initialEvent={null}
           dateInfo={{ start: new Date(), end: new Date(), allDay: true, startStr:'', endStr:'' }}
+          viewingEvent={null}
         />
       </SidebarInset>
     </SidebarProvider>
