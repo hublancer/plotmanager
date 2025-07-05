@@ -55,7 +55,17 @@ const mapDocToTransaction = (doc: any): Transaction => ({ id: doc.id, ...doc.dat
 const mapDocToLead = (doc: any): Lead => ({ id: doc.id, ...doc.data() } as Lead);
 const mapDocToCalendarEvent = (doc: any): CalendarEvent => ({ id: doc.id, ...doc.data() } as CalendarEvent);
 const mapDocToPlan = (doc: any): Plan => ({ id: doc.id, ...doc.data() } as Plan);
-const mapDocToPayment = (doc: any): Payment => ({ id: doc.id, ...doc.data() } as Payment);
+
+const mapDocToPayment = (doc: any): Payment => {
+  const data = doc.data();
+  if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+    data.createdAt = data.createdAt.toDate().toISOString();
+  }
+  if (data.approvedAt && typeof data.approvedAt.toDate === 'function') {
+    data.approvedAt = data.approvedAt.toDate().toISOString();
+  }
+  return { id: doc.id, ...data } as Payment;
+};
 
 const mapDocToUser = (doc: any): UserProfile => {
   const data = doc.data();

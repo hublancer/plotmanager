@@ -22,6 +22,7 @@ import {
   DollarSign,
   Loader2,
   PlusCircle,
+  Wallet,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -45,10 +46,10 @@ import { useAuth } from "@/context/auth-context";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
-import type { UserProfile, RentalItem, InstallmentItem, CalendarEvent, Property } from "@/types";
+import type { UserProfile, RentalItem, InstallmentItem, CalendarEvent, Property, Payment } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getDerivedRentals, getDerivedInstallmentItems, getCalendarEvents, getAllMockProperties } from "@/lib/mock-db";
+import { getDerivedRentals, getDerivedInstallmentItems, getCalendarEvents, getAllMockProperties, getPayments } from "@/lib/mock-db";
 import { addDays, isWithinInterval, format, parseISO, isToday } from "date-fns";
 import { LiveClock } from "@/components/layout/live-clock";
 import { PropertyFormDialog } from "@/components/properties/property-form-dialog";
@@ -89,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { start, complete } = useContext(LoadingContext);
-  const { user, userProfile, isSuperAdmin } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
   
   const [financialNotifications, setFinancialNotifications] = useState<AppNotification[]>([]);
@@ -111,9 +112,28 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [userProfile]);
   
   const generateNotifications = useCallback(async () => {
-    if (!user || !userProfile || isSuperAdmin) return;
+    if (!user || !userProfile) return;
     
     setIsNotificationsLoading(true);
+
+    // Super Admin gets payment notifications
+    if (userProfile.role === 'super_admin') {
+        const pendingPayments = await getPayments('pending');
+        const paymentNotifications = pendingPayments.map(p => ({
+            id: `payment-${p.id}`,
+            icon: <Wallet className="h-4 w-4 text-orange-500" />,
+            title: `Payment from ${p.userEmail}`,
+            description: `PKR ${p.amount.toLocaleString()} for ${p.planName} plan is pending.`,
+            date: new Date(p.createdAt),
+            href: '/admin/payments',
+        }));
+        setFinancialNotifications(paymentNotifications);
+        setCalendarNotifications([]); // Admins don't need user calendar notifications
+        setIsNotificationsLoading(false);
+        return;
+    }
+
+    // Regular User Notifications
     const ownerId = userProfile.role === 'admin' ? user.uid : userProfile.adminId;
     const userRole = userProfile.role || 'agent';
 
@@ -123,7 +143,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     const calendarEventsPromise = getCalendarEvents(ownerId);
-    // Agents don't need financial notifications, so we don't fetch them.
     const rentalsPromise = userRole !== 'agent' ? getDerivedRentals(ownerId) : Promise.resolve([] as RentalItem[]);
     const installmentsPromise = userRole !== 'agent' ? getDerivedInstallmentItems(ownerId) : Promise.resolve([] as InstallmentItem[]);
 
@@ -193,7 +212,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setFinancialNotifications(upcomingFinancial);
     setCalendarNotifications(upcomingCalendar);
     setIsNotificationsLoading(false);
-  }, [user, userProfile, isSuperAdmin]);
+  }, [user, userProfile]);
 
 
   useEffect(() => {
