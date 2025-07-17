@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: 'PlotPilot',
   description: 'Property Management Simplified',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
