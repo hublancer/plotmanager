@@ -112,7 +112,7 @@ export default function PropertiesPage() {
   }, [properties, searchTerm, filterStatus]);
 
   const PropertyCard = ({ property }: { property: Property }) => (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col shadow-md hover:shadow-lg transition-shadow">
       <CardContent className="p-0">
         <div className="relative">
           <Image 
