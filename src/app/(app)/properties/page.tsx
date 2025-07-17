@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,20 @@ import {
 import { PropertyFormDialog } from "@/components/properties/property-form-dialog";
 
 type FilterStatus = "all" | "available" | "installment" | "rented" | "sold";
+
+const getStatusBadge = (property: Property) => {
+  if (property.isSold) {
+    return <Badge variant="destructive">Sold</Badge>;
+  }
+  if (property.isSoldOnInstallment) {
+    return <Badge variant="secondary">Installment</Badge>;
+  }
+  if (property.isRented) {
+    return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600 text-white">Rented</Badge>;
+  }
+  return <Badge variant="outline" className="border-green-500 text-green-600">Available</Badge>;
+};
+
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -97,18 +111,89 @@ export default function PropertiesPage() {
     });
   }, [properties, searchTerm, filterStatus]);
 
+  const PropertyCard = ({ property }: { property: Property }) => (
+    <Card className="flex flex-col">
+      <CardContent className="p-0">
+        <div className="relative">
+          <Image 
+            src={property.imageUrls?.[0] || "https://placehold.co/300x200.png"} 
+            alt={property.name}
+            width={300}
+            height={200}
+            className="rounded-t-lg object-cover w-full aspect-video"
+            data-ai-hint="property exterior"
+          />
+          <div className="absolute top-2 right-2">
+            {getStatusBadge(property)}
+          </div>
+        </div>
+        <div className="p-4">
+          <h3 className="font-bold text-lg">{property.name}</h3>
+          <p className="text-sm text-muted-foreground">{property.address}</p>
+          <div className="flex justify-between items-center mt-2">
+              <Badge variant="outline" className="flex items-center gap-1">
+                  <Package className="h-3 w-3" />
+                  {property.propertyType || "N/A"}
+              </Badge>
+              <p className="text-sm text-muted-foreground">Plots: {property.plots?.length || 0}</p>
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="p-2 border-t mt-auto">
+        <div className="flex justify-end w-full space-x-1">
+          <Link href={`/properties/${property.id}`} passHref>
+            <Button variant="ghost" size="sm" aria-label="View Property">
+              <Eye className="h-4 w-4 mr-1" /> View
+            </Button>
+          </Link>
+          {userProfile?.role !== 'agent' && (
+            <Button variant="ghost" size="sm" aria-label="Edit Property" onClick={() => handleOpenForm(property)}>
+              <Edit className="h-4 w-4 mr-1" /> Edit
+            </Button>
+          )}
+          {userProfile?.role === 'admin' && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" aria-label="Delete Property" className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete "{property.name}" and all its data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => handleDeleteProperty(property.id)}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Yes, delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      </CardFooter>
+    </Card>
+  );
+
   return (
     <>
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <h2 className="text-2xl font-semibold">Properties</h2>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <div className="relative w-full sm:w-auto">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+            <div className="relative w-full flex-1 sm:flex-initial">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search name, address, type..."
-                className="pl-8 w-full sm:w-[250px] shadow-sm"
+                placeholder="Search properties..."
+                className="pl-8 w-full shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -131,116 +216,113 @@ export default function PropertiesPage() {
           </div>
         </div>
 
-        <Card className="shadow-lg">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Image</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Plots</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center h-48">
-                      <Loader2 className="h-8 w-8 animate-spin inline-block" />
-                      <p className="mt-2">Loading properties...</p>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredProperties.length === 0 ? (
-                  <TableRow>
-                      <TableCell colSpan={7} className="text-center h-48">
-                        <p className="text-muted-foreground">
-                          {properties.length === 0 ? "No properties found. Get started by adding a new property." : "No properties match your current search/filter criteria."}
-                        </p>
-                      </TableCell>
-                    </TableRow>
-                ) : (
-                  filteredProperties.map((property) => (
-                    <TableRow key={property.id}>
-                      <TableCell>
-                        <Image 
-                          src={property.imageUrls?.[0] || "https://placehold.co/100x75.png"} 
-                          alt={property.name}
-                          width={100}
-                          height={75}
-                          className="rounded object-cover aspect-[4/3]"
-                          data-ai-hint="property exterior"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{property.name}</TableCell>
-                      <TableCell>{property.address}</TableCell>
-                      <TableCell>
-                          {property.propertyType ? (
-                              <Badge variant="outline" className="flex items-center gap-1">
-                                  <Package className="h-3 w-3" />
-                                  {property.propertyType}
-                              </Badge>
-                          ) : "N/A"}
-                      </TableCell>
-                      <TableCell>{property.plots?.length || 0}</TableCell>
-                      <TableCell>
-                         {property.isSold ? (
-                           <Badge variant="destructive">Sold</Badge>
-                         ) : property.isSoldOnInstallment ? (
-                          <Badge variant="secondary">Installment</Badge>
-                        ) : property.isRented ? (
-                          <Badge variant="default" className="bg-blue-500 hover:bg-blue-600 text-white">Rented</Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-green-500 text-green-600">Available</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
-                        <Link href={`/properties/${property.id}`} passHref>
-                          <Button variant="ghost" size="icon" aria-label="View Property">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        {userProfile?.role !== 'agent' && (
-                          <Button variant="ghost" size="icon" aria-label="Edit Property" onClick={() => handleOpenForm(property)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {userProfile?.role === 'admin' && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label="Delete Property" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the property "{property.name}" and all of its associated data.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteProperty(property.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Yes, delete property
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Loading properties...</span>
+          </div>
+        ) : filteredProperties.length === 0 ? (
+          <div className="text-center py-10 bg-muted/50 rounded-lg">
+            <p className="text-muted-foreground">
+              {properties.length === 0 ? "No properties found. Get started by adding a new property." : "No properties match your current search/filter criteria."}
+            </p>
+          </div>
+        ) : (
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Card className="shadow-lg">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px]">Image</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Address</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Plots</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredProperties.map((property) => (
+                          <TableRow key={property.id}>
+                            <TableCell>
+                              <Image 
+                                src={property.imageUrls?.[0] || "https://placehold.co/100x75.png"} 
+                                alt={property.name}
+                                width={100}
+                                height={75}
+                                className="rounded object-cover aspect-[4/3]"
+                                data-ai-hint="property exterior"
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{property.name}</TableCell>
+                            <TableCell>{property.address}</TableCell>
+                            <TableCell>
+                                {property.propertyType ? (
+                                    <Badge variant="outline" className="flex items-center gap-1">
+                                        <Package className="h-3 w-3" />
+                                        {property.propertyType}
+                                    </Badge>
+                                ) : "N/A"}
+                            </TableCell>
+                            <TableCell>{property.plots?.length || 0}</TableCell>
+                            <TableCell>{getStatusBadge(property)}</TableCell>
+                            <TableCell className="text-right space-x-1">
+                              <Link href={`/properties/${property.id}`} passHref>
+                                <Button variant="ghost" size="icon" aria-label="View Property">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                              </Link>
+                              {userProfile?.role !== 'agent' && (
+                                <Button variant="ghost" size="icon" aria-label="Edit Property" onClick={() => handleOpenForm(property)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {userProfile?.role === 'admin' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" aria-label="Delete Property" className="text-destructive hover:text-destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently delete "{property.name}" and all of its associated data.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteProperty(property.id)}
+                                        className="bg-destructive hover:bg-destructive/90"
+                                      >
+                                        Yes, delete property
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Mobile Card View */}
+            <div className="grid md:hidden grid-cols-1 sm:grid-cols-2 gap-4">
+              {filteredProperties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <PropertyFormDialog
         isOpen={isDialogOpen}
