@@ -3,7 +3,7 @@
 
 import type { PlotData, Property } from "@/types";
 import Image from "next/image";
-import { useState, useRef, MouseEvent, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, MouseEvent, TouchEvent, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { PlusCircle, Edit2, Trash2, MapPin, Scaling, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCw, Wallet, CalendarClock, Home, CircleDollarSign } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, MapPin, Scaling, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RefreshCw, Wallet, CalendarClock, Home, CircleDollarSign, Move } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { addTransaction, updateProperty } from "@/lib/mock-db";
@@ -68,6 +68,7 @@ export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isPinningMode, setIsPinningMode] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number, height: number } | null>(null);
+  const isPannable = useMemo(() => !isPinningMode && scale > 1, [isPinningMode, scale]);
 
 
   // Reset zoom/pan and image dimensions when image changes
@@ -198,22 +199,14 @@ export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
   };
   const handleReset = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
 
-  const handleMouseDown = (e: MouseEvent) => {
-    if (isPinningMode || scale <= 1) return;
-    e.preventDefault();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || isPinningMode || scale <= 1 || !imageDimensions) return;
-    if (!imageContainerRef.current) return;
-
+  const pan = (clientX: number, clientY: number) => {
+    if (!isDragging || !isPannable || !imageDimensions || !imageContainerRef.current) return;
+    
     const containerRect = imageContainerRef.current.getBoundingClientRect();
-
     const containerRatio = containerRect.width / containerRect.height;
     const imageRatio = imageDimensions.width / imageDimensions.height;
-    let containedWidth: number, containedHeight: number;
+    
+    let containedWidth, containedHeight;
     if (containerRatio > imageRatio) {
         containedHeight = containerRect.height;
         containedWidth = containedHeight * imageRatio;
@@ -227,25 +220,36 @@ export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
     
     const scaledHorizontalPadding = horizontalPadding * scale;
     const scaledVerticalPadding = verticalPadding * scale;
-
-    let newX = e.clientX - dragStart.x;
-    let newY = e.clientY - dragStart.y;
+    
+    let newX = clientX - dragStart.x;
+    let newY = clientY - dragStart.y;
     
     const maxX = horizontalPadding - scaledHorizontalPadding;
     const minX = (horizontalPadding + containedWidth) - (scaledHorizontalPadding + (containedWidth * scale));
-    
     const maxY = verticalPadding - scaledVerticalPadding;
     const minY = (verticalPadding + containedHeight) - (scaledVerticalPadding + (containedHeight * scale));
+    
+    setPosition({ x: Math.max(minX, Math.min(newX, maxX)), y: Math.max(minY, Math.min(newY, maxY)) });
+  }
 
-    const clampedX = Math.max(minX, Math.min(newX, maxX));
-    const clampedY = Math.max(minY, Math.min(newY, maxY));
-
-    setPosition({ x: clampedX, y: clampedY });
+  const handleMouseDown = (e: MouseEvent) => {
+    if (!isPannable) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
+  const handleMouseMove = (e: MouseEvent) => pan(e.clientX, e.clientY);
+  const handleMouseUp = () => setTimeout(() => setIsDragging(false), 50);
 
-  const handleMouseUp = () => {
-    setTimeout(() => setIsDragging(false), 50);
+  const handleTouchStart = (e: TouchEvent) => {
+    if (!isPannable) return;
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
   };
+  const handleTouchMove = (e: TouchEvent) => pan(e.touches[0].clientX, e.touches[0].clientY);
+  const handleTouchEnd = () => setIsDragging(false);
+  
   
   const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? (property.imageUrls?.length ?? 1) - 1 : prev - 1));
   const goToNext = () => setCurrentIndex(prev => (prev === (property.imageUrls?.length ?? 1) - 1 ? 0 : prev + 1));
@@ -283,13 +287,16 @@ export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
         ref={imageContainerRef}
         className={cn(
           "relative w-full aspect-[16/9] border rounded-lg overflow-hidden bg-muted/30 shadow-inner",
-          isPinningMode ? "cursor-crosshair" : (scale > 1 ? "cursor-grab" : "cursor-default"),
-          isDragging && !isPinningMode && "cursor-grabbing"
+          isPannable ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default",
+          isPinningMode && "cursor-crosshair"
         )}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onClick={handleImageClick}
         role="button"
         tabIndex={0}
@@ -366,12 +373,22 @@ export function PlotPinner({ property, onPlotsChange }: PlotPinnerProps) {
             <Button variant="outline" size="icon" onClick={handleZoomIn} disabled={scale >= 5} aria-label="Zoom In"><ZoomIn className="h-5 w-5"/></Button>
             <Button variant="outline" size="icon" onClick={handleZoomOut} disabled={scale <= 1} aria-label="Zoom Out"><ZoomOut className="h-5 w-5"/></Button>
             <Button variant="outline" size="icon" onClick={handleReset} disabled={scale === 1 && position.x === 0 && position.y === 0} aria-label="Reset View"><RefreshCw className="h-5 w-5"/></Button>
+             <Button 
+                variant={!isPinningMode && scale > 1 ? "secondary" : "outline"} 
+                size="icon" 
+                onClick={() => { setIsPinningMode(false); if(scale === 1) setScale(1.5); }} 
+                aria-label={!isPinningMode && scale > 1 ? "Pan mode active" : "Enable Pan mode"}
+                title="Pan/Move Mode"
+                disabled={scale <= 1}
+            >
+                <Move className="h-5 w-5"/>
+            </Button>
             <Button 
                 variant={isPinningMode ? "secondary" : "outline"} 
                 size="icon" 
                 onClick={() => setIsPinningMode(prev => !prev)} 
                 aria-label={isPinningMode ? "Disable Pinning" : "Enable Pinning"}
-                title={isPinningMode ? "Disable Pinning (Pan Mode)" : "Enable Pinning"}
+                title="Pin Mode"
             >
                 <MapPin className="h-5 w-5"/>
             </Button>
