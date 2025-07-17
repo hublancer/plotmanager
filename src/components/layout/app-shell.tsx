@@ -82,7 +82,7 @@ const mobileNavItems = [
     { href: "/dashboard", icon: <Home className="h-5 w-5"/>, label: "Home" },
     { href: "/properties", icon: <Building2 className="h-5 w-5"/>, label: "Properties" },
     { href: "/rentals", icon: <Wallet className="h-5 w-5"/>, label: "Rentals" },
-    { href: "/installments", icon: <CalendarClock className="h-5 w-5"/>, label: "Installments" },
+    { href: "/pipeline", icon: <Filter className="h-5 w-5"/>, label: "Leads" },
 ];
 
 interface AppNotification {
@@ -317,7 +317,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <DropdownMenu>
         <DropdownMenuTrigger asChild>
             {isMobile ? (
-                 <Button variant="default" size="icon" className="relative -top-6 h-14 w-14 rounded-full shadow-lg">
+                 <Button variant="default" size="icon" className="relative -top-8 h-16 w-16 rounded-full shadow-lg">
                     <PlusCircle className="h-8 w-8" />
                     <span className="sr-only">Quick Actions</span>
                 </Button>
@@ -394,6 +394,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenuItem>
                     <UserCircle className="mr-2 h-4 w-4" />
                     <span>Profile</span>
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/plans" passHref>
+                <DropdownMenuItem>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Upgrade Plan</span>
                 </DropdownMenuItem>
               </Link>
               <Link href="/settings" passHref>
