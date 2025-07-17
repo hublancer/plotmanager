@@ -112,9 +112,9 @@ export default function PropertyDetailsPage() {
 
       <Card className="shadow-xl">
         <CardHeader className="flex flex-col sm:flex-row justify-between items-start gap-4">
-          <div>
-            <CardTitle className="text-3xl font-bold">{property.name}</CardTitle>
-            <CardDescription className="text-lg">{property.address}</CardDescription>
+          <div className="flex-1">
+            <CardTitle className="text-2xl md:text-3xl font-bold">{property.name}</CardTitle>
+            <CardDescription className="text-base md:text-lg">{property.address}</CardDescription>
             <div className="mt-2 flex flex-wrap gap-2">
                 {property.propertyType && (
                      <Badge variant="secondary" className="inline-flex items-center gap-1 text-sm">
@@ -142,22 +142,22 @@ export default function PropertyDetailsPage() {
           <div>
             <h3 className="text-xl font-semibold">Property Location</h3>
              {hasLocationInfo ? (
-              <div className="mt-2 flex items-center gap-4 p-4 bg-muted/50 rounded-md border">
-                <MapPin className="h-8 w-8 text-primary flex-shrink-0" />
+              <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-muted/50 rounded-md border">
+                <MapPin className="h-8 w-8 text-primary flex-shrink-0 mt-1 sm:mt-0" />
                 <div className="flex-1">
                   <p className="font-semibold">{hasCoordinates ? "Location Pinned" : "Address Available"}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground break-words">
                     {hasCoordinates ? `Lat: ${property.latitude}, Lng: ${property.longitude}` : property.address}
                   </p>
                 </div>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" size="sm">
                   <a
                     href={hasCoordinates ? `https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.address || '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Open in Maps
+                    <ExternalLink className="mr-0 sm:mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Open in Maps</span>
                   </a>
                 </Button>
               </div>
