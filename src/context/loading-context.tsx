@@ -20,61 +20,50 @@ export const LoadingContext = createContext<LoadingContextType>({
 export function LoadingProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Use a ref to track loading state to keep callbacks stable
-  const isLoadingRef = useRef(isLoading);
-  useEffect(() => {
-    isLoadingRef.current = isLoading;
-  }, [isLoading]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const start = useCallback(() => {
     setIsLoading(true);
     setProgress(1);
 
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
 
-    const work = () => {
-        timerRef.current = setTimeout(() => {
-            setProgress(p => {
-                if (p >= 95) {
-                    if (timerRef.current) clearTimeout(timerRef.current);
-                    return 95;
-                }
-                
-                let amount = 0;
-                if (p < 20) amount = 10;
-                else if (p < 50) amount = 4;
-                else if (p < 80) amount = 2;
-                else amount = 0.5;
-                
-                const newP = p + amount;
-                if (newP < 95 && isLoadingRef.current) {
-                    work();
-                }
-                return newP;
-            });
-        }, 150);
-    }
-    work();
-  }, []); // Stable callback
+    intervalRef.current = setInterval(() => {
+      setProgress(p => {
+        if (p >= 95) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          return 95;
+        }
+        
+        let amount = 0;
+        if (p < 20) amount = 10;
+        else if (p < 50) amount = 4;
+        else if (p < 80) amount = 2;
+        else amount = 0.5;
+        
+        return p + amount;
+      });
+    }, 150);
+  }, []);
 
   const complete = useCallback(() => {
-    if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
     
-    // Only act if we were in a loading state. We check the ref to ensure
-    // we have the most up-to-date value without making this callback unstable.
-    if (isLoadingRef.current) { 
+    // Only complete if we were actually loading
+    if (isLoading) { 
       setProgress(100);
       setTimeout(() => {
-          setProgress(0);
-          setIsLoading(false);
+          // Check if a new loading process has started in the meantime
+          if (!intervalRef.current) {
+            setIsLoading(false);
+            setProgress(0);
+          }
       }, 400);
     }
-  }, []); // Stable callback
+  }, [isLoading]);
 
   const value = useMemo(() => ({ progress, start, complete, isLoading }), [progress, isLoading, start, complete]);
 
