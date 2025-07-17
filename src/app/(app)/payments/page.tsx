@@ -68,6 +68,34 @@ export default function TransactionsPage() {
       fetchData();
   }
 
+  const TransactionCard = ({ transaction }: { transaction: Transaction }) => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-4">
+          <div className={cn("mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0", transaction.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}>
+            {transaction.type === 'income' ? <ArrowDown className="h-5 w-5" /> : <ArrowUp className="h-5 w-5" />}
+          </div>
+          <div className="flex-1">
+            <div className="flex justify-between items-center">
+                <p className="font-bold capitalize">{transaction.category}</p>
+                <p className={cn("font-semibold text-lg", transaction.type === 'income' ? 'text-green-600' : 'text-red-500')}>PKR {transaction.amount.toLocaleString()}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">{transaction.contactName}</p>
+            <p className="text-xs text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+          </div>
+        </div>
+        <div className="flex justify-end items-center mt-2">
+            {userProfile?.role !== 'agent' && (
+              <Button variant="ghost" size="sm" onClick={() => openEditDialog(transaction)}><Edit className="h-4 w-4 mr-1" /> Edit</Button>
+            )}
+            {userProfile?.role === 'admin' && (
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTransaction(transaction.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
+            )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <>
       <div className="space-y-6">
@@ -78,66 +106,54 @@ export default function TransactionsPage() {
           </Button>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12"></TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Property</TableHead>
-                  <TableHead className="text-right">Amount (PKR)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">
-                      <Loader2 className="h-6 w-6 animate-spin inline-block" />
-                      <span className="ml-2">Loading transactions...</span>
-                    </TableCell>
-                  </TableRow>
-                ) : transactions.length > 0 ? (
-                  transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>
-                        <div className={cn("h-6 w-6 rounded-full flex items-center justify-center", transaction.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}>
-                          {transaction.type === 'income' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-                        </div>
-                      </TableCell>
-                      <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{transaction.contactName}</TableCell>
-                      <TableCell className="capitalize">{transaction.category}</TableCell>
-                      <TableCell>{transaction.propertyName || "N/A"}</TableCell>
-                      <TableCell className={cn("text-right font-semibold", transaction.type === 'income' ? 'text-green-600' : 'text-red-500')}>
-                          PKR {transaction.amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
-                        {userProfile?.role !== 'agent' && (
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(transaction)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {userProfile?.role === 'admin' && (
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTransaction(transaction.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">No transactions found.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+        ) : transactions.length === 0 ? (
+          <Card><CardContent className="p-6 text-center text-muted-foreground">No transactions found.</CardContent></Card>
+        ) : (
+          <div>
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Property</TableHead>
+                        <TableHead className="text-right">Amount (PKR)</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions.map((transaction) => (
+                          <TableRow key={transaction.id}>
+                            <TableCell><div className={cn("h-6 w-6 rounded-full flex items-center justify-center", transaction.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600')}>{transaction.type === 'income' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}</div></TableCell>
+                            <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                            <TableCell>{transaction.contactName}</TableCell>
+                            <TableCell className="capitalize">{transaction.category}</TableCell>
+                            <TableCell>{transaction.propertyName || "N/A"}</TableCell>
+                            <TableCell className={cn("text-right font-semibold", transaction.type === 'income' ? 'text-green-600' : 'text-red-500')}>PKR {transaction.amount.toLocaleString()}</TableCell>
+                            <TableCell className="text-right space-x-1">
+                              {userProfile?.role !== 'agent' && (<Button variant="ghost" size="icon" onClick={() => openEditDialog(transaction)}><Edit className="h-4 w-4" /></Button>)}
+                              {userProfile?.role === 'admin' && (<Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTransaction(transaction.id)}><Trash2 className="h-4 w-4" /></Button>)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4">
+              {transactions.map((transaction) => <TransactionCard key={transaction.id} transaction={transaction} />)}
+            </div>
+          </div>
+        )}
       </div>
 
       <TransactionFormDialog 

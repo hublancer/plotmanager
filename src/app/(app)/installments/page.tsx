@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ManageInstallmentDialog } from "@/components/installments/manage-installment-dialog";
-import { Eye, PlusCircle, Loader2, Trash2, Settings, Edit } from "lucide-react";
+import { Eye, PlusCircle, Loader2, Trash2, Settings, Edit, User, Calendar, CircleDollarSign } from "lucide-react";
 
 export default function InstallmentsPage() {
   const [installments, setInstallments] = useState<InstallmentItem[]>([]);
@@ -74,94 +74,116 @@ export default function InstallmentsPage() {
     return (paid / total) * 100;
   };
 
+  const InstallmentCard = ({ item }: { item: InstallmentItem }) => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <Link href={`/properties/${item.propertyId}`} className="font-bold hover:underline">{item.propertyName}</Link>
+            {item.plotNumber && <p className="text-sm text-muted-foreground">Plot #{item.plotNumber}</p>}
+          </div>
+          <Badge variant={item.status === 'Overdue' ? 'destructive' : (item.status === 'Fully Paid' ? 'secondary' : 'outline')}>
+            {item.status}
+          </Badge>
+        </div>
+        <div className="mt-4 space-y-3 text-sm">
+          <div className="flex items-center gap-2"><User className="h-4 w-4 text-muted-foreground" /> <span>Buyer: {item.buyerName || "N/A"}</span></div>
+          <div className="flex items-center gap-2"><CircleDollarSign className="h-4 w-4 text-muted-foreground" /> <span>Total: PKR {item.totalInstallmentPrice?.toLocaleString()}</span></div>
+          <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" /> <span>Next Due: {item.nextDueDate ? new Date(item.nextDueDate).toLocaleDateString() : 'N/A'}</span></div>
+        </div>
+        <div className="mt-4">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>Paid: {item.paidAmount?.toLocaleString()}</span>
+            <span>Remaining: {item.remainingAmount?.toLocaleString()}</span>
+          </div>
+          <Progress value={calculateProgress(item.paidInstallments, item.totalInstallments)} className="h-2" />
+          <p className="text-xs text-right mt-1 text-muted-foreground">{calculateProgress(item.paidInstallments, item.totalInstallments).toFixed(0)}% Complete</p>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(item)}><Eye className="h-4 w-4 mr-2" /> View / Manage</Button>
+          {userProfile?.role === 'admin' && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader><AlertDialogTitle>End Installment Plan?</AlertDialogTitle><AlertDialogDescription>This will remove the installment plan from "{item.propertyName} {item.plotNumber ? `(Plot #${item.plotNumber})` : ''}".</AlertDialogDescription></AlertDialogHeader>
+                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleEndInstallmentPlan(item)} className="bg-destructive hover:bg-destructive/90">Yes, End Plan</AlertDialogAction></AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Installment Tracking</h2>
-          <p className="text-sm text-muted-foreground">Add new installment plans from the property details page.</p>
+          <p className="text-sm text-muted-foreground">Add new plans from the property details page.</p>
         </div>
 
-        <Card className="shadow-lg">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Property / Plot</TableHead>
-                  <TableHead>Buyer</TableHead>
-                  <TableHead>Total Price (PKR)</TableHead>
-                  <TableHead>Paid / Remaining</TableHead>
-                  <TableHead>Installments</TableHead>
-                  <TableHead>Next Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[200px]">Progress</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center h-24"><Loader2 className="h-6 w-6 animate-spin inline-block" /></TableCell></TableRow>
-                ) : installments.length > 0 ? (
-                  installments.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Link href={`/properties/${item.propertyId}`} className="font-medium hover:underline">{item.propertyName}</Link>
-                        <div className="text-xs text-muted-foreground">{item.plotNumber ? `Plot #${item.plotNumber}`: item.address}</div>
-                      </TableCell>
-                       <TableCell>{item.buyerName || "N/A"}</TableCell>
-                      <TableCell>{item.totalInstallmentPrice?.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="text-green-600">{item.paidAmount?.toLocaleString()}</div>
-                        <div className="text-destructive">{item.remainingAmount?.toLocaleString()}</div>
-                      </TableCell>
-                      <TableCell>{item.paidInstallments} / {item.totalInstallments}</TableCell>
-                      <TableCell>{item.nextDueDate ? new Date(item.nextDueDate).toLocaleDateString() : 'N/A'}</TableCell>
-                       <TableCell>
-                        <Badge variant={item.status === 'Overdue' ? 'destructive' : (item.status === 'Fully Paid' ? 'secondary' : 'outline')}>
-                          {item.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                           <Progress value={calculateProgress(item.paidInstallments, item.totalInstallments)} className="h-2" />
-                           <span className="text-xs text-muted-foreground">{calculateProgress(item.paidInstallments, item.totalInstallments).toFixed(0)}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
-                         <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(item)}>
-                           <Eye className="h-4 w-4 mr-2" /> View / Manage
-                         </Button>
-                         {userProfile?.role === 'admin' && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>End Installment Plan?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will remove the installment plan from "{item.propertyName} {item.plotNumber ? `(Plot #${item.plotNumber})` : ''}". This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleEndInstallmentPlan(item)} className="bg-destructive hover:bg-destructive/90">
-                                  Yes, End Plan
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                   <TableRow><TableCell colSpan={9} className="text-center h-24">No properties on installment plans found.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
+        ) : installments.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center text-muted-foreground">No properties on installment plans found.</CardContent>
+          </Card>
+        ) : (
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Card className="shadow-lg">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Property / Plot</TableHead>
+                        <TableHead>Buyer</TableHead>
+                        <TableHead>Total Price (PKR)</TableHead>
+                        <TableHead>Paid / Remaining</TableHead>
+                        <TableHead>Installments</TableHead>
+                        <TableHead>Next Due Date</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[200px]">Progress</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {installments.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell><Link href={`/properties/${item.propertyId}`} className="font-medium hover:underline">{item.propertyName}</Link><div className="text-xs text-muted-foreground">{item.plotNumber ? `Plot #${item.plotNumber}`: item.address}</div></TableCell>
+                            <TableCell>{item.buyerName || "N/A"}</TableCell>
+                            <TableCell>{item.totalInstallmentPrice?.toLocaleString()}</TableCell>
+                            <TableCell><div className="text-green-600">{item.paidAmount?.toLocaleString()}</div><div className="text-destructive">{item.remainingAmount?.toLocaleString()}</div></TableCell>
+                            <TableCell>{item.paidInstallments} / {item.totalInstallments}</TableCell>
+                            <TableCell>{item.nextDueDate ? new Date(item.nextDueDate).toLocaleDateString() : 'N/A'}</TableCell>
+                            <TableCell><Badge variant={item.status === 'Overdue' ? 'destructive' : (item.status === 'Fully Paid' ? 'secondary' : 'outline')}>{item.status}</Badge></TableCell>
+                            <TableCell><div className="flex items-center gap-2"><Progress value={calculateProgress(item.paidInstallments, item.totalInstallments)} className="h-2" /><span className="text-xs text-muted-foreground">{calculateProgress(item.paidInstallments, item.totalInstallments).toFixed(0)}%</span></div></TableCell>
+                            <TableCell className="text-right space-x-1">
+                              <Button variant="outline" size="sm" onClick={() => handleOpenManageDialog(item)}><Eye className="h-4 w-4 mr-2" /> View / Manage</Button>
+                              {userProfile?.role === 'admin' && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" title="End Installment Plan" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                  <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>End Installment Plan?</AlertDialogTitle><AlertDialogDescription>This will remove the installment plan from "{item.propertyName} {item.plotNumber ? `(Plot #${item.plotNumber})` : ''}". This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleEndInstallmentPlan(item)} className="bg-destructive hover:bg-destructive/90">Yes, End Plan</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+             {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {installments.map(item => <InstallmentCard key={item.id} item={item} />)}
+            </div>
+          </div>
+        )}
         <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
           This section tracks properties and plots sold under installment plans. You can view payment progress, remaining balances, and due dates.
           Click 'Manage' to record new installment payments for a plan.

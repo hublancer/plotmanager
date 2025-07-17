@@ -245,23 +245,43 @@ export default function DashboardPage() {
               <CardDescription>Your last 5 recorded financial activities.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {recentTransactions.map(t => (
-                    <TableRow key={t.id}>
-                      <TableCell>
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Description</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {recentTransactions.map(t => (
+                      <TableRow key={t.id}>
+                        <TableCell>
+                          <div className="font-medium capitalize">{t.category}</div>
+                          <div className="text-sm text-muted-foreground">{t.contactName}</div>
+                        </TableCell>
+                        <TableCell>{format(new Date(t.date), "dd MMM, yyyy")}</TableCell>
+                        <TableCell className={cn("text-right font-semibold", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                          {t.type === 'income' ? '+' : '-'} PKR {t.amount.toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
+                {recentTransactions.map(t => (
+                  <Card key={t.id} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
                         <div className="font-medium capitalize">{t.category}</div>
                         <div className="text-sm text-muted-foreground">{t.contactName}</div>
-                      </TableCell>
-                      <TableCell>{format(new Date(t.date), "dd MMM, yyyy")}</TableCell>
-                      <TableCell className={cn("text-right font-semibold", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                        {t.type === 'income' ? '+' : '-'} PKR {t.amount.toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                        <div className="text-xs text-muted-foreground">{format(new Date(t.date), "dd MMM, yyyy")}</div>
+                      </div>
+                      <div className={cn("font-semibold text-lg", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                        {t.type === 'income' ? '+' : '-'}PKR {t.amount.toLocaleString()}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>

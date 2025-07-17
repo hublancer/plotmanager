@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PlusCircle, Edit, Trash2, Loader2, Hourglass, CheckCircle, Eye } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, Hourglass, CheckCircle, Eye, Briefcase, Mail, BarChart2, Star } from "lucide-react";
 import type { Employee } from "@/types";
 import { getEmployees, deleteEmployee, getLeads, getTransactions } from "@/lib/mock-db";
 import {
@@ -85,6 +85,64 @@ export default function EmployeesPage() {
     setIsFormOpen(true);
   };
 
+  const EmployeeCard = ({ employee }: { employee: Employee & { leadsCount?: number, salesCount?: number } }) => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-14 w-14">
+            <AvatarImage src={employee.avatarUrl || "https://placehold.co/100x100.png"} alt={employee.name} data-ai-hint="employee avatar" />
+            <AvatarFallback>{employee.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-bold text-lg">{employee.name}</h3>
+                <p className="text-sm text-muted-foreground">{employee.position}</p>
+              </div>
+              <Badge variant={employee.role === 'manager' ? 'secondary' : 'outline'} className="capitalize">{employee.role}</Badge>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 space-y-2 text-sm">
+          <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> <span>{employee.email}</span></div>
+          <div className="flex items-center gap-2">
+            {employee.status === 'active' ? (
+              <Badge variant="secondary" className="text-green-600 border-green-500"><CheckCircle className="mr-1 h-3 w-3" /> Active</Badge>
+            ) : (
+              <Badge variant="outline"><Hourglass className="mr-1 h-3 w-3" /> Pending</Badge>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-4 text-center">
+            <div className="bg-muted/50 p-2 rounded-md">
+                <p className="text-xs text-muted-foreground">Leads Added</p>
+                <p className="text-lg font-bold">{employee.leadsCount ?? 0}</p>
+            </div>
+            <div className="bg-muted/50 p-2 rounded-md">
+                <p className="text-xs text-muted-foreground">Sales Closed</p>
+                <p className="text-lg font-bold">{employee.salesCount ?? 0}</p>
+            </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+            {userProfile?.role !== 'agent' && (
+                <Button variant="ghost" size="sm" onClick={() => handleOpenForm(employee)}><Edit className="h-4 w-4 mr-1"/> Edit</Button>
+            )}
+            {userProfile?.role === 'admin' && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4 mr-1"/> Delete</Button>
+                </AlertDialogTrigger>
+                 <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the record for {employee.name} and revoke their access.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id)} className="bg-destructive hover:bg-destructive/90">Yes, delete</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -111,95 +169,69 @@ export default function EmployeesPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-lg">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Avatar</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-center">Leads Added</TableHead>
-                    <TableHead className="text-center">Sales Closed</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {employees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage 
-                            src={employee.avatarUrl || "https://placehold.co/100x100.png"} 
-                            alt={employee.name} 
-                            data-ai-hint="employee avatar"
-                          />
-                          <AvatarFallback>{employee.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">{employee.name}</TableCell>
-                      <TableCell>{employee.position}</TableCell>
-                      <TableCell>
-                        <Badge variant={employee.role === 'manager' ? 'secondary' : 'outline'} className="capitalize">
-                          {employee.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{employee.email}</TableCell>
-                      <TableCell>
-                        {employee.status === 'active' ? (
-                          <Badge variant="secondary" className="text-green-600 border-green-500">
-                            <CheckCircle className="mr-1 h-3 w-3" /> Active
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            <Hourglass className="mr-1 h-3 w-3" /> Pending
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center font-medium">{employee.leadsCount ?? 0}</TableCell>
-                      <TableCell className="text-center font-medium">{employee.salesCount ?? 0}</TableCell>
-                      <TableCell className="text-right space-x-1">
-                        {userProfile?.role !== 'agent' && (
-                          <Button variant="ghost" size="icon" aria-label="Edit Employee" onClick={() => handleOpenForm(employee)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {userProfile?.role === 'admin' && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label="Delete Employee" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the record for {employee.name} and revoke their access to your agency.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteEmployee(employee.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Yes, delete employee
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <div>
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Card className="shadow-lg">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Avatar</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-center">Leads</TableHead>
+                        <TableHead className="text-center">Sales</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {employees.map((employee) => (
+                        <TableRow key={employee.id}>
+                          <TableCell>
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={employee.avatarUrl || "https://placehold.co/100x100.png"} alt={employee.name} data-ai-hint="employee avatar" />
+                              <AvatarFallback>{employee.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                          </TableCell>
+                          <TableCell className="font-medium">{employee.name}</TableCell>
+                          <TableCell>{employee.position}</TableCell>
+                          <TableCell><Badge variant={employee.role === 'manager' ? 'secondary' : 'outline'} className="capitalize">{employee.role}</Badge></TableCell>
+                          <TableCell>{employee.email}</TableCell>
+                          <TableCell>
+                            {employee.status === 'active' ? (<Badge variant="secondary" className="text-green-600 border-green-500"><CheckCircle className="mr-1 h-3 w-3" /> Active</Badge>) : (<Badge variant="outline"><Hourglass className="mr-1 h-3 w-3" /> Pending</Badge>)}
+                          </TableCell>
+                          <TableCell className="text-center font-medium">{employee.leadsCount ?? 0}</TableCell>
+                          <TableCell className="text-center font-medium">{employee.salesCount ?? 0}</TableCell>
+                          <TableCell className="text-right space-x-1">
+                            {userProfile?.role !== 'agent' && (
+                              <Button variant="ghost" size="icon" aria-label="Edit Employee" onClick={() => handleOpenForm(employee)}><Edit className="h-4 w-4" /></Button>
+                            )}
+                            {userProfile?.role === 'admin' && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label="Delete Employee" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the record for {employee.name} and revoke their access to your agency.</AlertDialogDescription></AlertDialogHeader>
+                                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEmployee(employee.id)} className="bg-destructive hover:bg-destructive/90">Yes, delete employee</AlertDialogAction></AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {employees.map(employee => <EmployeeCard key={employee.id} employee={employee} />)}
+            </div>
+          </div>
         )}
         <CardDescription className="text-sm text-muted-foreground p-4 border rounded-lg">
           This section allows you to manage your company's employees. An employee becomes 'Active' after they sign up using the email you invited them with. Performance stats for leads and sales are tracked based on the employee who created the record.
