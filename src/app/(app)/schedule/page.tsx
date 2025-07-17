@@ -17,6 +17,7 @@ import type { CalendarEvent } from '@/types';
 import { EventFormDialog } from '@/components/schedule/event-form-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function SchedulePage() {
     const { user, userProfile } = useAuth();
@@ -27,6 +28,7 @@ export default function SchedulePage() {
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [selectedDateInfo, setSelectedDateInfo] = useState<DateSelectArg | null>(null);
     const [viewingEvent, setViewingEvent] = useState<EventInput | null>(null);
+    const isMobile = useIsMobile();
 
     const fetchData = useCallback(async () => {
         if (!user || !userProfile) return;
@@ -104,10 +106,10 @@ export default function SchedulePage() {
     
     const calendarHeight = useMemo(() => {
         if (typeof window !== 'undefined') {
-            return window.innerHeight - 200; // Adjust based on header/footer height
+            return isMobile ? window.innerHeight - 180 : window.innerHeight - 200;
         }
         return 'auto';
-    }, []);
+    }, [isMobile]);
 
     if (isLoading) {
         return (
@@ -124,12 +126,18 @@ export default function SchedulePage() {
                 <CardContent className="p-2 sm:p-4">
                     <FullCalendar
                         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                        headerToolbar={{
-                            left: 'prev,next today',
-                            center: 'title',
-                            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
-                        }}
-                        initialView="dayGridMonth"
+                        headerToolbar={
+                            isMobile ? {
+                                left: 'prev,next',
+                                center: 'title',
+                                right: 'listWeek,dayGridMonth',
+                            } : {
+                                left: 'prev,next today',
+                                center: 'title',
+                                right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+                            }
+                        }
+                        initialView={isMobile ? "listWeek" : "dayGridMonth"}
                         weekends={true}
                         events={events}
                         selectable={true}
