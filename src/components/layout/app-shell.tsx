@@ -23,6 +23,7 @@ import {
   Loader2,
   PlusCircle,
   Wallet,
+  Download,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -93,6 +94,15 @@ interface AppNotification {
   href: string;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -104,6 +114,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [calendarNotifications, setCalendarNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(true);
 
+  // State for PWA install prompt
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
   // State for global dialogs
   const [isPropertyDialogOpen, setIsPropertyDialogOpen] = useState(false);
   const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
@@ -112,6 +125,40 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // State for properties list needed by transaction dialog
   const [properties, setProperties] = useState<Pick<Property, 'id' | 'name'>[]>([]);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      // Check if the app is already in standalone mode
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        return;
+      }
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.error('Service worker registration failed:', err);
+      });
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast({ title: 'Installation Complete!', description: 'PlotPilot has been added to your home screen.' });
+    }
+    setInstallPrompt(null);
+  };
 
   const visibleNavItems = useMemo(() => {
     const userRole = userProfile?.role || 'agent'; // Default to least privileged
@@ -377,6 +424,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-2">
             <LiveClock />
+             {installPrompt && (
+              <Button variant="outline" size="sm" onClick={handleInstallClick}>
+                <Download className="mr-2 h-4 w-4" />
+                Install App
+              </Button>
+            )}
             <div className="hidden md:block">
               <QuickAddDropdown />
             </div>
