@@ -3,14 +3,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DollarSign, Building2, ArrowUpRight, ArrowDownLeft, Wallet } from "lucide-react";
+import { DollarSign, Building2, ArrowDownLeft, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { getProperties, getTransactions, getRecentTransactions } from "@/lib/mock-db";
 import type { Property, Transaction } from "@/types";
 import { Bar, BarChart, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Cell } from "recharts";
-import { format, subMonths, startOfMonth, endOfMonth, getMonth } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -152,6 +151,7 @@ export default function DashboardPage() {
               <Skeleton className="h-80" />
               <Skeleton className="h-80" />
           </div>
+          <Skeleton className="h-[400px]" />
       </div>
     );
   }

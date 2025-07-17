@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PlusCircle, Edit, Trash2, Loader2, Hourglass, CheckCircle, Eye, Briefcase, Mail, BarChart2, Star } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Loader2, Hourglass, CheckCircle, Mail } from "lucide-react";
 import type { Employee } from "@/types";
 import { getEmployees, deleteEmployee, getLeads, getTransactions } from "@/lib/mock-db";
 import {
