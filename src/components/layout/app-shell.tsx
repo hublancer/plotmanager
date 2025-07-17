@@ -77,6 +77,13 @@ const navItems: NavItem[] = [
   { href: "/ai-assistant", icon: <MessageSquareText />, label: "AI Assistant", tooltip: "AI Assistant", roles: ['admin', 'manager', 'agent'] },
 ];
 
+const mobileNavItems = [
+    { href: "/dashboard", icon: <Home className="h-5 w-5"/>, label: "Home" },
+    { href: "/properties", icon: <Building2 className="h-5 w-5"/>, label: "Properties" },
+    { href: "/rentals", icon: <Wallet className="h-5 w-5"/>, label: "Rentals" },
+    { href: "/installments", icon: <CalendarClock className="h-5 w-5"/>, label: "Installments" },
+];
+
 interface AppNotification {
   id: string;
   icon: React.ReactNode;
@@ -258,8 +265,35 @@ export function AppShell({ children }: { children: ReactNode }) {
     await signOut(auth);
     // The AuthProvider will handle the redirect to the login page.
   };
+  
+  const QuickAddDropdown = ({ isMobile = false }) => (
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            {isMobile ? (
+                 <Button variant="default" size="icon" className="relative -top-6 h-14 w-14 rounded-full shadow-lg">
+                    <PlusCircle className="h-8 w-8" />
+                    <span className="sr-only">Quick Actions</span>
+                </Button>
+            ) : (
+                <Button variant="outline" size="icon">
+                  <PlusCircle className="h-5 w-5" />
+                  <span className="sr-only">Quick Actions</span>
+                </Button>
+            )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align={isMobile ? "center" : "end"} side={isMobile ? "top" : "bottom"} className={cn(isMobile && "mb-2")}>
+            <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setIsPropertyDialogOpen(true)}>Add Property</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsTransactionDialogOpen(true)}>Add Transaction</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsLeadDialogOpen(true)}>Add Lead</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsEventDialogOpen(true)}>Add Event</DropdownMenuItem>
+        </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
+    <>
     <SidebarProvider defaultOpen={true} >
       <Sidebar collapsible="icon" side="left" variant="sidebar">
         <SidebarHeader className="flex items-center justify-between p-3">
@@ -331,7 +365,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 md:px-6">
           <div className="flex items-center gap-4">
             <div className="md:hidden">
               <SidebarTrigger />
@@ -343,22 +377,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-2">
             <LiveClock />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <PlusCircle className="h-5 w-5" />
-                  <span className="sr-only">Quick Actions</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setIsPropertyDialogOpen(true)}>Add Property</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setIsTransactionDialogOpen(true)}>Add Transaction</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setIsLeadDialogOpen(true)}>Add Lead</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setIsEventDialogOpen(true)}>Add Event</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="hidden md:block">
+              <QuickAddDropdown />
+            </div>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -439,38 +460,60 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="flex-1 p-4 pb-20 md:pb-4 md:p-6">
           {children}
         </main>
-
-        <PropertyFormDialog
-          isOpen={isPropertyDialogOpen}
-          onOpenChange={setIsPropertyDialogOpen}
-          onUpdate={handleDialogUpdate}
-          initialData={null}
-        />
-        <LeadFormDialog
-          isOpen={isLeadDialogOpen}
-          onOpenChange={setIsLeadDialogOpen}
-          onUpdate={handleDialogUpdate}
-          initialData={null}
-        />
-        <TransactionFormDialog
-          isOpen={isTransactionDialogOpen}
-          onOpenChange={setIsTransactionDialogOpen}
-          onUpdate={handleDialogUpdate}
-          initialData={null}
-          properties={properties}
-        />
-        <EventFormDialog
-          isOpen={isEventDialogOpen}
-          onOpenChange={setIsEventDialogOpen}
-          onUpdate={handleDialogUpdate}
-          initialEvent={null}
-          dateInfo={{ start: new Date(), end: new Date(), allDay: true, startStr:'', endStr:'' }}
-          viewingEvent={null}
-        />
       </SidebarInset>
     </SidebarProvider>
+
+    {/* Mobile Bottom Navigation */}
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 h-16 bg-background/95 backdrop-blur-sm border-t">
+        <nav className="flex items-center justify-around h-full">
+            {mobileNavItems.slice(0, 2).map(item => (
+                <Link key={item.href} href={item.href} className={cn("flex flex-col items-center justify-center gap-1 w-full h-full", pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground")}>
+                    {item.icon}
+                    <span className="text-xs">{item.label}</span>
+                </Link>
+            ))}
+            <div className="w-full flex justify-center">
+                 <QuickAddDropdown isMobile={true} />
+            </div>
+            {mobileNavItems.slice(2).map(item => (
+                <Link key={item.href} href={item.href} className={cn("flex flex-col items-center justify-center gap-1 w-full h-full", pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground")}>
+                    {item.icon}
+                    <span className="text-xs">{item.label}</span>
+                </Link>
+            ))}
+        </nav>
+    </div>
+
+    <PropertyFormDialog
+      isOpen={isPropertyDialogOpen}
+      onOpenChange={setIsPropertyDialogOpen}
+      onUpdate={handleDialogUpdate}
+      initialData={null}
+    />
+    <LeadFormDialog
+      isOpen={isLeadDialogOpen}
+      onOpenChange={setIsLeadDialogOpen}
+      onUpdate={handleDialogUpdate}
+      initialData={null}
+    />
+    <TransactionFormDialog
+      isOpen={isTransactionDialogOpen}
+      onOpenChange={setIsTransactionDialogOpen}
+      onUpdate={handleDialogUpdate}
+      initialData={null}
+      properties={properties}
+    />
+    <EventFormDialog
+      isOpen={isEventDialogOpen}
+      onOpenChange={setIsEventDialogOpen}
+      onUpdate={handleDialogUpdate}
+      initialEvent={null}
+      dateInfo={{ start: new Date(), end: new Date(), allDay: true, startStr:'', endStr:'' }}
+      viewingEvent={null}
+    />
+  </>
   );
 }
